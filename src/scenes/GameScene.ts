@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { VIEW } from '../ui/view';
 import { frameName } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { SpatialGrid } from '../core/grid';
@@ -7,7 +8,7 @@ import {
   type Modifier, type Stats,
 } from '../core/stats';
 import { getCharacter, type CharacterDef } from '../data/characters';
-import { ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies';
+import { DEATH_TINT, ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies';
 import { metaModifiers } from '../data/meta';
 import { ELEMENT_COLORS, type Element } from '../data/weapons';
 import {
@@ -20,7 +21,25 @@ import {
   applyOption, loadoutModifiers, optionKey, rollOptions, type Loadout, type UpgradeOption,
 } from '../systems/upgrades';
 import { WeaponSystem } from '../systems/weapons';
-import { FONT } from '../ui/theme';
+import { FONT, px } from '../ui/theme';
+
+/**
+ * Camadas de desenho. Personagens usam a coordenada Y como profundidade (quem está mais
+ * abaixo na tela fica na frente), então as camadas do chão precisam ficar bem abaixo de
+ * qualquer Y possível e as de efeitos/interface bem acima.
+ */
+/** Aproximação extra da câmera do jogo: personagens maiores na tela do celular. */
+export const WORLD_ZOOM = 1.2;
+
+export const LAYER = {
+  ground: -3e9,
+  groundDecor: -2e9,
+  groundFx: -1.5e9,
+  pickups: -1e9,
+  fx: 1e9,
+  text: 1.5e9,
+  overlay: 2e9,
+};
 
 export interface RunResult {
   victory: boolean;
@@ -40,9 +59,9 @@ export interface LevelUpData {
 
 export class GameScene extends Phaser.Scene {
   player!: Phaser.GameObjects.Sprite;
-  private shadow!: Phaser.GameObjects.Image;
   private hpBar!: Phaser.GameObjects.Graphics;
   private ground!: Phaser.GameObjects.TileSprite;
+  private vignette!: Phaser.GameObjects.Image;
   private keys!: Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
 
   enemies!: Pool<Enemy>;
@@ -50,6 +69,9 @@ export class GameScene extends Phaser.Scene {
   private pickups!: Pool<Pickup>;
   private grid = new SpatialGrid<Enemy>(32);
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private flames!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private motes!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dmgTexts: Phaser.GameObjects.Text[] = [];
   private weapons!: WeaponSystem;
 
@@ -89,9 +111,19 @@ export class GameScene extends Phaser.Scene {
   private active: Enemy[] = [];
   private frame = 0;
   private decor = new Map<string, Phaser.GameObjects.Image[]>();
+  private tallDecor: Phaser.GameObjects.Image[] = [];
 
   constructor() {
     super('Game');
+  }
+
+  /** Área visível do mundo (unidades do jogo). */
+  get viewW() {
+    return VIEW.width / WORLD_ZOOM;
+  }
+
+  get viewH() {
+    return VIEW.height / WORLD_ZOOM;
   }
 
   create() {
@@ -130,12 +162,14 @@ export class GameScene extends Phaser.Scene {
     this.active = [];
     this.decor.clear();
 
-    const { width, height } = this.scale;
-    this.ground = this.add.tileSprite(0, 0, width, height, 'ground').setOrigin(0).setScrollFactor(0).setDepth(-10);
-    this.shadow = this.add.image(0, 0, 'atlas', frameName('shadow')).setDepth(-2);
-    this.player = this.add.sprite(0, 0, this.char.texture, 0);
+    const width = this.viewW;
+    const height = this.viewH;
+    // chão e vinheta acompanham a câmera (com margem para não aparecer borda)
+    this.ground = this.add.tileSprite(0, 0, width + 128, height + 128, 'ground').setOrigin(0).setDepth(LAYER.ground);
+    this.player = this.add.sprite(0, 0, this.char.texture, 0).setOrigin(0.5, 0.68);
     this.player.play(`${this.char.texture}_walk`);
-    this.hpBar = this.add.graphics().setDepth(100003);
+    this.vignette = this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width + 40, height + 40).setDepth(LAYER.overlay);
+    this.hpBar = this.add.graphics().setDepth(LAYER.fx + 4);
 
     this.enemies = new Pool(this, (s) => new Enemy(s), MAX_ENEMIES + 1500);
     this.projectiles = new Pool(this, (s) => new Projectile(s), 3000);
@@ -143,17 +177,56 @@ export class GameScene extends Phaser.Scene {
 
     this.particles = this.add.particles(0, 0, 'atlas', {
       frame: frameName('px'),
-      speed: { min: 30, max: 90 },
-      lifespan: 350,
-      scale: { start: 1, end: 0 },
+      speed: { min: 40, max: 120 },
+      lifespan: { min: 250, max: 500 },
+      scale: { start: 1.4, end: 0 },
+      gravityY: 120,
       emitting: false,
     });
-    this.particles.setDepth(100004);
+    this.particles.setDepth(LAYER.fx);
+    this.sparks = this.add.particles(0, 0, 'atlas', {
+      frame: frameName('px'),
+      speed: { min: 60, max: 160 },
+      lifespan: 200,
+      scale: { start: 1, end: 0 },
+      blendMode: Phaser.BlendModes.ADD,
+      emitting: false,
+    });
+    this.sparks.setDepth(LAYER.fx + 2);
+    this.flames = this.add.particles(0, 0, 'atlas', {
+      frame: frameName('glow'),
+      speedY: { min: -40, max: -15 },
+      speedX: { min: -6, max: 6 },
+      lifespan: 450,
+      scale: { start: 0.32, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      tint: [0xffe48a, 0xffa22e, 0xe8551a],
+      blendMode: Phaser.BlendModes.ADD,
+      emitting: false,
+    });
+    this.flames.setDepth(LAYER.fx + 1);
+    // vaga-lumes/pólen flutuando no ar (dão vida ao cenário)
+    this.motes = this.add.particles(0, 0, 'atlas', {
+      frame: frameName('glow'),
+      x: { min: -width / 2, max: width / 2 },
+      y: { min: -height / 2, max: height / 2 },
+      lifespan: 5000,
+      speedX: { min: -6, max: 6 },
+      speedY: { min: -10, max: 2 },
+      scale: { min: 0.08, max: 0.16 },
+      alpha: { values: [0, 0.8, 0.8, 0] },
+      tint: [0xfff2a8, 0xd8ffb0],
+      blendMode: Phaser.BlendModes.ADD,
+      frequency: 700,
+    });
+    this.motes.setDepth(LAYER.fx + 3);
 
     this.weapons = new WeaponSystem(this);
     this.weapons.sync(this.loadout.weapons);
 
-    this.cameras.main.startFollow(this.player, true, 1, 1);
+    this.cameras.main.setZoom(VIEW.zoom * WORLD_ZOOM);
+    this.cameras.main.startFollow(this.player, true, 0.18, 0.18);
+    this.cameras.main.setBackgroundColor('#2f6a3a');
     this.cameras.main.setRoundPixels(true);
     this.updateDecor();
     for (let i = 0; i < 6; i++) this.spawnEnemy(ENEMIES.slime);
@@ -212,10 +285,16 @@ export class GameScene extends Phaser.Scene {
     if (this.stats.regen > 0) this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
 
     const cam = this.cameras.main;
-    this.ground.tilePositionX = cam.scrollX;
-    this.ground.tilePositionY = cam.scrollY;
+    const vx = Math.floor(this.player.x - this.viewW / 2);
+    const vy = Math.floor(this.player.y - this.viewH / 2);
+    this.ground.setPosition(vx - 64, vy - 64);
+    this.ground.tilePositionX = vx - 64;
+    this.ground.tilePositionY = vy - 64;
+    this.vignette.setPosition(cam.midPoint.x - this.viewW / 2 - 20, cam.midPoint.y - this.viewH / 2 - 20);
+    this.motes.setPosition(cam.midPoint.x, cam.midPoint.y);
     this.drawPlayerHp();
     if (this.frame % 15 === 0) this.updateDecor();
+    this.fadeTrees();
   }
 
   // ---------- Jogador ----------
@@ -245,7 +324,6 @@ export class GameScene extends Phaser.Scene {
       this.player.anims.pause(this.player.anims.currentAnim?.frames[0]);
     }
     this.player.setDepth(this.player.y);
-    this.shadow.setPosition(this.player.x, this.player.y + 8);
     const blinking = this.elapsed < this.invulnUntil;
     this.player.setAlpha(blinking && Math.floor(this.elapsed * 20) % 2 === 0 ? 0.4 : 1);
   }
@@ -255,10 +333,12 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     const w = 16;
     const x = Math.round(this.player.x - w / 2);
-    const y = Math.round(this.player.y + 11);
-    g.fillStyle(0x1a1c2c, 1).fillRect(x - 1, y - 1, w + 2, 4);
-    g.fillStyle(0x5d275d, 1).fillRect(x, y, w, 2);
-    g.fillStyle(0xb13e53, 1).fillRect(x, y, Math.round(w * Phaser.Math.Clamp(this.hp / this.stats.maxHp, 0, 1)), 2);
+    const y = Math.round(this.player.y + 17);
+    const frac = Phaser.Math.Clamp(this.hp / this.stats.maxHp, 0, 1);
+    g.fillStyle(0x140c1c, 0.85).fillRect(x - 1, y - 1, w + 2, 5);
+    g.fillStyle(0x4a1424, 1).fillRect(x, y, w, 3);
+    g.fillStyle(frac > 0.35 ? 0x4fd06a : 0xe8463a, 1).fillRect(x, y, Math.round(w * frac), 3);
+    g.fillStyle(0xffffff, 0.35).fillRect(x, y, Math.round(w * frac), 1);
   }
 
   private checkContact() {
@@ -268,7 +348,7 @@ export class GameScene extends Phaser.Scene {
     let touched: Enemy | null = null;
     this.grid.query(px, py, 40, (e) => {
       if (!e.active) return;
-      const r = e.radius + 5;
+      const r = e.radius + 8;
       if ((e.x - px) ** 2 + (e.y - py) ** 2 < r * r) {
         touched = e;
         return true;
@@ -361,14 +441,15 @@ export class GameScene extends Phaser.Scene {
     const d = this.difficulty();
     const curse = 1 + this.stats.curse;
     e.spawn(def, x, y, d.hp * (def.id === 'demon' ? 1 : curse), d.damage, elite);
+    e.alpha = 0;
     this.active.push(e);
     return e;
   }
 
   /** Ponto logo fora da borda visível, na direção `angle`. */
   private spawnPoint(angle = Math.random() * Math.PI * 2) {
-    const hw = this.scale.width / 2 + 16;
-    const hh = this.scale.height / 2 + 16;
+    const hw = this.viewW / 2 + 20;
+    const hh = this.viewH / 2 + 20;
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const t = Math.min(Math.abs(hw / (cos || 1e-6)), Math.abs(hh / (sin || 1e-6)));
@@ -378,8 +459,8 @@ export class GameScene extends Phaser.Scene {
   private updateEnemies(dt: number) {
     const px = this.player.x;
     const py = this.player.y;
-    const farX = this.scale.width * 0.75 + 40;
-    const farY = this.scale.height * 0.75 + 40;
+    const farX = this.viewW * 0.75 + 40;
+    const farY = this.viewH * 0.75 + 40;
     const decay = Math.exp(-8 * dt);
     const t = this.elapsed;
     this.grid.clear();
@@ -412,7 +493,9 @@ export class GameScene extends Phaser.Scene {
       e.kbY *= decay;
       e.flipX = dx < 0;
       e.depth = e.y;
-      const f = Math.floor(t * (e.def.id === 'bat' ? 8 : 5) + e.phase) & 1;
+      if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
+      const rate = e.def.id === 'bat' ? 12 : e.def.id === 'wolf' ? 10 : 7;
+      const f = Math.floor(t * rate + e.phase) & 3;
       if (f !== e.frameIdx) {
         e.frameIdx = f;
         e.setFrame(frameName(e.def.texture, f));
@@ -467,7 +550,8 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.stats.lifesteal > 0) this.hp = Math.min(this.stats.maxHp, this.hp + dmg * this.stats.lifesteal * 0.1);
     const color = tier >= 2 ? '#ef7d57' : tier === 1 ? '#ffcd75' : ELEMENT_COLORS[element];
-    this.floatText(e.x, e.y - 8 * e.scaleY, formatNumber(dmg) + (tier >= 2 ? '!!' : tier === 1 ? '!' : ''), color, tier > 0);
+    this.floatText(e.x, e.y - 16 * e.scaleY, formatNumber(dmg) + (tier >= 2 ? '!!' : tier === 1 ? '!' : ''), color, tier > 0);
+    if (this.frame % 2 === 0) this.sparks.explode(tier > 0 ? 4 : 2, e.x, e.y - 4);
     sfx('hit');
     if (e.hp <= 0) this.killEnemy(e, true);
     return dmg;
@@ -475,9 +559,9 @@ export class GameScene extends Phaser.Scene {
 
   private killEnemy(e: Enemy, drops: boolean) {
     const { x, y } = e;
-    const tint = e.def.id === 'slime' ? 0x38b764 : e.def.id === 'bat' ? 0x5d275d : e.def.id === 'skeleton' ? 0xf4f4f4 : 0xb13e53;
-    this.particles.setParticleTint(tint);
-    this.particles.explode(e.boss ? 40 : 5, x, y);
+    this.particles.setParticleTint(DEATH_TINT[e.def.id]);
+    this.particles.explode(e.boss ? 60 : e.elite ? 20 : 6, x, y);
+    if (e.boss || e.elite) this.impact(x, y, 0xffcd75, e.boss ? 3 : 1.6);
     e.kill();
     this.kills++;
     sfx('kill');
@@ -638,7 +722,7 @@ export class GameScene extends Phaser.Scene {
     }
     const p = this.pickups.get();
     if (!p) return;
-    p.setActive(true).setVisible(true).setPosition(x, y).setDepth(-1);
+    p.setActive(true).setVisible(true).setPosition(x, y).setDepth(LAYER.pickups);
     p.kind = kind;
     p.value = value;
     p.magnet = false;
@@ -655,8 +739,10 @@ export class GameScene extends Phaser.Scene {
     const px = this.player.x;
     const py = this.player.y;
     const mag2 = this.stats.magnet * this.stats.magnet;
+    const coinFrame = Math.floor(this.elapsed * 8);
     for (const p of this.pickups.items) {
       if (!p.active) continue;
+      if (p.kind === 'coin') p.setFrame(frameName('coin', (coinFrame + Math.floor(p.x)) & 3));
       const dx = px - p.x;
       const dy = py - p.y;
       const d2 = dx * dx + dy * dy;
@@ -772,6 +858,7 @@ export class GameScene extends Phaser.Scene {
     this.state = 'playing';
     this.scene.resume();
     this.scene.resume('Hud');
+    this.levelUpBurst();
   }
 
   // ---------- Pausa, vitória e fim ----------
@@ -852,12 +939,13 @@ export class GameScene extends Phaser.Scene {
     let t = this.dmgTexts.find((d) => !d.active);
     if (!t) {
       if (this.dmgTexts.length >= 40) return;
-      t = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '8px', color: '#ffffff', stroke: '#1a1c2c', strokeThickness: 2 }).setOrigin(0.5);
+      t = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: '#ffffff', stroke: '#140c1c', strokeThickness: 3 }).setOrigin(0.5);
       this.dmgTexts.push(t);
     }
-    t.setActive(true).setVisible(true).setPosition(Math.round(x), Math.round(y)).setText(str).setColor(color).setAlpha(1).setDepth(100005);
-    t.setScale(big ? 1.5 : 1);
-    t.setData('life', 0.6);
+    t.setActive(true).setVisible(true).setPosition(Math.round(x), Math.round(y)).setText(str).setColor(color).setAlpha(1).setDepth(LAYER.text);
+    t.setData('big', big ? 1.5 : 1);
+    t.setScale((big ? 1.5 : 1) * 1.6);
+    t.setData('life', 0.7);
   }
 
   private updateDamageTexts(dt: number) {
@@ -865,7 +953,10 @@ export class GameScene extends Phaser.Scene {
       if (!t.active) continue;
       const life = (t.getData('life') as number) - dt;
       t.setData('life', life);
-      t.y -= 20 * dt;
+      t.y -= 26 * dt;
+      // "pop": começa grande e assenta no tamanho normal
+      const base = t.getData('big') as number;
+      t.setScale(base * (life > 0.6 ? 1 + (life - 0.6) * 6 : 1));
       if (life < 0.2) t.setAlpha(life / 0.2);
       if (life <= 0) t.setActive(false).setVisible(false);
     }
@@ -891,16 +982,28 @@ export class GameScene extends Phaser.Scene {
           return (seed >>> 0) / 4294967296;
         };
         const imgs: Phaser.GameObjects.Image[] = [];
-        const n = 2 + Math.floor(rnd() * 4);
+        const n = 3 + Math.floor(rnd() * 4);
         for (let i = 0; i < n; i++) {
           const r = rnd();
-          const tex = r < 0.3 ? 'tree' : r < 0.55 ? 'rock' : r < 0.85 ? 'bush' : 'mushroom';
+          const tex = r < 0.07 ? 'tree' : r < 0.1 ? 'tree2' : r < 0.2 ? 'bush' : r < 0.3 ? 'rock' : r < 0.34 ? 'stump' : r < 0.52 ? 'flowers' : r < 0.6 ? 'mushroom' : 'tallgrass';
           const px = x * CHUNK + rnd() * CHUNK;
           const py = y * CHUNK + rnd() * CHUNK;
           if (Math.hypot(px, py) < 60) continue;
           const img = this.add.image(Math.round(px), Math.round(py), 'atlas', frameName(tex)).setOrigin(0.5, 1);
-          img.setDepth(tex === 'tree' ? py : -3);
+          const tall = tex === 'tree' || tex === 'tree2';
+          img.setDepth(tall || tex === 'bush' || tex === 'stump' || tex === 'rock' ? py - 6 : LAYER.groundDecor);
+          if (tall) img.setData('tall', true);
           imgs.push(img);
+        }
+        // trechos de terra quebram a monotonia da grama
+        if (rnd() < 0.35) {
+          const dx = x * CHUNK + rnd() * CHUNK;
+          const dy = y * CHUNK + rnd() * CHUNK;
+          if (Math.hypot(dx, dy) > 80) {
+            const patch = this.add.image(Math.round(dx), Math.round(dy), 'atlas', frameName(rnd() < 0.5 ? 'dirt' : 'dirt2'));
+            patch.setDepth(LAYER.groundDecor - 1).setFlipX(rnd() < 0.5);
+            imgs.push(patch);
+          }
         }
         this.decor.set(key, imgs);
       }
@@ -910,6 +1013,42 @@ export class GameScene extends Phaser.Scene {
       imgs.forEach((i) => i.destroy());
       this.decor.delete(key);
     }
+    this.tallDecor = [...this.decor.values()].flat().filter((i) => i.getData('tall'));
+  }
+
+  /** Árvores ficam translúcidas quando o herói passa por trás delas. */
+  private fadeTrees() {
+    const px = this.player.x;
+    const py = this.player.y;
+    for (const t of this.tallDecor) {
+      const behind = Math.abs(t.x - px) < 22 && py < t.y && py > t.y - 62;
+      const target = behind ? 0.45 : 1;
+      if (t.alpha !== target) t.setAlpha(t.alpha + (target - t.alpha) * 0.3);
+    }
+  }
+
+  // ---------- Efeitos ----------
+
+  /** Chamas subindo (aura de fogo). */
+  emitFlame(x: number, y: number) {
+    this.flames.emitParticleAt(x, y, 1);
+  }
+
+  /** Impacto: clarão circular + faíscas. */
+  impact(x: number, y: number, color: number, size = 1) {
+    const g = this.add.image(x, y, 'atlas', frameName('glow')).setBlendMode(Phaser.BlendModes.ADD).setTint(color).setDepth(LAYER.fx + 5).setScale(0.4 * size);
+    this.tweens.add({ targets: g, scale: 1.6 * size, alpha: 0, duration: 260, ease: 'Quad.Out', onComplete: () => g.destroy() });
+    this.sparks.explode(Math.round(6 * size), x, y);
+  }
+
+  /** Clarão em volta do herói ao subir de nível. */
+  private levelUpBurst() {
+    const p = this.player;
+    for (let i = 0; i < 2; i++) {
+      const ring = this.add.image(p.x, p.y, 'atlas', frameName('aura')).setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0a0).setDepth(LAYER.fx + 6).setScale(0.2);
+      this.tweens.add({ targets: ring, scale: 1.4 + i * 0.6, alpha: 0, duration: 450 + i * 150, ease: 'Quad.Out', onComplete: () => ring.destroy() });
+    }
+    this.sparks.explode(18, p.x, p.y - 8);
   }
 
   // ---------- Depuração e testes ----------

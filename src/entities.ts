@@ -50,6 +50,8 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.radius = def.radius * scale;
     this.setPosition(x, y).setActive(true).setVisible(true).setAlpha(1).setAngle(0);
     this.setFrame(frameName(def.texture, 0)).setScale(scale).setDepth(y);
+    // a posição é o centro do corpo (a sombra fica embutida na base do sprite)
+    this.setOrigin(0.5, def.id === 'bat' ? 0.5 : 0.65);
     if (elite) this.setTint(0xffcd75);
     else this.clearTint();
   }
@@ -90,8 +92,10 @@ export class Projectile extends Phaser.GameObjects.Image {
     this.gravity = kind === 'axe' ? 650 : 0;
     this.spin = kind === 'axe' ? 12 : 0;
     this.hits.clear();
-    this.setPosition(x, y).setActive(true).setVisible(true).setFrame(frameName(texture)).setScale(scale).setDepth(100000);
-    this.radius = Math.max(3, (Math.min(this.width, this.height) / 2) * scale);
+    this.setPosition(x, y).setActive(true).setVisible(true).setFrame(frameName(texture)).setScale(scale).setDepth(1e9);
+    // projéteis mágicos brilham (mistura aditiva)
+    this.setBlendMode(kind === 'bolt' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+    this.radius = Math.max(4, (Math.min(this.width, this.height) / 2) * scale * (kind === 'bolt' ? 0.6 : 1));
     this.setRotation(kind === 'axe' ? 0 : Math.atan2(vy, vx));
   }
 

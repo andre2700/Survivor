@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
+import { VIEW, pointerPos, setupCamera } from '../ui/view';
+import { createAnimations, generateTextures, iconKey } from '../art/textures';
+import { formatNumber } from '../core/format';
 import { CHARACTERS } from '../data/characters';
 import { META_UPGRADES, metaCost } from '../data/meta';
 import { WEAPONS } from '../data/weapons';
-import { formatNumber } from '../core/format';
-import { createAnimations, generateTextures } from '../art/textures';
 import { loadSave, writeSave } from '../systems/save';
 import { setSoundEnabled, sfx, unlockAudio } from '../systems/sfx';
-import { COLORS, FONT, button, panel, text } from '../ui/theme';
+import { FONT, button, goldTitle, panel, text, px } from '../ui/theme';
 import { formatTime } from './HudScene';
 
 export class BootScene extends Phaser.Scene {
@@ -22,21 +23,45 @@ export class BootScene extends Phaser.Scene {
   }
 }
 
-/** Fundo animado compartilhado pelos menus. */
-function menuBackground(scene: Phaser.Scene) {
-  const { width, height } = scene.scale;
-  const ground = scene.add.tileSprite(0, 0, width, height, 'ground').setOrigin(0).setAlpha(0.5);
-  scene.add.rectangle(0, 0, width, height, COLORS.bg, 0.55).setOrigin(0);
+/** Cenário vivo de fundo dos menus: grama rolando, árvores nas bordas, vaga-lumes e vinheta. */
+export function menuBackground(scene: Phaser.Scene, darken = 0.25) {
+  const { width, height } = VIEW;
+  const ground = scene.add.tileSprite(0, 0, width, height, 'ground').setOrigin(0);
+  const decor = scene.add.container(0, 0);
+  const trees: [string, number, number][] = [
+    ['tree', 18, 120], ['tree2', width - 14, 170], ['bush', 30, 300], ['tree', width - 30, height - 120], ['tree2', 10, height - 60],
+    ['rock', width - 60, 330], ['flowers', 70, 250], ['mushroom', width - 80, height - 200], ['tallgrass', 50, height - 220], ['stump', width - 40, 420],
+  ];
+  for (const [key, x, y] of trees) decor.add(scene.add.image(x, y, key).setOrigin(0.5, 1));
+  scene.add.rectangle(0, 0, width, height, 0x0b0a14, darken).setOrigin(0);
+  scene.add.particles(0, 0, 'glow', {
+    x: { min: 0, max: width },
+    y: { min: 0, max: height },
+    lifespan: 5000,
+    speedX: { min: -6, max: 6 },
+    speedY: { min: -12, max: 0 },
+    scale: { min: 0.1, max: 0.2 },
+    alpha: { values: [0, 0.9, 0.9, 0] },
+    tint: [0xfff2a8, 0xd8ffb0],
+    blendMode: Phaser.BlendModes.ADD,
+    frequency: 180,
+  });
+  scene.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width, height);
   scene.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dt: number) => {
-    ground.tilePositionX += dt * 0.01;
-    ground.tilePositionY += dt * 0.006;
+    ground.tilePositionY -= dt * 0.012;
+    decor.y += dt * 0.012;
+    if (decor.y > 160) decor.y -= 160;
   });
 }
 
-function goldLabel(scene: Phaser.Scene, gold: number) {
-  const { width } = scene.scale;
-  scene.add.image(width - 16, 14, 'coin').setScale(1.5);
-  return scene.add.text(width - 26, 14, String(gold), { fontFamily: FONT, fontSize: '8px', color: '#ffcd75' }).setOrigin(1, 0.5);
+/** Contador de ouro no canto superior direito. */
+export function goldPill(scene: Phaser.Scene, gold: number) {
+  const { width } = VIEW;
+  const label = formatNumber(gold);
+  const w = 44 + label.length * 8;
+  panel(scene, width - 10 - w / 2, 20, w, 26, 'ui_panel_dark');
+  scene.add.image(width - w + 2, 20, 'coin');
+  return text(scene, width - 18, 20, label, 13, '#ffd86a', { bold: true }).setOrigin(1, 0.5);
 }
 
 export class MenuScene extends Phaser.Scene {
@@ -47,63 +72,80 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale;
+    setupCamera(this);
+    const { width, height } = VIEW;
     const save = loadSave();
     this.index = Math.max(0, CHARACTERS.findIndex((c) => c.id === save.selected));
     menuBackground(this);
-    goldLabel(this, save.gold);
+    goldPill(this, save.gold);
 
-    const sound = button(this, 22, 14, save.sound ? 'SOM' : 'MUDO', () => {
+    const soundBtn = button(this, 34, 20, save.sound ? 'SOM' : 'MUDO', () => {
       save.sound = !save.sound;
       setSoundEnabled(save.sound);
       writeSave(save);
       this.scene.restart();
-    }, { width: 40, height: 18, color: save.sound ? '#f4f4f4' : '#566c86' });
-    sound.setScale(0.9);
+    }, { width: 56, height: 26, size: 11, color: save.sound ? '#f4f4f4' : '#8a8ca0' });
+    soundBtn.setDepth(10);
 
-    const title = text(this, width / 2, height * 0.13, 'SURVIVOR', 24, '#ffcd75').setStroke('#b13e53', 6);
-    this.tweens.add({ targets: title, y: title.y - 4, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    text(this, width / 2, height * 0.13 + 28, 'Sobreviva às hordas', 8, '#94b0c2');
+    // Logo
+    const logoY = height * 0.11;
+    const logo = goldTitle(this, width / 2, logoY, 'SURVIVOR', 46);
+    this.tweens.add({ targets: logo, y: logoY - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    const tag = text(this, width / 2, logoY + 38, 'Sobreviva às hordas. Monte sua lenda.', 12, '#e8e2d0', { shadow: true });
+    tag.setAlpha(0.9);
 
-    // Seleção de herói
-    const cy = height * 0.4;
-    panel(this, width / 2, cy, width - 40, 170, COLORS.panelDark);
-    const hero = this.add.sprite(width / 2, cy - 38, CHARACTERS[this.index].texture, 0).setScale(4);
-    const shadow = this.add.image(width / 2, cy - 4, 'shadow').setScale(4);
-    shadow.setDepth(-1);
-    const name = text(this, width / 2, cy + 14, '', 8, '#f4f4f4');
-    const desc = this.add.text(width / 2, cy + 30, '', {
-      fontFamily: FONT, fontSize: '8px', color: '#94b0c2', align: 'center', wordWrap: { width: width - 70 }, lineSpacing: 3,
-    }).setOrigin(0.5, 0);
-    const weaponIcon = this.add.image(width / 2 - 40, cy + 68, 'bolt').setScale(1.5);
-    const weaponName = this.add.text(width / 2 - 28, cy + 68, '', { fontFamily: FONT, fontSize: '8px', color: '#ffcd75' }).setOrigin(0, 0.5);
+    // Herói em destaque sobre um pedestal luminoso
+    const cy = height * 0.33;
+    const glow = this.add.image(width / 2, cy + 70, 'aura').setScale(2.4, 1.1).setTint(0xffe9a0).setAlpha(0.6).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: glow, alpha: 0.95, duration: 1200, yoyo: true, repeat: -1 });
+    this.add.ellipse(width / 2, cy + 70, 120, 26, 0x0b0a14, 0.45);
+    const hero = this.add.sprite(width / 2, cy + 74, CHARACTERS[this.index].texture, 0).setOrigin(0.5, 0.97).setScale(5);
+    this.add.particles(width / 2, cy + 60, 'glow', {
+      x: { min: -50, max: 50 },
+      speedY: { min: -40, max: -15 },
+      lifespan: 1600,
+      scale: { start: 0.2, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      tint: 0xffe9a0,
+      blendMode: Phaser.BlendModes.ADD,
+      frequency: 120,
+    });
+
+    // Ficha do herói
+    const cardY = cy + 132;
+    panel(this, width / 2, cardY, width - 36, 92, 'ui_panel');
+    const name = text(this, width / 2, cardY - 30, '', 18, '#ffd86a', { bold: true, strokeThickness: 4 });
+    const desc = text(this, width / 2, cardY - 4, '', 12, '#d8dcef', { wrap: width - 70 });
+    const weaponIcon = this.add.image(width / 2 - 64, cardY + 28, 'bolt');
+    const weaponName = text(this, width / 2 - 52, cardY + 28, '', 12, '#ffe9a0', { bold: true }).setOrigin(0, 0.5);
 
     let action: Phaser.GameObjects.Container | null = null;
     const refresh = () => {
       const c = CHARACTERS[this.index];
       const unlocked = save.unlocked.includes(c.id);
-      hero.setTexture(c.texture, 0).play(`${c.texture}_walk`).setTint(unlocked ? 0xffffff : 0x333c57);
-      name.setText(unlocked ? c.name.toUpperCase() : `${c.name.toUpperCase()} (BLOQUEADO)`);
+      hero.setTexture(c.texture, 0).play(`${c.texture}_walk`).setTint(unlocked ? 0xffffff : 0x2a2c3a);
+      name.setText(unlocked ? c.name : `${c.name} · bloqueado`);
       desc.setText(c.description);
-      weaponIcon.setTexture(WEAPONS[c.weapon].icon);
-      weaponName.setText(WEAPONS[c.weapon].name);
+      weaponIcon.setTexture(iconKey(this, WEAPONS[c.weapon].icon));
+      weaponName.setText(`Arma inicial: ${WEAPONS[c.weapon].name}`);
       if (unlocked) {
         save.selected = c.id;
         writeSave(save);
       }
       action?.destroy();
       if (unlocked) {
-        action = button(this, width / 2, height * 0.68, 'JOGAR', () => this.startGame(), { width: 200, height: 40, size: 16, fill: 0x257179 });
+        action = button(this, width / 2, cardY + 100, 'JOGAR', () => this.startGame(), { width: 220, height: 50, size: 22, variant: 'primary' });
+        this.tweens.add({ targets: action, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
       } else {
         const can = save.gold >= c.cost;
-        action = button(this, width / 2, height * 0.68, `LIBERAR  ${c.cost}`, () => {
+        action = button(this, width / 2, cardY + 100, `LIBERAR · ${formatNumber(c.cost)}`, () => {
           if (save.gold < c.cost) return;
           save.gold -= c.cost;
           save.unlocked.push(c.id);
           writeSave(save);
           sfx('levelup');
           this.scene.restart();
-        }, { width: 200, height: 40, color: can ? '#ffcd75' : '#566c86', disabled: !can });
+        }, { width: 220, height: 50, size: 16, variant: can ? 'primary' : 'normal', disabled: !can, icon: 'coin' });
       }
     };
     const cycle = (d: number) => {
@@ -112,22 +154,40 @@ export class MenuScene extends Phaser.Scene {
       this.index = (this.index + d + CHARACTERS.length) % CHARACTERS.length;
       refresh();
     };
-    button(this, 40, cy - 38, '<', () => cycle(-1), { width: 32, height: 32, size: 16 });
-    button(this, width - 40, cy - 38, '>', () => cycle(1), { width: 32, height: 32, size: 16 });
+    button(this, 40, cy + 30, '<', () => cycle(-1), { width: 40, height: 44, size: 20 });
+    button(this, width - 40, cy + 30, '>', () => cycle(1), { width: 40, height: 44, size: 20 });
     refresh();
 
-    button(this, width / 2, height * 0.68 + 50, 'MELHORIAS', () => {
+    button(this, width / 2, cardY + 156, 'MELHORIAS', () => {
       unlockAudio();
       sfx('select');
       this.scene.start('Shop');
-    }, { width: 200, height: 32 });
+    }, { width: 200, height: 38, size: 14, icon: 'icon_star' });
 
     if (save.bestTime > 0) {
-      text(this, width / 2, height - 30, `Recorde: ${formatTime(save.bestTime)}  |  ${save.bestKills} abates`, 8, '#566c86');
+      const cycleTxt = save.bestCycle ? ` · ciclo ${save.bestCycle}` : '';
+      text(this, width / 2, height - 18, `Recorde: ${formatTime(save.bestTime)} · ${formatNumber(save.bestKills)} abates${cycleTxt}`, 11, '#a8acc4');
     }
-    text(this, width / 2, height - 14, 'Arraste o dedo para mover', 8, '#566c86');
 
+    this.monsterParade(cardY + 210, height - 40);
     this.input.keyboard?.once('keydown-ENTER', () => this.startGame());
+  }
+
+  /** Monstros atravessando a parte de baixo da tela: dá vida à abertura. */
+  private monsterParade(top: number, bottom: number) {
+    const { width } = VIEW;
+    const kinds: [string, number][] = [['slime', 22], ['goblin', 30], ['wolf', 46], ['bat', 40], ['skeleton', 26], ['slime', 20]];
+    kinds.forEach(([key, speed], i) => {
+      const y = top + ((i * 37) % Math.max(1, bottom - top));
+      const dir = i % 2 === 0 ? 1 : -1;
+      const m = this.add.sprite(30 + ((i * 131) % (width - 60)), y, key).play(`${key}_walk`).setFlipX(dir < 0).setDepth(y);
+      m.setScale(key === 'wolf' ? 1.6 : 2);
+      this.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dt: number) => {
+        m.x += (dir * speed * dt) / 1000;
+        if (dir > 0 && m.x > width + 60) m.x = -60;
+        if (dir < 0 && m.x < -60) m.x = width + 60;
+      });
+    });
   }
 
   private startGame() {
@@ -136,7 +196,7 @@ export class MenuScene extends Phaser.Scene {
     if (!save.unlocked.includes(c.id)) return;
     unlockAudio();
     sfx('select');
-    this.cameras.main.fadeOut(200, 26, 28, 44);
+    this.cameras.main.fadeOut(220, 11, 10, 20);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Game'));
   }
 }
@@ -150,16 +210,17 @@ export class ShopScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale;
+    setupCamera(this);
+    const { width, height } = VIEW;
     const save = loadSave();
-    menuBackground(this);
-    goldLabel(this, save.gold);
-    text(this, width / 2, 40, 'MELHORIAS', 16, '#ffcd75').setStroke('#1a1c2c', 4);
-    text(this, width / 2, 58, 'Permanentes, sem limite', 8, '#94b0c2');
+    menuBackground(this, 0.55);
+    goldPill(this, save.gold);
+    goldTitle(this, width / 2, 62, 'MELHORIAS', 30);
+    text(this, width / 2, 88, 'Permanentes para todas as partidas, sem limite', 11, '#c8cce0');
 
-    const top = 72;
-    const bottom = height - 56;
-    const rowH = 48;
+    const top = 104;
+    const bottom = height - 64;
+    const rowH = 58;
     const list = this.add.container(0, top);
     META_UPGRADES.forEach((def, i) => {
       const lvl = save.meta[def.id] ?? 0;
@@ -168,26 +229,25 @@ export class ShopScene extends Phaser.Scene {
       const y = i * rowH + rowH / 2;
       const can = !maxed && save.gold >= cost;
       const row = this.add.container(0, y);
-      row.add(panel(this, width / 2, 0, width - 20, rowH - 4, COLORS.panelDark));
-      const icon = this.add.image(26, 0, def.icon);
-      icon.setScale(Math.floor(20 / Math.max(icon.width, icon.height)) || 1);
-      row.add(icon);
-      row.add(this.add.text(44, -10, def.name, { fontFamily: FONT, fontSize: '8px', color: '#f4f4f4' }).setOrigin(0, 0.5));
-      row.add(this.add.text(44, 2, def.description, { fontFamily: FONT, fontSize: '8px', color: '#94b0c2' }).setOrigin(0, 0.5));
+      row.add(panel(this, width / 2, 0, width - 20, rowH - 6, 'ui_panel'));
+      row.add(panel(this, 36, 0, 36, 36, 'ui_slot'));
+      row.add(this.add.image(36, 0, iconKey(this, def.icon)).setScale(1.5));
+      row.add(this.add.text(62, -13, def.name, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: '#f4f4f4' }).setOrigin(0, 0.5));
+      row.add(this.add.text(62, 3, def.description, { fontFamily: FONT, fontSize: px(11), color: '#b8bdd8' }).setOrigin(0, 0.5));
       const lvlText = def.maxLevel !== undefined ? `Nível ${lvl}/${def.maxLevel}` : `Nível ${lvl}`;
-      row.add(this.add.text(44, 13, lvlText, { fontFamily: FONT, fontSize: '8px', color: lvl > 0 ? '#ffcd75' : '#566c86' }).setOrigin(0, 0.5));
-      row.add(button(this, width - 50, 0, maxed ? 'MÁX' : formatNumber(cost), () => {
+      row.add(this.add.text(62, 17, lvlText, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: lvl > 0 ? '#ffd86a' : '#6a6e88' }).setOrigin(0, 0.5));
+      row.add(button(this, width - 62, 0, maxed ? 'MÁX' : formatNumber(cost), () => {
         if (this.dragged || !can) return;
         save.gold -= cost;
         save.meta[def.id] = lvl + 1;
         writeSave(save);
         sfx('levelup');
         this.scene.restart();
-      }, { width: 64, height: 26, color: maxed ? '#38b764' : can ? '#ffcd75' : '#566c86', disabled: !can && !maxed }));
+      }, { width: 84, height: 34, size: 13, variant: maxed ? 'normal' : 'primary', disabled: !can && !maxed, icon: maxed ? undefined : 'coin', color: maxed ? '#4fd06a' : undefined }));
       list.add(row);
     });
 
-    const maskShape = this.make.graphics({}, false).fillRect(0, top, width, bottom - top);
+    const maskShape = this.make.graphics({}, false).fillRect(0, top - 2, width, bottom - top + 4);
     list.setMask(maskShape.createGeometryMask());
     const contentH = META_UPGRADES.length * rowH;
     const minY = Math.min(0, bottom - top - contentH);
@@ -197,13 +257,13 @@ export class ShopScene extends Phaser.Scene {
     let startY = 0;
     let startScroll = 0;
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      startY = p.y;
+      startY = pointerPos(this, p).y;
       startScroll = this.scrollY;
       this.dragged = false;
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       if (!p.isDown) return;
-      const dy = p.y - startY;
+      const dy = pointerPos(this, p).y - startY;
       if (Math.abs(dy) > 6) this.dragged = true;
       this.scrollY = Phaser.Math.Clamp(startScroll + dy, minY, 0);
       list.y = top + this.scrollY;
@@ -213,10 +273,10 @@ export class ShopScene extends Phaser.Scene {
       list.y = top + this.scrollY;
     });
 
-    button(this, width / 2, height - 28, 'VOLTAR', () => {
+    button(this, width / 2, height - 32, 'VOLTAR', () => {
       sfx('select');
       this.scrollY = 0;
       this.scene.start('Menu');
-    }, { width: 160, height: 30 });
+    }, { width: 180, height: 38, size: 14 });
   }
 }

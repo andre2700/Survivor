@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PALETTE, PALETTE_SWAPS, SPRITES, expandFrame } from '../src/art/sprites';
+import { HERO_H, HERO_LOOKS, heroFrames } from '../src/art/characters';
+import { batFrames, demonFrames, goblinFrames, orcFrames, skeletonFrames, slimeFrames, wolfFrames } from '../src/art/monsters';
+import { PixelBuffer } from '../src/art/pixel';
 import { formatNumber } from '../src/core/format';
 import {
   BASE_STATS, combine, cooldownMult, critMultiplier, damageTaken, defenseReduction, moveSpeed, rollCritTier,
@@ -13,19 +15,35 @@ import { MAX_PHYSICAL_AMOUNT, WEAPONS, WEAPON_IDS, capAmount, weaponStatsAt } fr
 import { migrate } from '../src/systems/save';
 import { applyOption, describeOption, loadoutModifiers, optionKey, rollOptions, rollRarity, type Loadout } from '../src/systems/upgrades';
 
-describe('sprites', () => {
-  it('todas as linhas têm a mesma largura e só usam cores da paleta', () => {
-    for (const [key, def] of Object.entries(SPRITES)) {
-      for (const frame of def.frames) {
-        const rows = expandFrame(frame, def.mirror);
-        for (const r of rows) {
-          expect(r.length, `${key}: "${r}"`).toBe(rows[0].length);
-          for (const ch of r) if (ch !== '.') expect(PALETTE[ch], `${key}: cor '${ch}'`).toBeDefined();
-        }
+describe('arte', () => {
+  const opaque = (b: PixelBuffer) => {
+    let n = 0;
+    for (let i = 3; i < b.data.length; i += 4) if (b.data[i]) n++;
+    return n;
+  };
+  it('heróis têm 4 quadros do mesmo tamanho e com conteúdo', () => {
+    for (const key of Object.keys(HERO_LOOKS)) {
+      const frames = heroFrames(key);
+      expect(frames).toHaveLength(4);
+      for (const f of frames) {
+        expect([f.w, f.h]).toEqual([32, HERO_H]);
+        expect(opaque(f)).toBeGreaterThan(200);
       }
-      expect(new Set(def.frames.map((f) => `${f.length}x${f[0].length}`)).size, key).toBe(1);
     }
-    for (const { base } of Object.values(PALETTE_SWAPS)) expect(SPRITES[base]).toBeDefined();
+  });
+  it('inimigos têm 4 quadros de tamanho constante', () => {
+    for (const make of [slimeFrames, batFrames, skeletonFrames, goblinFrames, wolfFrames, orcFrames, demonFrames]) {
+      const frames = make();
+      expect(frames).toHaveLength(4);
+      expect(new Set(frames.map((f) => `${f.w}x${f.h}`)).size).toBe(1);
+      for (const f of frames) expect(opaque(f)).toBeGreaterThan(50);
+    }
+  });
+  it('contorno só pinta pixels vizinhos do desenho', () => {
+    const b = new PixelBuffer(5, 5);
+    b.set(2, 2, '#ffffff');
+    b.outline();
+    expect(opaque(b)).toBe(5);
   });
 });
 

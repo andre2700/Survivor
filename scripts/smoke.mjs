@@ -40,7 +40,7 @@ await until(() => window.__game.scene.isActive('Hud'));
 
 // joystick: arrasta o dedo em círculos
 const box = await page.locator('canvas').boundingBox();
-const k = box.width / 360;
+const k = box.width / 400;
 const cx = box.x + box.width / 2;
 const cy = box.y + box.height * 0.75;
 await page.mouse.move(cx, cy);
@@ -90,7 +90,7 @@ await run(() => window.__game.scene.getScene('LevelUp').scene.restart());
 await wait(400);
 await shot('06-levelup-tools');
 const H = await run(() => window.__game.scale.height);
-await page.mouse.click(box.x + 180 * k, box.y + 110 * k);
+await page.mouse.click(box.x + 200 * k, box.y + 130 * k);
 await until(() => !window.__game.scene.isActive('LevelUp') || window.__game.scene.getScene('Game').state === 'levelup', 3000);
 await run(() => {
   const g = window.__game.scene.getScene('Game');

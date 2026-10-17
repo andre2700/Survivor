@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
+import { VIEW, pointerPos, setupCamera } from '../ui/view';
+import { iconKey } from '../art/textures';
+import { formatNumber } from '../core/format';
 import { RUN_DURATION } from '../data/waves';
 import { WEAPONS } from '../data/weapons';
-import { formatNumber } from '../core/format';
-import { COLORS, button, text } from '../ui/theme';
+import { COLORS, FONT, button, drawBar, panel, text, px } from '../ui/theme';
 import type { GameScene } from './GameScene';
 
-const JOY_RADIUS = 28;
+const JOY_RADIUS = 34;
 
 export function formatTime(sec: number) {
   const s = Math.floor(sec);
@@ -14,18 +16,18 @@ export function formatTime(sec: number) {
 
 export class HudScene extends Phaser.Scene {
   private game$!: GameScene;
-  private xpBar!: Phaser.GameObjects.Graphics;
-  private bossBar!: Phaser.GameObjects.Graphics;
+  private bars!: Phaser.GameObjects.Graphics;
   private levelText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
   private killText!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
   private bossText!: Phaser.GameObjects.Text;
+  private bossPanel!: Phaser.GameObjects.NineSlice;
   private announceText!: Phaser.GameObjects.Text;
   private icons!: Phaser.GameObjects.Container;
   private iconSig = '';
-  private joyBase!: Phaser.GameObjects.Graphics;
-  private joyKnob!: Phaser.GameObjects.Graphics;
+  private joyBase!: Phaser.GameObjects.Image;
+  private joyKnob!: Phaser.GameObjects.Image;
   private joyPointer: number | null = null;
   private joyOrigin = new Phaser.Math.Vector2();
   private last = { level: -1, time: -1, kills: -1, gold: -1 };
@@ -35,30 +37,35 @@ export class HudScene extends Phaser.Scene {
   }
 
   create() {
+    setupCamera(this);
     this.game$ = this.scene.get('Game') as GameScene;
-    const { width } = this.scale;
+    const { width } = VIEW;
     this.last = { level: -1, time: -1, kills: -1, gold: -1 };
     this.iconSig = '';
 
-    this.xpBar = this.add.graphics();
-    this.levelText = text(this, width - 4, 6, '', 8).setOrigin(1, 0.5);
-    this.timeText = text(this, width / 2, 24, '00:00', 16).setStroke('#1a1c2c', 4);
-    this.add.image(10, 23, 'skeleton', 0).setScale(0.75);
-    this.killText = text(this, 20, 24, '0', 8).setOrigin(0, 0.5).setStroke('#1a1c2c', 3);
-    this.add.image(10, 37, 'coin');
-    this.goldText = text(this, 20, 37, '0', 8, '#ffcd75').setOrigin(0, 0.5).setStroke('#1a1c2c', 3);
-    this.icons = this.add.container(4, 50);
+    // faixa superior: XP + nível
+    panel(this, width / 2, 14, width - 8, 26, 'ui_panel_dark');
+    this.bars = this.add.graphics();
+    this.add.circle(26, 15, 17, 0x0b0a14);
+    this.add.circle(26, 15, 15, 0x3456c0).setStrokeStyle(2, 0xa8c8ff);
+    this.levelText = text(this, 26, 14, '1', 14, '#ffffff', { bold: true, strokeThickness: 3 });
 
-    button(this, width - 18, 26, 'II', () => this.game$.openPause(), { width: 24, height: 20 });
+    // cronômetro, abates e ouro
+    this.timeText = text(this, width / 2, 46, '00:00', 22, '#ffffff', { bold: true, strokeThickness: 5 });
+    this.add.image(18, 44, iconKey(this, 'icon_skull'));
+    this.killText = text(this, 30, 44, '0', 13, '#f4f4f4', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5);
+    this.add.image(18, 64, iconKey(this, 'coin'));
+    this.goldText = text(this, 30, 64, '0', 13, '#ffd86a', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5);
+    this.icons = this.add.container(8, 78);
 
-    this.bossBar = this.add.graphics();
-    this.bossText = text(this, width / 2, 64, '', 8, '#ef7d57').setStroke('#1a1c2c', 3).setVisible(false);
-    this.announceText = text(this, width / 2, 110, '', 8, '#ffcd75').setStroke('#1a1c2c', 3).setAlpha(0);
+    button(this, width - 24, 48, 'II', () => this.game$.openPause(), { width: 34, height: 30, size: 14 });
 
-    this.joyBase = this.add.graphics().setVisible(false);
-    this.joyKnob = this.add.graphics().setVisible(false);
-    this.joyBase.lineStyle(2, 0xf4f4f4, 0.5).strokeCircle(0, 0, JOY_RADIUS).fillStyle(0x1a1c2c, 0.25).fillCircle(0, 0, JOY_RADIUS);
-    this.joyKnob.fillStyle(0xf4f4f4, 0.55).fillCircle(0, 0, 11);
+    this.bossPanel = panel(this, width / 2, 128, width - 40, 34, 'ui_panel_dark').setVisible(false).setDepth(-1);
+    this.bossText = text(this, width / 2, 120, '', 11, '#ff9a7a', { bold: true, strokeThickness: 3 }).setVisible(false);
+    this.announceText = text(this, width / 2, 170, '', 16, '#ffd86a', { bold: true, strokeThickness: 5 }).setAlpha(0);
+
+    this.joyBase = this.add.image(0, 0, 'aura').setTint(0xc8d4ff).setAlpha(0.45).setScale((JOY_RADIUS * 2.4) / 96).setVisible(false);
+    this.joyKnob = this.add.image(0, 0, 'glow').setTint(0xffffff).setScale(1.1).setVisible(false);
 
     this.input.addPointer(2);
     this.input.on('pointerdown', this.onDown, this);
@@ -75,14 +82,16 @@ export class HudScene extends Phaser.Scene {
   private onDown(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) {
     if (over.length > 0 || this.joyPointer !== null) return;
     this.joyPointer = pointer.id;
-    this.joyOrigin.set(pointer.x, pointer.y);
-    this.joyBase.setPosition(pointer.x, pointer.y).setVisible(true);
-    this.joyKnob.setPosition(pointer.x, pointer.y).setVisible(true);
+    const p = pointerPos(this, pointer);
+    this.joyOrigin.set(p.x, p.y);
+    this.joyBase.setPosition(p.x, p.y).setVisible(true);
+    this.joyKnob.setPosition(p.x, p.y).setVisible(true);
   }
 
   private onMove(pointer: Phaser.Input.Pointer) {
     if (pointer.id !== this.joyPointer) return;
-    const v = new Phaser.Math.Vector2(pointer.x - this.joyOrigin.x, pointer.y - this.joyOrigin.y);
+    const p = pointerPos(this, pointer);
+    const v = new Phaser.Math.Vector2(p.x - this.joyOrigin.x, p.y - this.joyOrigin.y);
     const len = v.length();
     if (len > JOY_RADIUS) {
       // a base acompanha o dedo quando ele passa do limite
@@ -115,43 +124,42 @@ export class HudScene extends Phaser.Scene {
   }
 
   private announce(msg: string) {
-    this.announceText.setText(msg).setAlpha(1).setScale(1.3);
+    this.announceText.setText(msg).setAlpha(1).setScale(1.4);
     this.tweens.killTweensOf(this.announceText);
-    this.tweens.add({ targets: this.announceText, scale: 1, duration: 200 });
+    this.tweens.add({ targets: this.announceText, scale: 1, duration: 260, ease: 'Back.Out' });
     this.tweens.add({ targets: this.announceText, alpha: 0, delay: 2200, duration: 500 });
   }
 
   update() {
     const g = this.game$;
-    const { width } = this.scale;
+    const { width } = VIEW;
 
-    this.xpBar.clear();
-    this.xpBar.fillStyle(COLORS.bg, 1).fillRect(0, 0, width, 12);
-    this.xpBar.fillStyle(COLORS.xp, 1).fillRect(1, 1, Math.round((width - 2) * Math.min(1, g.xp / g.xpNext)), 10);
-    this.xpBar.fillStyle(0x73eff7, 1).fillRect(1, 1, Math.round((width - 2) * Math.min(1, g.xp / g.xpNext)), 2);
+    this.bars.clear();
+    drawBar(this.bars, 48, 9, width - 62, 10, g.xp / g.xpNext, COLORS.xp, 0x141a3a);
 
-    if (g.level !== this.last.level) this.levelText.setText(`NV ${(this.last.level = g.level)}`);
+    if (g.level !== this.last.level) {
+      this.last.level = g.level;
+      this.levelText.setText(String(g.level)).setFontSize(g.level >= 100 ? 11 : 14);
+    }
     const sec = Math.floor(g.elapsed);
     if (sec !== this.last.time) {
       this.last.time = sec;
-      const label = g.endless ? `${formatTime(sec)} C${g.cycle}` : formatTime(sec);
-      this.timeText.setText(label).setColor(g.endless ? '#c56cf0' : sec >= RUN_DURATION ? '#ef7d57' : '#f4f4f4');
+      const label = g.endless ? `${formatTime(sec)} · C${g.cycle}` : formatTime(sec);
+      this.timeText.setText(label).setColor(g.endless ? '#d6a6ff' : sec >= RUN_DURATION ? '#ff9a7a' : '#ffffff');
     }
-    if (g.kills !== this.last.kills) this.killText.setText(String((this.last.kills = g.kills)));
+    if (g.kills !== this.last.kills) this.killText.setText(formatNumber((this.last.kills = g.kills)));
     const gold = Math.floor(g.gold);
-    if (gold !== this.last.gold) this.goldText.setText(String((this.last.gold = gold)));
+    if (gold !== this.last.gold) this.goldText.setText(formatNumber((this.last.gold = gold)));
 
     this.updateIcons();
 
-    this.bossBar.clear();
     const boss = g.boss;
-    if (boss && boss.active) {
-      const w = width - 40;
-      this.bossText.setVisible(true).setText('DEMÔNIO ANCESTRAL');
-      this.bossBar.fillStyle(COLORS.bg, 1).fillRect(20, 72, w, 8);
-      this.bossBar.fillStyle(COLORS.hp, 1).fillRect(21, 73, Math.round((w - 2) * Math.max(0, boss.hp / boss.maxHp)), 6);
-    } else {
-      this.bossText.setVisible(false);
+    const showBoss = !!boss && boss.active;
+    this.bossPanel.setVisible(showBoss);
+    this.bossText.setVisible(showBoss);
+    if (showBoss && boss) {
+      this.bossText.setText('DEMÔNIO ANCESTRAL');
+      drawBar(this.bars, 30, 130, width - 60, 8, boss.hp / boss.maxHp, COLORS.hp, COLORS.hpBack);
     }
   }
 
@@ -161,16 +169,16 @@ export class HudScene extends Phaser.Scene {
     if (sig === this.iconSig) return;
     this.iconSig = sig;
     this.icons.removeAll(true);
-    // sem limite de armas: quebra em linhas de 10 ícones
-    weapons.forEach(([id, lvl], i) => this.addIcon(WEAPONS[id].icon, lvl, (i % 10) * 14, Math.floor(i / 10) * 15));
+    // sem limite de armas: quebra em linhas de 8 ícones
+    weapons.forEach(([id, lvl], i) => this.addIcon(iconKey(this, WEAPONS[id].icon), lvl, (i % 8) * 24, Math.floor(i / 8) * 24));
   }
 
   private addIcon(key: string, level: number, x: number, y: number) {
-    const bg = this.add.rectangle(x + 6, y + 6, 13, 13, 0x1a1c2c, 0.6);
-    const img = this.add.image(x + 6, y + 6, key);
-    const max = Math.max(img.width, img.height);
-    img.setScale(max > 10 ? 10 / max : 1);
-    const pip = this.add.text(x + 12, y + 12, formatNumber(level), { fontFamily: '"Press Start 2P"', fontSize: '8px', color: '#ffcd75', stroke: '#1a1c2c', strokeThickness: 2 }).setOrigin(1, 1).setScale(0.75);
-    this.icons.add([bg, img, pip]);
+    const slot = panel(this, x + 11, y + 11, 22, 22, 'ui_slot');
+    const img = this.add.image(x + 11, y + 11, key);
+    const pip = this.add.text(x + 22, y + 23, formatNumber(level), {
+      fontFamily: FONT, fontSize: px(10), fontStyle: 'bold', color: level >= 10 ? '#ffd86a' : '#ffffff', stroke: '#0b0a14', strokeThickness: 3,
+    }).setOrigin(1, 1);
+    this.icons.add([slot, img, pip]);
   }
 }

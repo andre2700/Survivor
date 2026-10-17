@@ -4,7 +4,7 @@ import { areaMult, cooldownMult, damageMult, durationMult, projectileSpeedMult }
 import { applyTagBonuses, countTags } from '../data/tags';
 import { AWAKEN_EVERY, WEAPONS, capAmount, weaponStatsAt, type WeaponDef, type WeaponId, type WeaponStats } from '../data/weapons';
 import type { Enemy, ProjectileKind } from '../entities';
-import type { GameScene } from '../scenes/GameScene';
+import { LAYER, type GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
 
 interface WeaponRuntime {
@@ -116,7 +116,7 @@ export class WeaponSystem {
     for (let i = 0; i < s.amount; i++) {
       const t = targets[i % targets.length];
       const a = Math.atan2(t.y - p.y, t.x - p.x) + (i >= targets.length ? (i - targets.length + 1) * 0.15 : 0);
-      this.shoot(w, 'bolt', 'bolt', p.x, p.y - 4, Math.cos(a) * s.speed, Math.sin(a) * s.speed);
+      this.shoot(w, 'bolt', 'proj_bolt', p.x, p.y - 4, Math.cos(a) * s.speed, Math.sin(a) * s.speed);
     }
     return true;
   }
@@ -128,7 +128,7 @@ export class WeaponSystem {
     for (let i = 0; i < s.amount; i++) {
       this.scene.time.delayedCall(i * 60, () => {
         const off = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 5;
-        this.shoot(w, 'knife', 'knife', p.x - f.y * off, p.y - 3 + f.x * off, f.x * s.speed, f.y * s.speed);
+        this.shoot(w, 'knife', 'proj_knife', p.x - f.y * off, p.y - 3 + f.x * off, f.x * s.speed, f.y * s.speed);
       });
     }
     return true;
@@ -140,7 +140,7 @@ export class WeaponSystem {
     for (let i = 0; i < s.amount; i++) {
       this.scene.time.delayedCall(i * 110, () => {
         const vx = (Math.random() * 2 - 1) * 70 + this.scene.facing.x * 40;
-        this.shoot(w, 'axe', 'axe', p.x, p.y - 6, vx, -s.speed);
+        this.shoot(w, 'axe', 'proj_axe', p.x, p.y - 6, vx, -s.speed);
       });
     }
     return true;
@@ -158,13 +158,15 @@ export class WeaponSystem {
 
   private slash(w: WeaponRuntime, side: number) {
     const p = this.scene.player;
-    const width = 46 * w.stats.area;
-    const height = 30 * w.stats.area;
+    const width = 56 * w.stats.area;
+    const height = 36 * w.stats.area;
     const cx = p.x + side * (width / 2 + 2);
     const cy = p.y - 2;
-    const img = this.scene.add.image(cx, cy, 'atlas', frameName('slash')).setScale(width / 40, height / 24).setFlipX(side < 0).setDepth(100001);
+    const cy2 = cy - 6;
+    const img = this.scene.add.image(cx, cy2, 'atlas', frameName('slash')).setScale(width / 48, height / 30).setFlipX(side < 0).setDepth(LAYER.fx);
+    img.setBlendMode(Phaser.BlendModes.ADD);
     if (w.level >= AWAKEN_EVERY) img.setTint(0xffe9a8);
-    this.scene.tweens.add({ targets: img, alpha: 0, scaleY: (height / 24) * 0.6, duration: 180, onComplete: () => img.destroy() });
+    this.scene.tweens.add({ targets: img, alpha: 0, x: cx + side * 6, scaleY: (height / 30) * 0.5, duration: 200, ease: 'Quad.Out', onComplete: () => img.destroy() });
     this.scene.queryEnemies(cx, cy, Math.max(width, height), (e) => {
       if (Math.abs(e.x - cx) < width / 2 + e.radius && Math.abs(e.y - cy) < height / 2 + e.radius) this.hit(w, e, 1);
     });
@@ -173,16 +175,19 @@ export class WeaponSystem {
   private updateAuraVisual(w: WeaponRuntime) {
     const p = this.scene.player;
     if (!this.aura) {
-      this.aura = this.scene.add.image(p.x, p.y, 'atlas', frameName('aura')).setDepth(-1);
-      this.scene.tweens.add({ targets: this.aura, alpha: { from: 0.75, to: 1 }, duration: 400, yoyo: true, repeat: -1 });
+      this.aura = this.scene.add.image(p.x, p.y, 'atlas', frameName('aura')).setDepth(LAYER.groundFx).setBlendMode(Phaser.BlendModes.ADD);
+      this.scene.tweens.add({ targets: this.aura, alpha: { from: 0.6, to: 0.95 }, duration: 380, yoyo: true, repeat: -1 });
+      this.scene.tweens.add({ targets: this.aura, angle: 360, duration: 6000, repeat: -1 });
     }
-    const radius = 34 * w.stats.area;
-    this.aura.setPosition(p.x, p.y + 2).setScale((radius * 2) / 96);
+    const radius = 40 * w.stats.area;
+    this.aura.setPosition(p.x, p.y + 6).setScale((radius * 2) / 96, (radius * 1.6) / 96);
+    // chamas subindo de pontos do anel
+    if (Math.random() < 0.5) this.scene.emitFlame(p.x + (Math.random() * 2 - 1) * radius * 0.9, p.y + 6 + (Math.random() * 2 - 1) * radius * 0.7);
   }
 
   private tickAura(w: WeaponRuntime): boolean {
     const p = this.scene.player;
-    const radius = 34 * w.stats.area;
+    const radius = 40 * w.stats.area;
     this.scene.queryEnemies(p.x, p.y, radius + 16, (e) => {
       const r = radius + e.radius;
       if (Phaser.Math.Distance.Squared(p.x, p.y, e.x, e.y) < r * r) this.hit(w, e, 0.3);
@@ -192,18 +197,20 @@ export class WeaponSystem {
 
   private updateOrbs(w: WeaponRuntime, dt: number) {
     const s = w.stats;
-    while (this.orbs.length < s.amount) this.orbs.push(this.scene.add.image(0, 0, 'atlas', frameName('orb')).setDepth(100000));
+    while (this.orbs.length < s.amount) {
+      this.orbs.push(this.scene.add.image(0, 0, 'atlas', frameName('proj_orb')).setDepth(LAYER.fx).setBlendMode(Phaser.BlendModes.ADD).setScale(1.3));
+    }
     const p = this.scene.player;
-    const radius = 42 * s.area;
+    const radius = 50 * s.area;
     this.orbAngle += s.speed * dt;
     const now = this.scene.elapsed;
     this.orbs.forEach((orb, i) => {
       const a = this.orbAngle + (i / this.orbs.length) * Math.PI * 2;
-      orb.setPosition(p.x + Math.cos(a) * radius, p.y - 2 + Math.sin(a) * radius);
+      orb.setPosition(p.x + Math.cos(a) * radius, p.y - 4 + Math.sin(a) * radius * 0.85);
       if (w.level >= AWAKEN_EVERY) orb.setTint(0xffe9a8);
       this.scene.queryEnemies(orb.x, orb.y, 24, (e) => {
         if (now - e.orbHitAt < s.cooldown) return;
-        const r = 5 + e.radius;
+        const r = 8 + e.radius;
         if (Phaser.Math.Distance.Squared(orb.x, orb.y, e.x, e.y) < r * r) {
           e.orbHitAt = now;
           this.hit(w, e, 0.6);
@@ -217,7 +224,7 @@ export class WeaponSystem {
     const visible = this.scene.activeEnemies().filter((e) => view.contains(e.x, e.y));
     if (visible.length === 0) return false;
     Phaser.Utils.Array.Shuffle(visible);
-    const radius = 22 * w.stats.area;
+    const radius = 28 * w.stats.area;
     for (let i = 0; i < Math.min(w.stats.amount, visible.length); i++) {
       const tx = visible[i].x;
       const ty = visible[i].y;
@@ -232,7 +239,7 @@ export class WeaponSystem {
   }
 
   private drawBolt(x: number, y: number, top: number, awakened: boolean) {
-    const g = this.scene.add.graphics().setDepth(100002);
+    const g = this.scene.add.graphics().setDepth(LAYER.fx + 1);
     const pts: Phaser.Math.Vector2[] = [];
     const segments = 8;
     for (let i = 0; i <= segments; i++) {
@@ -240,10 +247,15 @@ export class WeaponSystem {
       const jitter = i === 0 || i === segments ? 0 : (Math.random() * 2 - 1) * 8;
       pts.push(new Phaser.Math.Vector2(x + jitter, top + (y - top) * t));
     }
-    g.lineStyle(3, awakened ? 0xffcd75 : 0x73eff7, 1).strokePoints(pts);
-    g.lineStyle(1, 0xf4f4f4, 1).strokePoints(pts);
-    g.fillStyle(0xf4f4f4, 0.8).fillCircle(x, y, 6);
-    this.scene.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
+    const c = awakened ? 0xffcd75 : 0x73eff7;
+    g.setBlendMode(Phaser.BlendModes.ADD);
+    g.lineStyle(7, c, 0.25).strokePoints(pts);
+    g.lineStyle(3, c, 1).strokePoints(pts);
+    g.lineStyle(1, 0xffffff, 1).strokePoints(pts);
+    g.fillStyle(c, 0.35).fillCircle(x, y, 14);
+    g.fillStyle(0xffffff, 0.9).fillCircle(x, y, 5);
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+    this.scene.impact(x, y, c);
   }
 
   /** Registra dano de projéteis na estatística da arma dona. */

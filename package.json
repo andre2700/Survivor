@@ -14,14 +14,15 @@
     "cap:sync": "npm run build && cap sync",
     "android": "npm run cap:sync && cap open android",
     "ios": "npm run cap:sync && cap open ios",
-    "stress": "node scripts/stress.mjs"
+    "stress": "node scripts/stress.mjs",
+    "artsheet": "node scripts/artsheet.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
     "@capacitor/ios": "^8.5.3",
-    "@fontsource/press-start-2p": "^5.3.0",
+    "@fontsource/jersey-15": "^5.3.0",
     "phaser": "^3.90.0"
   },
   "devDependencies": {

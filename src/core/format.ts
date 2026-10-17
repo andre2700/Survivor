@@ -5,7 +5,7 @@ export function formatNumber(n: number): string {
   if (!isFinite(n)) return '∞';
   const sign = n < 0 ? '-' : '';
   const v = Math.abs(n);
-  if (v < 1000) return sign + (v < 10 && v % 1 !== 0 ? v.toFixed(1).replace('.', ',') : String(Math.round(v)));
+  if (v < 1000) return sign + String(Math.round(v));
   const tier = Math.floor(Math.log10(v) / 3);
   if (tier >= SUFFIXES.length) return sign + v.toExponential(1).replace('.', ',').replace('+', '');
   const scaled = v / Math.pow(1000, tier);

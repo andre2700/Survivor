@@ -24,7 +24,16 @@ O design completo está em [docs/GDD.md](docs/GDD.md).
 - **Estatísticas pós-partida:** dano causado por arma.
 - Heróis: Cavaleiro, Maga, Caçadora (300 de ouro), Bárbaro (600 de ouro).
 
-Toda a arte é gerada por código a partir de matrizes de pixels (`src/art/sprites.ts`) e empacotada num atlas único; os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
+### Arte
+
+Toda a arte é gerada por código, sem arquivos de imagem, por um mini motor de pixel art (`src/art/pixel.ts`): formas sombreadas por luz com rampas de cor, contorno automático, sombras e brilhos.
+
+- `src/art/characters.ts`: heróis 32×40 montados em camadas (corpo, botas, armadura, capa, cabeça, elmo, arma) — base do equipamento visível.
+- `src/art/monsters.ts`: slime, morcego, goblin, lobo, esqueleto, orc e o chefe demônio, com 4 quadros de animação cada.
+- `src/art/items.ts`, `environment.ts`, `ui.ts`: coletáveis, projéteis, efeitos, ícones, cenário e molduras 9-slice da interface.
+- `npm run artsheet` gera `screenshots/artsheet.png` com os sprites ampliados, para revisar a arte.
+
+O jogo renderiza em resolução lógica de 400 px de largura com zoom de 1–2× no canvas (pixel art nítida e textos limpos). A fonte é a Jersey 15. Os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
 
 ## Desenvolvimento
 
