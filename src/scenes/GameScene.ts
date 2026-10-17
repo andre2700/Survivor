@@ -490,9 +490,12 @@ export class GameScene extends Phaser.Scene {
       }
     } else {
       this.events.emit('announce', 'VOCÊ ESTÁ CERCADO!');
-      const n = 32;
+      const n = 28;
       const id: EnemyId = this.elapsed > 400 ? 'orc' : 'skeleton';
+      // deixa uma brecha no anel para o jogador conseguir escapar
+      const gap = Math.floor(Math.random() * n);
       for (let i = 0; i < n; i++) {
+        if ((i - gap + n) % n < 5) continue;
         const a = (i / n) * Math.PI * 2;
         this.spawnEnemy(ENEMIES[id], this.player.x + Math.cos(a) * 190, this.player.y + Math.sin(a) * 190);
       }
