@@ -27,7 +27,9 @@ Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
 - Efeitos por chance (20% × chance da arma × (1 + potência elemental + sorte×0,5%); acima de 100% vira potência): Queimando (dano contínuo), Encharcado (−30% velocidade), Desequilibrado (empurrão, +25% chance crítica contra o alvo), Fraturado (+25% dano recebido). Inimigos não sofrem o efeito do próprio elemento.
 - Dois efeitos ativos no mesmo inimigo se consomem e disparam a reação, com nome e cor na tela: Lava (explosão + queimadura), Gelo (congela), Raio (salta entre 4), Vapor (nuvem em pulsos), Lama (lentidão forte em área), Areia (tempestade em pulsos).
 - Tags de elemento: 2 armas = +30% chance de efeito; 4 = +30% dano.
-- Armas novas: Jato d'Água, Pedregulho (Terra), Lâmina de Vento (Ar). Carta Catalisador (potência elemental).
+- Armas elementais com padrões próprios: Onda (Água, varre e empurra), Fissura (Terra, rachaduras com espinhos), Tornado (Ar, puxa e fere). Carta Catalisador (potência elemental).
+- Grandeza: todo ataque cresce em faixas de nível (5, 10 = despertar, 20) até formas grandiosas (Tsunami, Terremoto, tornado gigante).
+- Reações marcantes: título grande, onda de choque, clarão, véu de cor na tela, som e arte próprios (erupção de lava, bloco de gelo, raios em ziguezague, nuvens de vapor, poça de lama, redemoinho de areia).
 - Variantes elementais por troca de cor: Slime de Fogo, Slime d'Água, Goblin da Terra, Morcego do Vento.
 - Estatísticas pós-partida mostram o dano por reação.
 - Pendente: reações triplas, Luz/Trevas, resistências mostradas antes da partida.

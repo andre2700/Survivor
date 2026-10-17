@@ -7,6 +7,7 @@ import { CHARACTERS } from '../data/characters';
 import { META_UPGRADES, metaCost } from '../data/meta';
 import { WEAPONS } from '../data/weapons';
 import { loadSave, writeSave } from '../systems/save';
+import { DEV_TOOLS } from '../systems/dev';
 import { setSoundEnabled, sfx, unlockAudio } from '../systems/sfx';
 import { FONT, button, goldTitle, panel, text, px } from '../ui/theme';
 import { formatTime } from './HudScene';
@@ -92,6 +93,12 @@ export class MenuScene extends Phaser.Scene {
       this.scene.restart();
     }, { width: 56, height: 26, size: 11, color: save.sound ? '#f4f4f4' : '#8a8ca0' });
     soundBtn.setDepth(10);
+    if (DEV_TOOLS) {
+      button(this, 34, 50, 'DEV', () => {
+        this.scene.pause();
+        this.scene.launch('Dev', { from: 'Menu' });
+      }, { width: 56, height: 24, size: 11, variant: 'purple' }).setDepth(10);
+    }
 
     // Logo
     const logoY = height * 0.11;

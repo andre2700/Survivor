@@ -55,6 +55,30 @@
  "flowers": {
   "hd": 2
  },
+ "fx_ice": {
+  "hd": 2
+ },
+ "fx_lava": {
+  "hd": 2
+ },
+ "fx_mud": {
+  "hd": 2
+ },
+ "fx_sand": {
+  "hd": 2
+ },
+ "fx_spike": {
+  "hd": 2
+ },
+ "fx_steam": {
+  "hd": 2
+ },
+ "fx_tornado": {
+  "hd": 2
+ },
+ "fx_wave": {
+  "hd": 2
+ },
  "gem": {
   "hd": 4
  },
@@ -171,7 +195,7 @@
  "icon_potion": {
   "hd": 4
  },
- "icon_rock": {
+ "icon_quake": {
   "hd": 4
  },
  "icon_shield": {
@@ -186,10 +210,10 @@
  "icon_sword": {
   "hd": 4
  },
- "icon_water": {
+ "icon_tornado": {
   "hd": 4
  },
- "icon_wind": {
+ "icon_water": {
   "hd": 4
  },
  "knife": {
@@ -234,15 +258,6 @@
   "hd": 2
  },
  "proj_orb": {
-  "hd": 2
- },
- "proj_rock": {
-  "hd": 2
- },
- "proj_water": {
-  "hd": 2
- },
- "proj_wind": {
   "hd": 2
  },
  "rock": {

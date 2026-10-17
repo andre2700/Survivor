@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { VIEW } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { ElementSystem } from '../systems/elements';
+import { dev, runDuration, waveClock } from '../systems/dev';
 import { REACTIONS } from '../data/elements';
 import { frameName, groundSprite, scrollGround, slotsOf, type Slots } from '../art/textures';
 import { formatNumber } from '../core/format';
@@ -13,7 +14,7 @@ import {
 import { getCharacter, type CharacterDef } from '../data/characters';
 import { DEATH_TINT, ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies';
 import { metaModifiers } from '../data/meta';
-import { ELEMENT_COLORS, type Element } from '../data/weapons';
+import { ELEMENT_COLORS, WEAPON_IDS, type Element, type WeaponId } from '../data/weapons';
 import {
   ENDLESS_CYCLE, MAX_ENEMIES, RUN_DURATION, WAVES, endlessScaling, hpMultiplier, isEliteTime, waveAt, xpToNext,
 } from '../data/waves';
@@ -79,7 +80,7 @@ export class GameScene extends Phaser.Scene {
   private pickups!: Pool<Pickup>;
   private grid = new SpatialGrid<Enemy>(32);
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
-  private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
+  sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   flames!: Phaser.GameObjects.Particles.ParticleEmitter;
   private motes!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dmgTexts: Phaser.GameObjects.Text[] = [];
@@ -244,6 +245,7 @@ export class GameScene extends Phaser.Scene {
     this.weapons = new WeaponSystem(this);
     this.elements = new ElementSystem(this);
     this.weapons.sync(this.loadout.weapons);
+    this.applyDevSpeed();
 
     this.cameras.main.setZoom(VIEW.zoom * WORLD_ZOOM);
     this.cameras.main.startFollow(this.player, true, 0.18, 0.18);
@@ -289,7 +291,7 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, deltaMs: number) {
     if (this.state !== 'playing') return;
-    const dt = Math.min(deltaMs, 50) / 1000;
+    const dt = (Math.min(deltaMs, 50) / 1000) * dev.speed;
     const prev = this.elapsed;
     this.elapsed += dt;
     this.frame++;
@@ -303,6 +305,7 @@ export class GameScene extends Phaser.Scene {
     this.updateSpawns(prev, dt);
     this.updateDamageTexts(dt);
     this.updateCorpses(dt);
+    this.elements.tick();
 
     if (this.stats.regen > 0) this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
 
@@ -400,7 +403,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const dmg = damageTaken(e.damage * mult, this.stats);
-    this.hp -= dmg;
+    if (!dev.heroImmortal) this.hp -= dmg;
     this.hurtUntil = this.elapsed + 0.25;
     if (this.stats.thorns > 0) this.hitEnemy(e, this.stats.thorns, 0.5, 'physical', false);
     this.cameras.main.shake(80, 0.004);
@@ -456,7 +459,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private difficulty() {
-    if (!this.endless) return { hp: hpMultiplier(this.elapsed), damage: 1, reward: 1 };
+    if (!this.endless) return { hp: hpMultiplier(waveClock(this.elapsed)), damage: 1, reward: 1 };
     const s = endlessScaling(this.cycle);
     return { hp: hpMultiplier(RUN_DURATION) * s.hp, damage: s.damage, reward: s.reward };
   }
@@ -671,7 +674,23 @@ export class GameScene extends Phaser.Scene {
     e.flashUntil = this.elapsed + 0.06;
     e.hurtUntil = this.elapsed + 0.15;
     this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
+    if (e.hp <= 0 && dev.enemiesImmortal) e.hp = e.maxHp;
     if (e.hp <= 0) this.killEnemy(e, true);
+  }
+
+  private tintVeil?: Phaser.GameObjects.Rectangle;
+
+  /** Véu colorido e translúcido sobre a tela, que some rápido (reações elementais). */
+  screenTint(color: number) {
+    if (!this.tintVeil?.active) {
+      // fixo na tela (sem rolagem); o zoom da câmera é em torno do centro dela
+      const cam = this.cameras.main;
+      this.tintVeil = this.add.rectangle(cam.width / 2, cam.height / 2, cam.width * 2, cam.height * 2, color, 1)
+        .setScrollFactor(0).setDepth(LAYER.overlay - 1).setBlendMode(Phaser.BlendModes.ADD);
+    }
+    this.tweens.killTweensOf(this.tintVeil);
+    this.tintVeil.setFillStyle(color, 1).setAlpha(0.22);
+    this.tweens.add({ targets: this.tintVeil, alpha: 0, duration: 260 });
   }
 
   /** Cor de base do inimigo: congelado, elite ou natural. */
@@ -718,7 +737,7 @@ export class GameScene extends Phaser.Scene {
   private updateSpawns(prev: number, dt: number) {
     const t = this.elapsed;
     // chefe da partida padrão
-    if (!this.endless && t >= RUN_DURATION && !this.bossSpawned) {
+    if (!this.endless && t >= runDuration() && !this.bossSpawned) {
       this.bossSpawned = true;
       this.spawnBoss();
     }
@@ -734,7 +753,7 @@ export class GameScene extends Phaser.Scene {
 
     let rate: number;
     let max: number;
-    let wave = waveAt(Math.min(t, RUN_DURATION - 1));
+    let wave = waveAt(Math.min(waveClock(t), RUN_DURATION - 1));
     if (this.endless) {
       const s = endlessScaling(this.cycle);
       wave = WAVES[WAVES.length - 1];
@@ -753,14 +772,15 @@ export class GameScene extends Phaser.Scene {
       const id = wave.pool[Math.floor(Math.random() * wave.pool.length)];
       this.spawnEnemy(ENEMIES[id]);
     }
-    if (isEliteTime(prev, t) && (this.endless || t < RUN_DURATION)) {
+    if (isEliteTime(waveClock(prev), waveClock(t)) && (this.endless || t < runDuration())) {
       const id = wave.pool[wave.pool.length - 1];
       this.spawnEnemy(ENEMIES[id], undefined, undefined, true);
       this.events.emit('announce', 'UM INIMIGO ELITE SURGIU!');
     }
-    const minute = Math.floor(t / 60);
+    const clock = this.endless ? t : waveClock(t);
+    const minute = Math.floor(clock / 60);
     const event = this.endless ? (minute % 2 === 0 ? 'swarm' : 'ring') : wave.minute === minute ? wave.event : undefined;
-    if (event && !this.eventsDone.has(minute) && t - minute * 60 > 5) {
+    if (event && !this.eventsDone.has(minute) && clock - minute * 60 > 5) {
       this.eventsDone.add(minute);
       this.runEvent(event);
     }
@@ -997,11 +1017,47 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('Pause');
   }
 
+  // ---------- Ferramentas de desenvolvedor (painel DEV na pausa) ----------
+
+  /** Velocidade do jogo, timers e animações. */
+  applyDevSpeed() {
+    this.time.timeScale = dev.speed;
+    this.tweens.timeScale = dev.speed;
+  }
+
+  devLevelUp(n: number) {
+    for (let i = 0; i < n; i++) this.addXp(this.xpNext - this.xp);
+  }
+
+  /** Sobe `n` níveis de uma arma (ou de todas as do jogo, se `id` não for dado). */
+  devWeapon(n: number, id?: WeaponId) {
+    for (const w of id ? [id] : WEAPON_IDS) this.loadout.weapons[w] = (this.loadout.weapons[w] ?? 0) + n;
+    this.weapons.sync(this.loadout.weapons);
+  }
+
+  devBoss() {
+    this.spawnBoss();
+  }
+
+  devKillAll() {
+    for (const e of [...this.active]) if (e.active && !e.boss) this.killEnemy(e, true);
+  }
+
+  /** Avança o relógio da partida (ondas, elites e chefe). */
+  devSkip(seconds: number) {
+    this.elapsed += seconds;
+  }
+
+  devHeal() {
+    this.hp = this.stats.maxHp;
+  }
+
   resumeFromPause() {
     this.scene.stop('Pause');
     this.state = 'playing';
     this.scene.resume();
     this.scene.resume('Hud');
+    if (this.pendingLevels > 0) this.openLevelUp();
   }
 
   private openVictory() {

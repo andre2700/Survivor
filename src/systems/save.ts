@@ -1,5 +1,6 @@
 import type { CharacterId } from '../data/characters';
 import type { MetaId } from '../data/meta';
+import { INFINITE_GOLD, dev } from './dev';
 
 export interface SaveData {
   version: 2;
@@ -47,7 +48,10 @@ export function migrate(raw: Record<string, unknown>): SaveData {
 let cache: SaveData | null = null;
 
 export function loadSave(): SaveData {
-  if (cache) return cache;
+  if (cache) {
+    if (dev.infiniteGold) cache.gold = INFINITE_GOLD;
+    return cache;
+  }
   let data = defaultSave();
   try {
     const raw = localStorage.getItem(KEY);
@@ -55,6 +59,7 @@ export function loadSave(): SaveData {
   } catch {
     // armazenamento indisponível: segue com o padrão
   }
+  if (dev.infiniteGold) data.gold = INFINITE_GOLD;
   cache = data;
   return data;
 }

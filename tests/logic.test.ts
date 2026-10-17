@@ -73,7 +73,7 @@ describe('elementos', () => {
   });
   it('armas derivadas contam nas duas origens para os bônus de conjunto', () => {
     expect(weaponTags(WEAPONS.lightning)).toEqual(expect.arrayContaining(['fire', 'air']));
-    expect(weaponTags(WEAPONS.water)).toContain('water');
+    expect(weaponTags(WEAPONS.wave)).toContain('water');
   });
   it('inimigos elementais existem para os quatro primários', () => {
     const els = new Set(Object.values(ENEMIES).map((e) => e.element).filter(Boolean));

@@ -14,7 +14,8 @@ RPG 2D de sobrevivência em estilo cartoon para Android e iOS (e navegador). Esc
 O design completo está em [docs/GDD.md](docs/GDD.md).
 
 - **Sem limite de armas:** qualquer arma pode aparecer a qualquer momento, e todas sobem de nível sem teto. A cada 10 níveis a arma **desperta** (dano ×1,5, +1 quantidade, visual dourado).
-- **Armas modulares** (`src/data/weapons.ts`): padrão de ataque + elemento + tags + ciclo de crescimento. Hoje: Varinha, Espada, Machado, Orbe, Aura de Fogo, Raio, Adagas, Jato d'Água, Pedregulho e Lâmina de Vento.
+- **Armas modulares** (`src/data/weapons.ts`): padrão de ataque + elemento + tags + ciclo de crescimento. Hoje: Varinha, Espada, Machado, Orbe, Aura de Fogo, Raio, Adagas, Onda (Água), Fissura (Terra) e Tornado (Ar).
+- **Grandeza por nível**: os ataques começam simples e crescem em faixas (nv 5, 10 = despertar, 20). Ex.: Onda → Maremoto → Tsunami; Fissura → Terremoto → abalo na tela toda; Tornado → Ciclone → tornado gigante; Espada despertada solta a lâmina; Raio despertado salta entre inimigos.
 - **Elementos** (`src/data/elements.ts`, Marco 2): vantagens Água > Fogo > Ar > Terra > Água, efeitos por chance (Queimando, Encharcado, Desequilibrado, Fraturado) e 6 reações quando dois efeitos se encontram (Lava, Gelo, Raio, Vapor, Lama, Areia). Inimigos com variantes elementais.
 - **Bônus de tags** (`src/data/tags.ts`): várias armas com a mesma tag (Projétil, Corpo a corpo, Feitiço, Área...) fortalecem todas elas.
 - **Atributos globais sem teto** (`src/core/stats.ts`): dano, vel. de ataque, quantidade, área, crítico (acima de 100% vira supercrítico), defesa e esquiva com retorno decrescente, sorte, maldição etc.
@@ -40,6 +41,12 @@ Estilo cartoon 2D (contorno grosso, sombreado suave, cores vivas), gerado com IA
 O jogo usa resolução lógica de 400 px de largura com zoom de 1–2× no canvas. Fontes: Fredoka (texto) e Lilita One (títulos e botões). Os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
 
 ## Desenvolvimento
+
+### Painel DEV
+
+Botão **DEV** no menu e na pausa (desligar `DEV_TOOLS` em `src/systems/dev.ts` antes do lançamento):
+- Configurações (ficam salvas): moedas infinitas, duração da partida (15/5/3/1 min, com as ondas comprimidas), herói imortal, inimigos imortais, velocidade do jogo (1×/2×/4×).
+- Na partida (pela pausa): +1 e +5 níveis, todas as armas +5, uma arma +1 nível (tocar no ícone), chamar o chefe, matar todos, avançar 1 min, curar.
 
 Requer Node 22+.
 

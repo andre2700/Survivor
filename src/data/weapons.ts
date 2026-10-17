@@ -4,9 +4,9 @@ import { ORIGINS, type Primary } from './elements';
 export type Element = 'physical' | 'fire' | 'water' | 'air' | 'earth' | 'light' | 'dark' | 'lightning';
 export type Tag = 'melee' | 'projectile' | 'spell' | 'area' | 'heavy' | 'fast' | Primary;
 /** Como a arma ataca. Cada padrão é implementado uma vez em `systems/weapons.ts`. */
-export type Pattern = 'nearest' | 'volley' | 'arc' | 'lob' | 'orbit' | 'aura' | 'strike';
+export type Pattern = 'nearest' | 'volley' | 'arc' | 'lob' | 'orbit' | 'aura' | 'strike' | 'wave' | 'fissure' | 'tornado';
 
-export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives' | 'water' | 'rock' | 'wind';
+export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives' | 'wave' | 'quake' | 'tornado';
 
 export interface WeaponStats {
   damage: number;
@@ -93,23 +93,23 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     base: { damage: 7, cooldown: 0.45, amount: 1, pierce: 1, area: 1, speed: 360, duration: 1, effect: 0.7 },
     growth: [{ amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }, { pierce: 1 }, { damage: 0.3 }],
   },
-  water: {
-    id: 'water', name: "Jato d'Água", icon: 'icon_water', pattern: 'nearest', element: 'water', tags: ['projectile', 'spell'], projectile: 'proj_water',
-    description: 'Esferas de água no inimigo mais próximo. Encharcam (lentidão).',
-    base: { damage: 9, cooldown: 1, amount: 1, pierce: 2, area: 1, speed: 220, duration: 1.6, effect: 1.2 },
-    growth: [{ amount: 1 }, { damage: 0.3 }, { pierce: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
+  wave: {
+    id: 'wave', name: 'Onda', icon: 'icon_water', pattern: 'wave', element: 'water', tags: ['spell', 'area'],
+    description: 'Uma onda varre a área à frente e empurra os inimigos. Nv 5: cresce ao avançar; nv 10: Maremoto; nv 20: Tsunami.',
+    base: { damage: 12, cooldown: 2, amount: 1, pierce: 999, area: 1, speed: 190, duration: 1.1, effect: 1.2 },
+    growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
   },
-  rock: {
-    id: 'rock', name: 'Pedregulho', icon: 'icon_rock', pattern: 'lob', element: 'earth', tags: ['projectile', 'heavy'], projectile: 'proj_rock',
-    description: 'Arremessa pedras pesadas em arco. Fraturam (mais dano recebido).',
-    base: { damage: 30, cooldown: 2.2, amount: 1, pierce: 2, area: 1, speed: 290, duration: 2.2, effect: 1.6 },
-    growth: [{ damage: 0.35 }, { amount: 1 }, { area: 0.15 }, { damage: 0.35 }, { pierce: 1 }],
+  quake: {
+    id: 'quake', name: 'Fissura', icon: 'icon_quake', pattern: 'fissure', element: 'earth', tags: ['area', 'heavy'],
+    description: 'Rachaduras correm pelo chão e espinhos de pedra brotam. Nv 5: ramificam; nv 10: Terremoto; nv 20: abalo na tela toda.',
+    base: { damage: 18, cooldown: 2.4, amount: 1, pierce: 999, area: 1, speed: 320, duration: 0.45, effect: 1.6 },
+    growth: [{ damage: 0.35 }, { amount: 1 }, { area: 0.15 }, { damage: 0.35 }, { cooldown: 0.1 }],
   },
-  wind: {
-    id: 'wind', name: 'Lâmina de Vento', icon: 'icon_wind', pattern: 'volley', element: 'air', tags: ['projectile', 'fast'], projectile: 'proj_wind',
-    description: 'Lâminas de vento na direção do movimento. Desequilibram (empurrão e mais crítico).',
-    base: { damage: 6, cooldown: 0.5, amount: 1, pierce: 3, area: 1, speed: 300, duration: 0.9, effect: 0.7 },
-    growth: [{ amount: 1 }, { damage: 0.3 }, { pierce: 1 }, { cooldown: 0.1 }, { damage: 0.3 }],
+  tornado: {
+    id: 'tornado', name: 'Tornado', icon: 'icon_tornado', pattern: 'tornado', element: 'air', tags: ['spell', 'area'],
+    description: 'Redemoinhos vagam, puxam e ferem os inimigos. Nv 5: crescem; nv 10: Ciclone; nv 20: tornado gigante ao seu redor.',
+    base: { damage: 5, cooldown: 3, amount: 1, pierce: 999, area: 1, speed: 60, duration: 2.6, effect: 0.6 },
+    growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
   },
 };
 
@@ -124,6 +124,11 @@ export const WEAPON_IDS = Object.keys(WEAPONS) as WeaponId[];
 export const AWAKEN_EVERY = 10;
 /** Acima disso, cada projétil extra vira +12% de dano (protege o desempenho). */
 export const MAX_PHYSICAL_AMOUNT = 8;
+
+/** Faixa de grandeza da arma: 0 (nv 1–4), 1 (5–9), 2 (despertada, 10–19), 3 (20+). Os padrões ficam maiores a cada faixa. */
+export function grandeur(level: number) {
+  return level >= 2 * AWAKEN_EVERY ? 3 : level >= AWAKEN_EVERY ? 2 : level >= 5 ? 1 : 0;
+}
 
 export function isAwakening(level: number) {
   return level % AWAKEN_EVERY === 0;

@@ -11,6 +11,7 @@
 // variant: cópia de outra criatura com a cor trocada (hue: graus somados à matiz dentro de range; sat/val: multiplicadores).
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 const CHAR = 'full body, side view facing RIGHT';
+const FX = 'game VFX sprite, single effect centered, bold readable shape, vivid colors: ';
 const ICON = 'game UI item icon, single object centered, bold readable silhouette, no circle or badge behind it';
 
 // ---------- Modelo de quadros ----------
@@ -109,9 +110,15 @@ export const ART = {
   proj_knife: { w: 16, prompt: `a single steel throwing dagger lying horizontally, blade pointing to the RIGHT` },
   proj_axe: { h: 16, prompt: `a single spinning throwing battle axe with wooden handle and steel blade` },
   proj_orb: { h: 16 },
-  proj_water: { w: 14, prompt: `a glossy blue water orb projectile with a small splashing droplet tail, flying horizontally to the RIGHT` },
-  proj_rock: { h: 14, prompt: `a single chunky gray-brown rock boulder projectile with a few cracks` },
-  proj_wind: { w: 18, prompt: `a pale green crescent-shaped wind blade projectile with swirling air streaks, flying horizontally to the RIGHT` },
+  // efeitos de ataques e reações (VFX: o jogo anima escala, giro e transparência)
+  fx_wave: { w: 64, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
+  fx_spike: { h: 28, prompt: `${FX}a sharp brown rock spike erupting from the ground with small flying debris chunks` },
+  fx_tornado: { h: 64, prompt: `${FX}a cartoon tornado whirlwind funnel of pale green and white swirling wind with a few small leaves` },
+  fx_lava: { h: 56, prompt: `${FX}a cartoon eruption of glowing orange-yellow lava splashing upward with molten droplets and small dark rocks` },
+  fx_ice: { h: 40, prompt: `${FX}an empty cartoon block of clear light-blue ice crystal with sharp facets, frost and shine` },
+  fx_steam: { h: 56, prompt: `${FX}a cartoon puffy cloud of white hot steam with soft swirls and a light orange glow at the base` },
+  fx_mud: { w: 72, prompt: `${FX}a cartoon puddle of thick brown mud with bubbles and splats, seen from above at an angle, flat on the ground` },
+  fx_sand: { h: 56, prompt: `${FX}a cartoon swirling sandstorm vortex of golden sand with small pebbles` },
   // cenário (visto de cima, estilo mapa de RPG)
   tree: { h: 72, shadow: true },
   tree2: { h: 78, shadow: true, prompt: `a single tall green pine tree with brown trunk, front view, like a top-down RPG map object` },
@@ -141,8 +148,8 @@ export const ART = {
   icon_skull: { h: 16, hd: 4, prompt: `${ICON}: a white cartoon skull` },
   icon_star: { h: 16, hd: 4, prompt: `${ICON}: a shiny gold star` },
   icon_water: { h: 16, hd: 4, prompt: `${ICON}: a swirling blue water droplet with a splash` },
-  icon_rock: { h: 16, hd: 4, prompt: `${ICON}: a chunky brown-gray boulder rock` },
-  icon_wind: { h: 16, hd: 4, prompt: `${ICON}: a pale green swirling gust of wind shaped like a crescent blade` },
+  icon_quake: { h: 16, hd: 4, prompt: `${ICON}: cracked brown ground split open by a fissure with rocks bursting out` },
+  icon_tornado: { h: 16, hd: 4, prompt: `${ICON}: a pale green and white tornado swirl` },
   icon_element: { h: 16, hd: 4, prompt: `${ICON}: a magic orb split into four colored quarters: red fire, blue water, green wind and brown earth` },
 };
 

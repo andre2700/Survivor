@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { VIEW, pointerPos, setupCamera } from '../ui/view';
 import { formatNumber } from '../core/format';
-import { RUN_DURATION } from '../data/waves';
+import { runDuration } from '../systems/dev';
 import { WEAPONS } from '../data/weapons';
 import { COLORS, FONT, button, drawBar, panel, text, px } from '../ui/theme';
 import type { GameScene } from './GameScene';
@@ -144,7 +144,7 @@ export class HudScene extends Phaser.Scene {
     if (sec !== this.last.time) {
       this.last.time = sec;
       const label = g.endless ? `${formatTime(sec)} · C${g.cycle}` : formatTime(sec);
-      this.timeText.setText(label).setColor(g.endless ? '#d6a6ff' : sec >= RUN_DURATION ? '#ff9a7a' : '#ffffff');
+      this.timeText.setText(label).setColor(g.endless ? '#d6a6ff' : sec >= runDuration() ? '#ff9a7a' : '#ffffff');
     }
     if (g.kills !== this.last.kills) this.killText.setText(formatNumber((this.last.kills = g.kills)));
     const gold = Math.floor(g.gold);

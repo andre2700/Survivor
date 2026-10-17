@@ -5,6 +5,7 @@ import { getCharacter } from '../data/characters';
 import { TAGS } from '../data/tags';
 import { WEAPONS, type Tag, type WeaponId } from '../data/weapons';
 import { loadSave, writeSave } from '../systems/save';
+import { DEV_TOOLS } from '../systems/dev';
 import { sfx } from '../systems/sfx';
 import { RARITIES, describeOption } from '../systems/upgrades';
 import { FONT, button, goldTitle, panel, text, px } from '../ui/theme';
@@ -182,6 +183,12 @@ export class PauseScene extends Phaser.Scene {
       game.scene.resume();
     }, { width: 220, height: 38, size: 14 });
     statsPanel(this, game, height * 0.26 + 96);
+    if (DEV_TOOLS) {
+      button(this, 34, 20, 'DEV', () => {
+        this.scene.pause();
+        this.scene.launch('Dev', { from: 'Pause' });
+      }, { width: 56, height: 24, size: 11, variant: 'purple' });
+    }
     this.input.keyboard?.on('keydown-ESC', () => game.resumeFromPause());
   }
 }
