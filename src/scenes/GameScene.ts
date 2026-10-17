@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { VIEW } from '../ui/view';
 import { walkPose } from '../art/motion';
+import { ElementSystem } from '../systems/elements';
+import { REACTIONS } from '../data/elements';
 import { frameName, groundSprite, scrollGround, slotsOf, type Slots } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { SpatialGrid } from '../core/grid';
@@ -57,6 +59,8 @@ export interface RunResult {
   gold: number;
   character: string;
   weapons: { id: string; level: number; dealt: number }[];
+  /** dano por reação elemental (só as que aconteceram) */
+  reactions: { name: string; dealt: number }[];
 }
 
 export interface LevelUpData {
@@ -76,10 +80,11 @@ export class GameScene extends Phaser.Scene {
   private grid = new SpatialGrid<Enemy>(32);
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
-  private flames!: Phaser.GameObjects.Particles.ParticleEmitter;
+  flames!: Phaser.GameObjects.Particles.ParticleEmitter;
   private motes!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dmgTexts: Phaser.GameObjects.Text[] = [];
   private weapons!: WeaponSystem;
+  elements!: ElementSystem;
 
   char!: CharacterDef;
   stats: Stats = { ...BASE_STATS };
@@ -237,6 +242,7 @@ export class GameScene extends Phaser.Scene {
     this.motes.setDepth(LAYER.fx + 3);
 
     this.weapons = new WeaponSystem(this);
+    this.elements = new ElementSystem(this);
     this.weapons.sync(this.loadout.weapons);
 
     this.cameras.main.setZoom(VIEW.zoom * WORLD_ZOOM);
@@ -511,9 +517,12 @@ export class GameScene extends Phaser.Scene {
       }
       const d = Math.hypot(dx, dy) || 1;
       const still = e.boss && this.updateBossAttack(e, d, dx, dy, dt);
-      let vx = still ? 0 : (dx / d) * e.speed;
-      let vy = still ? 0 : (dy / d) * e.speed;
-      if (e.def.id === 'bat') {
+      this.elements.update(e, t, dt);
+      if (!e.active) continue;
+      const slow = still ? 0 : this.elements.speedFactor(e, t);
+      let vx = (dx / d) * e.speed * slow;
+      let vy = (dy / d) * e.speed * slow;
+      if (e.def.kind === 'bat') {
         const wob = Math.sin(t * 6 + e.phase) * 25;
         vx += (-dy / d) * wob;
         vy += (dx / d) * wob;
@@ -525,7 +534,7 @@ export class GameScene extends Phaser.Scene {
       e.flipX = dx < 0;
       e.depth = e.y;
       if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
-      const pose = walkPose(e.def.id, t + e.phase, !still);
+      const pose = walkPose(e.def.kind, t + e.phase, slow > 0);
       const slot = e.attackPhase !== 'walk' ? e.attackPhase : t < e.hurtUntil ? 'hurt' : pose.slot;
       const f = e.slots[slot] ?? e.slots[pose.slot] ?? 0;
       if (f !== e.animFrame) {
@@ -537,8 +546,7 @@ export class GameScene extends Phaser.Scene {
       e.rotation = e.flipX ? -pose.rot : pose.rot;
       if (e.flashUntil && t > e.flashUntil) {
         e.flashUntil = 0;
-        if (e.elite) e.setTint(0xffcd75);
-        else e.clearTint();
+        this.restoreTint(e);
       }
       this.grid.insert(e);
     }
@@ -627,14 +635,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Aplica dano (com crítico); retorna o dano causado. */
-  hitEnemy(e: Enemy, amount: number, knock = 1, element: Element = 'physical', canCrit = true): number {
+  /** Golpe de arma: crítico, vantagem elemental, empurrão e chance de aplicar o efeito do elemento. */
+  hitEnemy(e: Enemy, amount: number, knock = 1, element: Element = 'physical', canCrit = true, effect = 0): number {
     if (!e.active) return 0;
-    const tier = canCrit ? rollCritTier(this.stats.critChance) : 0;
-    const dmg = amount * critMultiplier(this.stats, tier);
-    e.hp -= dmg;
-    e.setTintFill(0xffffff);
-    e.flashUntil = this.elapsed + 0.06;
-    e.hurtUntil = this.elapsed + 0.15;
+    const tier = canCrit ? rollCritTier(this.stats.critChance + this.elements.critBonus(e, this.elapsed)) : 0;
+    const dmg = amount * critMultiplier(this.stats, tier) * this.elements.damageMultiplier(e, element, this.elapsed);
     if (knock > 0 && e.def.knockback > 0) {
       const dx = e.x - this.player.x;
       const dy = e.y - this.player.y;
@@ -645,11 +650,35 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.stats.lifesteal > 0) this.hp = Math.min(this.stats.maxHp, this.hp + dmg * this.stats.lifesteal * 0.1);
     const color = tier >= 2 ? '#ef7d57' : tier === 1 ? '#ffcd75' : ELEMENT_COLORS[element];
-    this.floatText(e.x, e.y - 16 * e.baseScale, formatNumber(dmg) + (tier >= 2 ? '!!' : tier === 1 ? '!' : ''), color, tier > 0);
     if (this.frame % 2 === 0) this.sparks.explode(tier > 0 ? 4 : 2, e.x, e.y - 4);
     sfx('hit');
-    if (e.hp <= 0) this.killEnemy(e, true);
+    this.damage(e, dmg, formatNumber(dmg) + (tier >= 2 ? '!!' : tier === 1 ? '!' : ''), color, tier > 0);
+    if (effect > 0 && e.active) this.elements.onHit(e, element, dmg, effect);
     return dmg;
+  }
+
+  /** Dano de efeitos e reações elementais: sem crítico, sem empurrão e sem aplicar novos efeitos. */
+  elementalDamage(e: Enemy, amount: number, color: string): number {
+    if (!e.active) return 0;
+    const dmg = amount * this.elements.damageMultiplier(e, 'physical', this.elapsed);
+    this.damage(e, dmg, formatNumber(dmg), color, false);
+    return dmg;
+  }
+
+  private damage(e: Enemy, dmg: number, label: string, color: string, big: boolean) {
+    e.hp -= dmg;
+    e.setTintFill(0xffffff);
+    e.flashUntil = this.elapsed + 0.06;
+    e.hurtUntil = this.elapsed + 0.15;
+    this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
+    if (e.hp <= 0) this.killEnemy(e, true);
+  }
+
+  /** Cor de base do inimigo: congelado, elite ou natural. */
+  restoreTint(e: Enemy) {
+    if (e.frozenUntil > this.elapsed) e.setTint(0x9fe8ff);
+    else if (e.elite) e.setTint(0xffcd75);
+    else e.clearTint();
   }
 
   private killEnemy(e: Enemy, drops: boolean) {
@@ -792,7 +821,7 @@ export class GameScene extends Phaser.Scene {
         const r = p.radius + e.radius;
         if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 >= r * r) return;
         p.hits.add(e.uid);
-        const dealt = this.hitEnemy(e, p.damage, p.kind === 'axe' ? 0.5 : 0.8, p.element);
+        const dealt = this.hitEnemy(e, p.damage, p.kind === 'axe' ? 0.5 : 0.8, p.element, true, p.effect);
         if (p.owner) this.weapons.credit(p.owner, dealt);
         p.pierce--;
         if (p.pierce <= 0) {
@@ -1013,6 +1042,7 @@ export class GameScene extends Phaser.Scene {
       gold: Math.floor(this.gold),
       character: this.char.id,
       weapons: this.weapons.owned,
+      reactions: REACTIONS.filter((r) => this.elements.dealt[r.id]).map((r) => ({ name: r.name, dealt: this.elements.dealt[r.id]! })),
     };
   }
 
@@ -1036,8 +1066,12 @@ export class GameScene extends Phaser.Scene {
 
   floatText(x: number, y: number, str: string, color: string, big = false) {
     let t = this.dmgTexts.find((d) => !d.active);
+    if (!t && this.dmgTexts.length >= 40) {
+      // tela cheia: números comuns são descartados; destaques (crítico, reação) tomam o lugar do mais antigo
+      if (!big) return;
+      t = this.dmgTexts.reduce((a, b) => ((a.getData('life') as number) < (b.getData('life') as number) ? a : b));
+    }
     if (!t) {
-      if (this.dmgTexts.length >= 40) return;
       t = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: '#ffffff', stroke: '#140c1c', strokeThickness: 3 }).setOrigin(0.5);
       this.dmgTexts.push(t);
     }

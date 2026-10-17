@@ -8,6 +8,7 @@
 // flip: a imagem gerada olha para a esquerda; o jogo espera tudo olhando para a direita.
 // role/body: personagem animado pelo modelo de quadros abaixo (FRAME_TEMPLATES e POSES).
 // hold: o que o personagem segura, repetido em todas as poses (a IA às vezes larga a arma).
+// variant: cópia de outra criatura com a cor trocada (hue: graus somados à matiz dentro de range; sat/val: multiplicadores).
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 const CHAR = 'full body, side view facing RIGHT';
 const ICON = 'game UI item icon, single object centered, bold readable silhouette, no circle or badge behind it';
@@ -82,6 +83,11 @@ export const ART = {
   wolf: { h: 28, hd: 3, shadow: true, role: 'monster', body: 'quadruped' },
   skeleton: { h: 34, hd: 3, shadow: true, role: 'monster', body: 'biped', prompt: `a skeleton warrior monster with a rusty sword and a broken wooden shield, glowing eye sockets, ${CHAR}, walking` },
   orc: { h: 42, hd: 3, shadow: true, role: 'monster', body: 'biped', prompt: `a big brutish green orc brute monster with tusks, iron shoulder armor and a spiked wooden club, ${CHAR}, menacing` },
+  // variantes elementais: troca de cor da tira da criatura base (hue: graus; faixa de matiz trocada)
+  slime_fire: { variant: 'slime', hue: -95, range: [70, 170], sat: 1.1 },
+  slime_water: { variant: 'slime', hue: 90, range: [70, 170] },
+  goblin_earth: { variant: 'goblin', hue: -75, range: [70, 170], sat: 0.75, val: 0.9 },
+  bat_air: { variant: 'bat', hue: 200, range: [230, 320], sat: 1.3, val: 1.25 },
   demon: {
     h: 74, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped',
     poses: {
@@ -103,6 +109,9 @@ export const ART = {
   proj_knife: { w: 16, prompt: `a single steel throwing dagger lying horizontally, blade pointing to the RIGHT` },
   proj_axe: { h: 16, prompt: `a single spinning throwing battle axe with wooden handle and steel blade` },
   proj_orb: { h: 16 },
+  proj_water: { w: 14, prompt: `a glossy blue water orb projectile with a small splashing droplet tail, flying horizontally to the RIGHT` },
+  proj_rock: { h: 14, prompt: `a single chunky gray-brown rock boulder projectile with a few cracks` },
+  proj_wind: { w: 18, prompt: `a pale green crescent-shaped wind blade projectile with swirling air streaks, flying horizontally to the RIGHT` },
   // cenário (visto de cima, estilo mapa de RPG)
   tree: { h: 72, shadow: true },
   tree2: { h: 78, shadow: true, prompt: `a single tall green pine tree with brown trunk, front view, like a top-down RPG map object` },
@@ -131,6 +140,10 @@ export const ART = {
   icon_dice: { h: 16, hd: 4, prompt: `${ICON}: a white six-sided die with a small green four-leaf clover beside it` },
   icon_skull: { h: 16, hd: 4, prompt: `${ICON}: a white cartoon skull` },
   icon_star: { h: 16, hd: 4, prompt: `${ICON}: a shiny gold star` },
+  icon_water: { h: 16, hd: 4, prompt: `${ICON}: a swirling blue water droplet with a splash` },
+  icon_rock: { h: 16, hd: 4, prompt: `${ICON}: a chunky brown-gray boulder rock` },
+  icon_wind: { h: 16, hd: 4, prompt: `${ICON}: a pale green swirling gust of wind shaped like a crescent blade` },
+  icon_element: { h: 16, hd: 4, prompt: `${ICON}: a magic orb split into four colored quarters: red fire, blue water, green wind and brown earth` },
 };
 
 /**

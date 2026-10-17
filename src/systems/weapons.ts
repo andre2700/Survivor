@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { frameName } from '../art/textures';
 import { areaMult, cooldownMult, damageMult, durationMult, projectileSpeedMult } from '../core/stats';
 import { applyTagBonuses, countTags } from '../data/tags';
-import { AWAKEN_EVERY, WEAPONS, capAmount, weaponStatsAt, type WeaponDef, type WeaponId, type WeaponStats } from '../data/weapons';
+import { AWAKEN_EVERY, WEAPONS, capAmount, weaponStatsAt, weaponTags, type WeaponDef, type WeaponId, type WeaponStats } from '../data/weapons';
 import type { Enemy, ProjectileKind } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
@@ -39,10 +39,10 @@ export class WeaponSystem {
 
   refresh() {
     const g = this.scene.stats;
-    const counts = countTags(this.list.map((w) => w.def.tags));
+    const counts = countTags(this.list.map((w) => weaponTags(w.def)));
     for (const w of this.list) {
       const s = { ...weaponStatsAt(w.def, w.level) };
-      applyTagBonuses(s, w.def.tags, counts);
+      applyTagBonuses(s, weaponTags(w.def), counts);
       s.damage *= damageMult(g);
       s.cooldown *= cooldownMult(g);
       s.area *= areaMult(g);
@@ -55,7 +55,7 @@ export class WeaponSystem {
   }
 
   get tagCounts() {
-    return countTags(this.list.map((w) => w.def.tags));
+    return countTags(this.list.map((w) => weaponTags(w.def)));
   }
 
   private dmg(w: WeaponRuntime) {
@@ -63,7 +63,7 @@ export class WeaponSystem {
   }
 
   private hit(w: WeaponRuntime, e: Enemy, knock: number) {
-    w.dealt += this.scene.hitEnemy(e, this.dmg(w), knock, w.def.element);
+    w.dealt += this.scene.hitEnemy(e, this.dmg(w), knock, w.def.element, true, w.stats.effect);
   }
 
   update(dt: number) {
@@ -103,7 +103,7 @@ export class WeaponSystem {
   private shoot(w: WeaponRuntime, kind: ProjectileKind, texture: string, x: number, y: number, vx: number, vy: number) {
     const p = this.scene.projectiles.get();
     if (!p) return;
-    p.fire(kind, texture, x, y, vx, vy, this.dmg(w), w.stats.pierce, w.stats.duration, w.stats.area, w.def.element);
+    p.fire(kind, w.def.projectile ?? texture, x, y, vx, vy, this.dmg(w), w.stats.pierce, w.stats.duration, w.stats.area, w.def.element, w.stats.effect);
     p.owner = w.id;
     if (w.level >= AWAKEN_EVERY) p.setTint(0xffe9a8);
     else p.clearTint();

@@ -24,6 +24,7 @@ export const STAT_CARDS: StatCard[] = [
   { stat: 'pierce', name: 'Ponta de Aço', icon: 'knife', value: 1, mode: 'flat', display: 'int', weight: 0.4 },
   { stat: 'critChance', name: 'Olho de Águia', icon: 'icon_sword', value: 0.08, mode: 'flat', display: 'pct' },
   { stat: 'critDamage', name: 'Golpe Fatal', icon: 'icon_sword', value: 0.3, mode: 'flat', display: 'dec' },
+  { stat: 'elementalPower', name: 'Catalisador', icon: 'icon_element', value: 0.25, mode: 'flat', display: 'pct', weight: 0.8 },
   { stat: 'maxHp', name: 'Coração Vigoroso', icon: 'heart', value: 0.2, mode: 'pct', display: 'int' },
   { stat: 'regen', name: 'Erva Curativa', icon: 'icon_cross', value: 0.5, mode: 'flat', display: 'dec' },
   { stat: 'defense', name: 'Armadura', icon: 'icon_shield', value: 4, mode: 'flat', display: 'int' },

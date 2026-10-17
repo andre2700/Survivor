@@ -1,11 +1,12 @@
 // Armas modulares: padrão de ataque + elemento + tags + curva de crescimento infinita.
+import { ORIGINS, type Primary } from './elements';
 
 export type Element = 'physical' | 'fire' | 'water' | 'air' | 'earth' | 'light' | 'dark' | 'lightning';
-export type Tag = 'melee' | 'projectile' | 'spell' | 'area' | 'heavy' | 'fast';
+export type Tag = 'melee' | 'projectile' | 'spell' | 'area' | 'heavy' | 'fast' | Primary;
 /** Como a arma ataca. Cada padrão é implementado uma vez em `systems/weapons.ts`. */
 export type Pattern = 'nearest' | 'volley' | 'arc' | 'lob' | 'orbit' | 'aura' | 'strike';
 
-export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives';
+export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives' | 'water' | 'rock' | 'wind';
 
 export interface WeaponStats {
   damage: number;
@@ -19,6 +20,8 @@ export interface WeaponStats {
   speed: number;
   /** vida do projétil em segundos */
   duration: number;
+  /** multiplicador da chance de aplicar o efeito do elemento (golpes pesados maior, rápidos menor) */
+  effect: number;
 }
 
 /** Um passo de crescimento: frações são relativas ao valor base. */
@@ -38,7 +41,10 @@ export interface WeaponDef {
   description: string;
   pattern: Pattern;
   element: Element;
+  /** tags próprias; as dos elementos de origem entram sozinhas (ver weaponTags) */
   tags: Tag[];
+  /** textura do projétil (padrões que disparam projéteis) */
+  projectile?: string;
   base: WeaponStats;
   /** Ciclo de crescimento repetido para sempre a partir do nível 2. */
   growth: Growth[];
@@ -48,46 +54,69 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   wand: {
     id: 'wand', name: 'Varinha Mágica', icon: 'bolt', pattern: 'nearest', element: 'light', tags: ['projectile', 'spell'],
     description: 'Dispara orbes de luz no inimigo mais próximo.',
-    base: { damage: 10, cooldown: 1.1, amount: 1, pierce: 1, area: 1, speed: 240, duration: 1.6 },
+    base: { damage: 10, cooldown: 1.1, amount: 1, pierce: 1, area: 1, speed: 240, duration: 1.6, effect: 1 },
     growth: [{ amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }, { damage: 0.3 }, { pierce: 1 }],
   },
   sword: {
     id: 'sword', name: 'Espada', icon: 'icon_sword', pattern: 'arc', element: 'physical', tags: ['melee'],
     description: 'Golpe em arco para o lado em que você olha.',
-    base: { damage: 22, cooldown: 0.95, amount: 1, pierce: 999, area: 1.1, speed: 0, duration: 0.18 },
+    base: { damage: 22, cooldown: 0.95, amount: 1, pierce: 999, area: 1.1, speed: 0, duration: 0.18, effect: 1 },
     growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
   },
   axe: {
     id: 'axe', name: 'Machado', icon: 'axe', pattern: 'lob', element: 'physical', tags: ['projectile', 'heavy'],
     description: 'Arremessa machados em arco. Dano alto.',
-    base: { damage: 25, cooldown: 1.8, amount: 1, pierce: 3, area: 1, speed: 300, duration: 2.2 },
+    base: { damage: 25, cooldown: 1.8, amount: 1, pierce: 3, area: 1, speed: 300, duration: 2.2, effect: 1 },
     growth: [{ amount: 1 }, { damage: 0.35 }, { pierce: 2 }, { area: 0.15 }, { damage: 0.35 }],
   },
   orb: {
     id: 'orb', name: 'Orbe Sagrado', icon: 'orb', pattern: 'orbit', element: 'light', tags: ['spell', 'area'],
     description: 'Orbes giram ao seu redor causando dano.',
-    base: { damage: 8, cooldown: 0.5, amount: 2, pierce: 999, area: 1, speed: 3, duration: 0 },
+    base: { damage: 8, cooldown: 0.5, amount: 2, pierce: 999, area: 1, speed: 3, duration: 0, effect: 0.6 },
     growth: [{ amount: 1 }, { damage: 0.3 }, { area: 0.15, speed: 0.15 }, { damage: 0.3 }, { amount: 1 }],
   },
   aura: {
     id: 'aura', name: 'Aura de Fogo', icon: 'icon_fire', pattern: 'aura', element: 'fire', tags: ['spell', 'area'],
     description: 'Queima inimigos próximos continuamente.',
-    base: { damage: 5, cooldown: 0.5, amount: 1, pierce: 999, area: 1, speed: 0, duration: 0 },
+    base: { damage: 5, cooldown: 0.5, amount: 1, pierce: 999, area: 1, speed: 0, duration: 0, effect: 0.5 },
     growth: [{ area: 0.15 }, { damage: 0.35 }, { cooldown: 0.1 }, { area: 0.15 }, { damage: 0.35 }],
   },
   lightning: {
     id: 'lightning', name: 'Raio', icon: 'icon_bolt', pattern: 'strike', element: 'lightning', tags: ['spell', 'area'],
     description: 'Raios atingem inimigos aleatórios na tela.',
-    base: { damage: 22, cooldown: 2.2, amount: 2, pierce: 999, area: 1, speed: 0, duration: 0 },
+    base: { damage: 22, cooldown: 2.2, amount: 2, pierce: 999, area: 1, speed: 0, duration: 0, effect: 1 },
     growth: [{ amount: 1 }, { damage: 0.35 }, { cooldown: 0.1 }, { area: 0.2 }, { damage: 0.35 }],
   },
   knives: {
     id: 'knives', name: 'Adagas', icon: 'knife', pattern: 'volley', element: 'physical', tags: ['projectile', 'fast'],
     description: 'Lança adagas rápidas na direção do movimento.',
-    base: { damage: 7, cooldown: 0.45, amount: 1, pierce: 1, area: 1, speed: 360, duration: 1 },
+    base: { damage: 7, cooldown: 0.45, amount: 1, pierce: 1, area: 1, speed: 360, duration: 1, effect: 0.7 },
     growth: [{ amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }, { pierce: 1 }, { damage: 0.3 }],
   },
+  water: {
+    id: 'water', name: "Jato d'Água", icon: 'icon_water', pattern: 'nearest', element: 'water', tags: ['projectile', 'spell'], projectile: 'proj_water',
+    description: 'Esferas de água no inimigo mais próximo. Encharcam (lentidão).',
+    base: { damage: 9, cooldown: 1, amount: 1, pierce: 2, area: 1, speed: 220, duration: 1.6, effect: 1.2 },
+    growth: [{ amount: 1 }, { damage: 0.3 }, { pierce: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
+  },
+  rock: {
+    id: 'rock', name: 'Pedregulho', icon: 'icon_rock', pattern: 'lob', element: 'earth', tags: ['projectile', 'heavy'], projectile: 'proj_rock',
+    description: 'Arremessa pedras pesadas em arco. Fraturam (mais dano recebido).',
+    base: { damage: 30, cooldown: 2.2, amount: 1, pierce: 2, area: 1, speed: 290, duration: 2.2, effect: 1.6 },
+    growth: [{ damage: 0.35 }, { amount: 1 }, { area: 0.15 }, { damage: 0.35 }, { pierce: 1 }],
+  },
+  wind: {
+    id: 'wind', name: 'Lâmina de Vento', icon: 'icon_wind', pattern: 'volley', element: 'air', tags: ['projectile', 'fast'], projectile: 'proj_wind',
+    description: 'Lâminas de vento na direção do movimento. Desequilibram (empurrão e mais crítico).',
+    base: { damage: 6, cooldown: 0.5, amount: 1, pierce: 3, area: 1, speed: 300, duration: 0.9, effect: 0.7 },
+    growth: [{ amount: 1 }, { damage: 0.3 }, { pierce: 1 }, { cooldown: 0.1 }, { damage: 0.3 }],
+  },
 };
+
+/** Tags da arma, incluindo as dos elementos de origem (Raio conta como Fogo e Ar). */
+export function weaponTags(def: WeaponDef): Tag[] {
+  return [...def.tags, ...ORIGINS[def.element]];
+}
 
 export const WEAPON_IDS = Object.keys(WEAPONS) as WeaponId[];
 

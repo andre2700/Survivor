@@ -52,6 +52,8 @@ def remove_background(im):
         for x in range(im.size[0]):
             r, g, b = src[x, y]
             d = ((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2) ** 0.5
+            # às vezes o fundo magenta vem cercado de outra cor (margem branca): remove os dois
+            d = min(d, ((r - 255) ** 2 + g ** 2 + (b - 255) ** 2) ** 0.5)
             a = 0 if d <= lo else 255 if d >= hi else int(255 * (d - lo) / (hi - lo))
             if 0 < a < 255:
                 # remove a parte do fundo misturada na borda
@@ -244,6 +246,26 @@ def strip(frames, a, res, n_ref):
     return out
 
 
+def recolor(im, a):
+    """Variante elemental: soma `hue` graus à matiz dos pixels dentro de `range` (e ajusta sat/val)."""
+    lo, hi = a['range']
+    shift = a['hue'] / 360 * 255
+    sat, val = a.get('sat', 1), a.get('val', 1)
+    alpha = im.getchannel('A')
+    h, s_, v = im.convert('RGB').convert('HSV').split()
+    hp, sp, vp = h.load(), s_.load(), v.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            hue = hp[x, y] / 255 * 360
+            if lo <= hue <= hi and sp[x, y] > 40:
+                hp[x, y] = int(hp[x, y] + shift) % 256
+                sp[x, y] = min(255, int(sp[x, y] * sat))
+                vp[x, y] = min(255, int(vp[x, y] * val))
+    out = Image.merge('HSV', (h, s_, v)).convert('RGBA')
+    out.putalpha(alpha)
+    return out
+
+
 def main():
     art = manifest()
     only = sys.argv[1:]
@@ -251,6 +273,12 @@ def main():
     index = json.loads(INDEX.read_text()) if INDEX.exists() else {}
     for name, a in art.items():
         if only and name not in only:
+            continue
+        if a.get('variant'):
+            base = OUT / f"{a['variant']}.png"
+            recolor(Image.open(base).convert('RGBA'), a).save(OUT / f'{name}.png', optimize=True)
+            index[name] = dict(index[a['variant']])
+            print(name, 'variante de', a['variant'])
             continue
         src = SRC / f'{name}.png'
         if not src.exists():

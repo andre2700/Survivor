@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { frameHd, frameName, slotsOf, type Slots } from './art/textures';
 import type { EnemyDef } from './data/enemies';
+import type { Primary } from './data/elements';
 import type { Element, WeaponId } from './data/weapons';
 
 let nextUid = 1;
@@ -37,6 +38,14 @@ export class Enemy extends Phaser.GameObjects.Image {
   attackTimer = 0;
   attackX = 0;
   attackY = 0;
+  /** efeitos elementais ativos: fim de cada um (s); 0 = inativo */
+  status: Record<Primary, number> = { fire: 0, water: 0, air: 0, earth: 0 };
+  /** fim do último efeito ou controle ativo (pula inimigos sem efeito no laço) */
+  statusEnd = 0;
+  burnDps = 0;
+  burnTickAt = 0;
+  frozenUntil = 0;
+  mudUntil = 0;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0, 'atlas', frameName('slime'));
@@ -65,10 +74,12 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.hurtUntil = 0;
     this.attackPhase = 'walk';
     this.attackTimer = 3;
+    this.status.fire = this.status.water = this.status.air = this.status.earth = 0;
+    this.statusEnd = this.burnDps = this.burnTickAt = this.frozenUntil = this.mudUntil = 0;
     this.setPosition(x, y).setActive(true).setVisible(true).setAlpha(1).setAngle(0);
     this.setFrame(frameName(def.texture, 0)).setScale(scale).setDepth(y);
     // a posição é o centro do corpo (a sombra fica embutida na base do sprite)
-    this.setOrigin(0.5, def.id === 'bat' ? 0.5 : 0.65);
+    this.setOrigin(0.5, def.kind === 'bat' ? 0.5 : 0.65);
     if (elite) this.setTint(0xffcd75);
     else this.clearTint();
   }
@@ -91,6 +102,8 @@ export class Projectile extends Phaser.GameObjects.Image {
   spin = 0;
   radius = 4;
   element: Element = 'physical';
+  /** multiplicador da chance de efeito elemental da arma que disparou */
+  effect = 1;
   owner: WeaponId | null = null;
   hits = new Set<number>();
 
@@ -98,7 +111,7 @@ export class Projectile extends Phaser.GameObjects.Image {
     super(scene, 0, 0, 'atlas', frameName('bolt'));
   }
 
-  fire(kind: ProjectileKind, texture: string, x: number, y: number, vx: number, vy: number, damage: number, pierce: number, life: number, scale: number, element: Element) {
+  fire(kind: ProjectileKind, texture: string, x: number, y: number, vx: number, vy: number, damage: number, pierce: number, life: number, scale: number, element: Element, effect: number) {
     this.kind = kind;
     this.damage = damage;
     this.pierce = pierce;
@@ -106,6 +119,7 @@ export class Projectile extends Phaser.GameObjects.Image {
     this.vx = vx;
     this.vy = vy;
     this.element = element;
+    this.effect = effect;
     this.gravity = kind === 'axe' ? 650 : 0;
     this.spin = kind === 'axe' ? 12 : 0;
     this.hits.clear();

@@ -6,11 +6,12 @@ import {
 } from '../src/core/stats';
 import { STAT_CARDS } from '../src/data/cards';
 import { ENEMIES } from '../src/data/enemies';
+import { PRIMARIES, REACTIONS, elementMultiplier, reactionFor, statusRoll } from '../src/data/elements';
 import { CHARACTERS } from '../src/data/characters';
 import { META_UPGRADES, metaCost, metaModifiers } from '../src/data/meta';
 import { applyTagBonuses, countTags } from '../src/data/tags';
 import { RUN_DURATION, WAVES, endlessScaling, isEliteTime, waveAt, xpToNext } from '../src/data/waves';
-import { MAX_PHYSICAL_AMOUNT, WEAPONS, WEAPON_IDS, capAmount, weaponStatsAt } from '../src/data/weapons';
+import { MAX_PHYSICAL_AMOUNT, WEAPONS, WEAPON_IDS, capAmount, weaponStatsAt, weaponTags } from '../src/data/weapons';
 import { migrate } from '../src/systems/save';
 import { applyOption, describeOption, loadoutModifiers, optionKey, rollOptions, rollRarity, type Loadout } from '../src/systems/upgrades';
 
@@ -25,6 +26,7 @@ describe('arte', () => {
       ...STAT_CARDS.map((c) => c.icon),
       ...META_UPGRADES.map((m) => m.icon),
       'ground', 'gem', 'gem_green', 'gem_red', 'coin', 'heart', 'proj_bolt', 'proj_knife', 'proj_axe', 'proj_orb',
+      ...Object.values(WEAPONS).flatMap((w) => (w.projectile ? [w.projectile] : [])),
     ];
     for (const key of keys) expect(has(key), key).toBe(true);
   });
@@ -37,6 +39,45 @@ describe('arte', () => {
       const want = e.id === 'demon' ? ['idle', 'walk_a', 'walk_b', 'windup', 'attack', 'hurt', 'death'] : ['walk_a', 'walk_mid', 'walk_b', 'hurt', 'death'];
       expect(slots(e.texture), e.texture).toEqual(want);
     }
+  });
+});
+
+describe('elementos', () => {
+  it('ciclo de vantagens: Água > Fogo > Ar > Terra > Água', () => {
+    expect(elementMultiplier('water', 'fire')).toBe(2);
+    expect(elementMultiplier('fire', 'air')).toBe(2);
+    expect(elementMultiplier('air', 'earth')).toBe(2);
+    expect(elementMultiplier('earth', 'water')).toBe(2);
+    expect(elementMultiplier('fire', 'water')).toBe(0.5);
+    expect(elementMultiplier('fire', 'fire')).toBe(0.25);
+    expect(elementMultiplier('physical', 'fire')).toBe(1);
+    expect(elementMultiplier('fire', undefined)).toBe(1);
+  });
+  it('derivado herda a melhor vantagem das origens (Raio = Fogo + Ar)', () => {
+    expect(elementMultiplier('lightning', 'earth')).toBe(2);
+    expect(elementMultiplier('lightning', 'water')).toBe(1);
+  });
+  it('todo par de primários tem uma reação, nos dois sentidos', () => {
+    for (const a of PRIMARIES) for (const b of PRIMARIES) {
+      if (a === b) continue;
+      expect(reactionFor(a, b), `${a}+${b}`).toBeDefined();
+      expect(reactionFor(a, b)).toBe(reactionFor(b, a));
+    }
+    expect(REACTIONS).toHaveLength(6);
+  });
+  it('chance de efeito cresce com a potência; acima de 100% vira potência', () => {
+    expect(statusRoll(1, 0, 0, () => 0.19).applied).toBe(true);
+    expect(statusRoll(1, 0, 0, () => 0.21).applied).toBe(false);
+    expect(statusRoll(1, 1, 0, () => 0.39).applied).toBe(true);
+    expect(statusRoll(2, 4, 0, () => 0.99).potency).toBeCloseTo(2);
+  });
+  it('armas derivadas contam nas duas origens para os bônus de conjunto', () => {
+    expect(weaponTags(WEAPONS.lightning)).toEqual(expect.arrayContaining(['fire', 'air']));
+    expect(weaponTags(WEAPONS.water)).toContain('water');
+  });
+  it('inimigos elementais existem para os quatro primários', () => {
+    const els = new Set(Object.values(ENEMIES).map((e) => e.element).filter(Boolean));
+    for (const p of PRIMARIES) expect(els.has(p), p).toBe(true);
   });
 });
 

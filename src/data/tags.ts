@@ -44,7 +44,21 @@ export const TAGS: Record<Tag, TagDef> = {
   fast: {
     id: 'fast', name: 'Rápida', tiers: [{ count: 2, text: '-15% recarga', apply: (s) => { s.cooldown *= 0.85; } }],
   },
+  fire: elementTag('fire', 'Fogo'),
+  water: elementTag('water', 'Água'),
+  air: elementTag('air', 'Ar'),
+  earth: elementTag('earth', 'Terra'),
 };
+
+/** Elementos: mais chance de aplicar o efeito e depois mais dano (armas derivadas contam nas duas origens). */
+function elementTag(id: Tag, name: string): TagDef {
+  return {
+    id, name, tiers: [
+      { count: 2, text: '+30% chance de efeito', apply: (s) => { s.effect *= 1.3; } },
+      { count: 4, text: '+30% dano', apply: (s) => { s.damage *= 1.3; } },
+    ],
+  };
+}
 
 /** Quantas armas possuídas têm cada tag. */
 export function countTags(tagLists: Tag[][]): Partial<Record<Tag, number>> {

@@ -14,7 +14,8 @@ RPG 2D de sobrevivência em estilo cartoon para Android e iOS (e navegador). Esc
 O design completo está em [docs/GDD.md](docs/GDD.md).
 
 - **Sem limite de armas:** qualquer arma pode aparecer a qualquer momento, e todas sobem de nível sem teto. A cada 10 níveis a arma **desperta** (dano ×1,5, +1 quantidade, visual dourado).
-- **Armas modulares** (`src/data/weapons.ts`): padrão de ataque + elemento + tags + ciclo de crescimento. Hoje: Varinha, Espada, Machado, Orbe, Aura de Fogo, Raio, Adagas.
+- **Armas modulares** (`src/data/weapons.ts`): padrão de ataque + elemento + tags + ciclo de crescimento. Hoje: Varinha, Espada, Machado, Orbe, Aura de Fogo, Raio, Adagas, Jato d'Água, Pedregulho e Lâmina de Vento.
+- **Elementos** (`src/data/elements.ts`, Marco 2): vantagens Água > Fogo > Ar > Terra > Água, efeitos por chance (Queimando, Encharcado, Desequilibrado, Fraturado) e 6 reações quando dois efeitos se encontram (Lava, Gelo, Raio, Vapor, Lama, Areia). Inimigos com variantes elementais.
 - **Bônus de tags** (`src/data/tags.ts`): várias armas com a mesma tag (Projétil, Corpo a corpo, Feitiço, Área...) fortalecem todas elas.
 - **Atributos globais sem teto** (`src/core/stats.ts`): dano, vel. de ataque, quantidade, área, crítico (acima de 100% vira supercrítico), defesa e esquiva com retorno decrescente, sorte, maldição etc.
 - **Cartas com raridade:** Comum (+1), Rara (+2), Épica (+3), Lendária (+5); a Sorte aumenta a chance das raras. Cada carta mostra o antes e depois.

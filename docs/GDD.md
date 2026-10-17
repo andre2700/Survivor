@@ -20,17 +20,23 @@ Este arquivo resume as decisões que o código precisa seguir.
 - Armas sobem de nível sem teto; a cada 10 níveis, **despertar** (dano ×1,5, +1 quantidade, visual dourado).
 - Cartas de nível têm raridade (Comum +1, Rara +2, Épica +3, Lendária +5) influenciada pela Sorte.
 
-## Elementos (Marco 2)
-Ciclo: Água > Fogo > Ar > Terra > Água; Luz ⇄ Trevas. Vantagem ×2, desvantagem ×0,5.
-Derivados herdam das origens (Lava = Fogo+Terra, Gelo = Água+Ar, Raio = Fogo+Ar, ...).
-Efeitos por chance (Queimando, Encharcado, Desequilibrado, Fraturado, Marcado, Amaldiçoado);
-dois efeitos ativos no mesmo inimigo se consomem e disparam a reação do derivado.
+## Elementos (Marco 2 — implementado)
+Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
+- Ciclo: Água > Fogo > Ar > Terra > Água. Vantagem ×2, desvantagem ×0,5, mesmo elemento ×0,25. Físico e Luz são neutros (Luz/Trevas entram depois).
+- Derivados herdam das origens: o ataque usa a melhor vantagem entre elas (Raio = Fogo + Ar) e conta como as duas tags.
+- Efeitos por chance (20% × chance da arma × (1 + potência elemental + sorte×0,5%); acima de 100% vira potência): Queimando (dano contínuo), Encharcado (−30% velocidade), Desequilibrado (empurrão, +25% chance crítica contra o alvo), Fraturado (+25% dano recebido). Inimigos não sofrem o efeito do próprio elemento.
+- Dois efeitos ativos no mesmo inimigo se consomem e disparam a reação, com nome e cor na tela: Lava (explosão + queimadura), Gelo (congela), Raio (salta entre 4), Vapor (nuvem em pulsos), Lama (lentidão forte em área), Areia (tempestade em pulsos).
+- Tags de elemento: 2 armas = +30% chance de efeito; 4 = +30% dano.
+- Armas novas: Jato d'Água, Pedregulho (Terra), Lâmina de Vento (Ar). Carta Catalisador (potência elemental).
+- Variantes elementais por troca de cor: Slime de Fogo, Slime d'Água, Goblin da Terra, Morcego do Vento.
+- Estatísticas pós-partida mostram o dano por reação.
+- Pendente: reações triplas, Luz/Trevas, resistências mostradas antes da partida.
 
 ## Arte e técnica
-- Pixel art 32×32 em camadas (Marco 3); hoje 16×16 gerada por código.
+- Estilo cartoon 2D gerado com IA (decisão de 17/10/2026, ver docs/ART_PLAN.md), com modelo de quadros por papel de criatura.
 - Meta: 60 FPS com 2.000 inimigos e 3.000 projéteis num celular médio.
 - Todo conteúdo em dados (`src/data`), sem código por item.
 
 ## Marcos
-1. Fundação de sistemas (atual) · 2. Elementos · 3. Arte 32×32 e primeiro conteúdo ·
+1. Fundação de sistemas ✅ · 2. Elementos ✅ · 3. Arte e primeiro conteúdo (arte cartoon já feita) ·
 4. Progressão e heróis · 5. Pets e montarias · 6. Lançamento.

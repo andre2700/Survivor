@@ -197,6 +197,7 @@ function statsPanel(scene: Phaser.Scene, game: GameScene, y0: number) {
     ['Área', `+${pct(s.area)}`],
     ['Quantidade', `+${formatNumber(Math.floor(s.amount))}`],
     ['Crítico', `${pct(s.critChance)} · ×${s.critDamage.toFixed(1)}`],
+    ['Potência elemental', `+${pct(s.elementalPower)}`],
     ['Vida', `${formatNumber(game.hp)} / ${formatNumber(s.maxHp)}`],
     ['Defesa', formatNumber(s.defense)],
     ['Sorte', formatNumber(s.luck)],
@@ -291,7 +292,8 @@ export class GameOverScene extends Phaser.Scene {
     });
 
     // dano por arma: ajuda a entender o que funcionou
-    const weapons = [...result.weapons].sort((a, b) => b.dealt - a.dealt).slice(0, 6);
+    const reactions = [...result.reactions].sort((a, b) => b.dealt - a.dealt);
+    const weapons = [...result.weapons].sort((a, b) => b.dealt - a.dealt).slice(0, reactions.length ? 5 : 6);
     const total = weapons.reduce((s, w) => s + w.dealt, 0) || 1;
     let y = y0 + rowsH + 26;
     text(this, width / 2, y, 'DANO POR ARMA', 13, '#ffd86a', { bold: true });
@@ -305,6 +307,10 @@ export class GameOverScene extends Phaser.Scene {
       this.add.rectangle(52, y + 7, Math.max(3, barW), 5, 0x5d8ced).setOrigin(0, 0.5).setStrokeStyle(1, 0x0b0a14);
       this.add.text(width - 26, y, formatNumber(w.dealt), { fontFamily: FONT, fontSize: px(13), fontStyle: 'bold', color: '#ffffff' }).setOrigin(1, 0.5);
       y += 32;
+    }
+    if (reactions.length) {
+      const line = reactions.map((r) => `${r.name} ${formatNumber(r.dealt)}`).join(' · ');
+      text(this, width / 2, y + 2, `Reações: ${line}`, 12, '#9fe8ff', { bold: true, wrap: width - 48 });
     }
 
     text(this, width / 2, height - 118, `Ouro total: ${formatNumber(save.gold)}`, 14, '#ffd86a', { bold: true });
