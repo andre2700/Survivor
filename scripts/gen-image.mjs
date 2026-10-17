@@ -2,7 +2,7 @@
 // proxy do ambiente (segredo de rede no cabeçalho x-goog-api-key).
 //
 //   node scripts/gen-image.mjs --list
-//   node scripts/gen-image.mjs --out art-tests/heroi.png --prompt "..." [--ref imagem.png ...] [--model nome]
+//   node scripts/gen-image.mjs --out art-tests/heroi.png --prompt "..." [--ref imagem.png ...] [--model nome] [--aspect 21:9]
 //
 // --ref envia imagens de referência (estilo ou personagem) junto com o prompt.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -21,6 +21,7 @@ function parseArgs(argv) {
     else if (a === '--out') args.out = argv[++i];
     else if (a === '--model') args.model = argv[++i];
     else if (a === '--ref') args.refs.push(argv[++i]);
+    else if (a === '--aspect') args.aspect = argv[++i];
   }
   return args;
 }
@@ -43,7 +44,7 @@ async function listModels() {
   }
 }
 
-async function generate({ prompt, out, model = DEFAULT_MODEL, refs }) {
+async function generate({ prompt, out, model = DEFAULT_MODEL, refs, aspect }) {
   const parts = [{ text: prompt }];
   for (const ref of refs) {
     const mime = extname(ref).toLowerCase() === '.jpg' ? 'image/jpeg' : 'image/png';
@@ -51,7 +52,7 @@ async function generate({ prompt, out, model = DEFAULT_MODEL, refs }) {
   }
   const body = await call(`/models/${model}:generateContent`, {
     method: 'POST',
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseModalities: ['IMAGE', 'TEXT'], ...(aspect ? { imageConfig: { aspectRatio: aspect } } : {}) } }),
   });
   const resParts = body.candidates?.[0]?.content?.parts ?? [];
   const images = resParts.filter((p) => p.inlineData?.data);

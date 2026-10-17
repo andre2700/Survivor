@@ -165,14 +165,17 @@ def slice_sheet(path, n):
     small = alpha.resize((w // q, h // q), Image.BOX).load()
     mask = [[small[x, y] >= 100 for x in range(w // q)] for y in range(h // q)]
     label, regions = components(mask)
-    # pedaço pequeno: vai inteiro para o quadro do seu centro; região grande (figura, ou figuras
-    # encostadas): fica dividida pelas colunas de corte
+    # região grande (figura, ou figuras encostadas): dividida pelas colunas de corte. Pedaço pequeno
+    # solto (chama, ponta de asa): vai inteiro para o quadro da figura mais próxima dele
     owner = {}
+    big = {i for i, pts in enumerate(regions, 1) if max(x for x, _ in pts) - min(x for x, _ in pts) >= w / n * 0.5 / q}
+    edge = [p for i in big for p in regions[i - 1][::3]]
     for i, pts in enumerate(regions, 1):
-        xs = [x * q for x, _ in pts]
-        if max(xs) - min(xs) < w / n * 0.5:
-            cx = sum(xs) / len(xs)
-            owner[i] = next(k for k in range(n) if cx < cuts[k + 1] or k == n - 1)
+        if i in big:
+            continue
+        sample = pts[::max(1, len(pts) // 40)]
+        nx, _ = min(edge, key=lambda e: min((e[0] - x) ** 2 + (e[1] - y) ** 2 for x, y in sample))
+        owner[i] = next(k for k in range(n) if nx * q < cuts[k + 1] or k == n - 1)
     frames = []
     for k in range(n):
         m = Image.new('L', (w // q, h // q))
@@ -186,8 +189,27 @@ def slice_sheet(path, n):
         m = m.resize((w, h), Image.NEAREST).filter(ImageFilter.MaxFilter(9))
         part = Image.new('RGBA', (w, h))
         part.paste(rgba, (0, 0), m)
-        frames.append(crop_opaque(part))
+        frames.append(drop_slivers(crop_opaque(part)))
     return frames
+
+
+def drop_slivers(im, q=4):
+    """Apaga lascas do quadro vizinho: pedaços minúsculos encostados na borda esquerda ou direita."""
+    w, h = im.size
+    small = im.getchannel('A').resize((max(1, w // q), max(1, h // q)), Image.BOX).load()
+    sw, sh = max(1, w // q), max(1, h // q)
+    _, regions = components([[small[x, y] >= 60 for x in range(sw)] for y in range(sh)])
+    if len(regions) < 2:
+        return im
+    biggest = max(len(r) for r in regions)
+    out = im.copy()
+    for pts in regions:
+        xs = [x for x, _ in pts]
+        if len(pts) < biggest * 0.02 and (min(xs) <= 1 or max(xs) >= sw - 2):
+            x0, x1 = min(xs) * q, (max(xs) + 1) * q
+            y0, y1 = min(y for _, y in pts) * q, (max(y for _, y in pts) + 1) * q
+            out.paste((0, 0, 0, 0), (max(0, x0 - q), max(0, y0 - q), min(w, x1 + q), min(h, y1 + q)))
+    return crop_opaque(out)
 
 
 def strip(frames, a, res):
@@ -231,9 +253,8 @@ def main():
             continue
         hd = a.get('hd', 2)
         sheet = SRC / f'{name}_sheet.png'
-        parts = [SRC / f'{name}_f{i + 1}.png' for i in range(len(a.get('frames', [])))]
-        if a.get('frames') and (sheet.exists() or (a.get('separate') and all(f.exists() for f in parts))):
-            frames = [cut_background(Image.open(f)) for f in parts] if a.get('separate') else slice_sheet(sheet, len(a['frames']))
+        if a.get('frames') and sheet.exists():
+            frames = slice_sheet(sheet, len(a['frames']))
             if a.get('flip'):
                 frames = [ImageOps.mirror(f) for f in frames]
             img = strip(frames, a, hd)

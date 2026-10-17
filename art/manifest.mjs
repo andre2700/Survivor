@@ -7,7 +7,7 @@
 // shadow: acrescenta sombra oval sob os pés.
 // flip: a imagem gerada olha para a esquerda; o jogo espera tudo olhando para a direita.
 // frames: poses da folha de animação (art/source/<nome>_sheet.png), gerada a partir da imagem base.
-// separate: gera uma imagem por pose (<nome>_f1.png...) em vez da folha (figuras grandes que se encostariam).
+// wide: folha em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 const CHAR = 'full body, side view facing RIGHT';
 const ICON = 'game UI item icon, single object centered, bold readable silhouette, no circle or badge behind it';
 
@@ -29,7 +29,7 @@ export const ART = {
   wolf: { h: 28, hd: 3, shadow: true, frames: ['running, all four legs gathered under the body', 'running, legs fully stretched front and back', 'running, front paws touching the ground, back legs lifted'] },
   skeleton: { h: 34, hd: 3, shadow: true, frames: WALK, prompt: `a skeleton warrior monster with a rusty sword and a broken wooden shield, glowing eye sockets, ${CHAR}, walking` },
   orc: { h: 42, hd: 3, shadow: true, frames: WALK, prompt: `a big brutish green orc brute monster with tusks, iron shoulder armor and a spiked wooden club, ${CHAR}, menacing` },
-  demon: { h: 74, hd: 3, shadow: true, frames: WALK, separate: true },
+  demon: { h: 74, hd: 3, shadow: true, wide: true, frames: ['standing, both hooves planted, staff held across the body', 'big heavy stride: left leg stepping far forward, right leg stretched far back, body leaning forward', 'big heavy stride: right leg stepping far forward, left leg stretched far back, body leaning forward'] },
   // coletáveis
   gem: { h: 14, hd: 4, prompt: `${ICON}: a small shiny blue experience crystal gem` },
   gem_green: { h: 14, hd: 4, prompt: `${ICON}: a small shiny green experience crystal gem` },

@@ -1,7 +1,7 @@
 // Gera com o Gemini as imagens de art/manifest.mjs que ainda não existem em art/source/:
 // - <nome>.png: a imagem base (o herói cavaleiro é a referência de estilo de todas);
-// - <nome>_sheet.png: a folha de animação, feita a partir da imagem base do próprio personagem;
-//   com `separate`, uma imagem por pose (<nome>_f1.png, ...), para figuras grandes que se encostariam na folha.
+// - <nome>_sheet.png: a folha de animação, feita a partir da imagem base do próprio personagem
+//   (numa imagem só: gerando cada pose separada, a IA repete a mesma pose).
 //
 //   node scripts/gen-art.mjs [nome ...]     (sem nomes: tudo o que falta; com nomes, ex. goblin_sheet: refaz esses)
 import { execFile } from 'node:child_process';
@@ -20,16 +20,10 @@ for (const [name, a] of Object.entries(ART)) {
     continue;
   }
   if (a.prompt) jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
-  if (a.frames && a.separate) {
-    a.frames.forEach((pose, i) => jobs.push({
-      out: `${name}_f${i + 1}`, ref: name, prompt: `${STYLE} ` +
-        'Use the character from the reference image and keep exactly the same design, colors, outfit, proportions and art style. ' +
-        `Draw this same character in strict side profile view, facing and moving to the RIGHT, in this pose: ${pose}.`,
-    }));
-  } else if (a.frames) {
+  if (a.frames) {
     const poses = a.frames.map((f, i) => `${i + 1}) ${f}`).join('; ');
     jobs.push({
-      out: `${name}_sheet`, ref: name, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
+      out: `${name}_sheet`, ref: name, aspect: a.wide ? '21:9' : undefined, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
         'Use the character from the reference image and keep exactly the same design, colors, outfit, proportions and art style. ' +
         `Create a sprite sheet: one single horizontal row of ${a.frames.length} frames of this same character, all at exactly the same scale, ` +
         'evenly spaced with wide magenta gaps between frames, no frame touching or overlapping another. ' +
@@ -45,7 +39,7 @@ async function gen(j) {
   for (let t = 1; t <= 3; t++) {
     try {
       await run('node', ['scripts/gen-image.mjs', '--model', 'gemini-3-pro-image', '--ref', `art/source/${j.ref}.png`,
-        '--out', `art/source/${j.out}.png`, '--prompt', j.prompt]);
+        '--out', `art/source/${j.out}.png`, '--prompt', j.prompt, ...(j.aspect ? ['--aspect', j.aspect] : [])]);
       console.log('ok', j.out);
       return;
     } catch (err) {

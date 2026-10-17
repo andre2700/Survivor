@@ -43,6 +43,6 @@ Fluxo: gerar a primeira imagem de cada estilo, usar como `--ref` nas seguintes p
 ## Refinamento (17/10/2026)
 - Quadros de animação: heróis com 4 (parado, passo esquerdo, passo direito, ataque); monstros com 3 (passo, pernas juntas, passo; slime: normal, achatado, esticado; morcego: asas em cima, no meio, embaixo). A animação por código continua por cima, mais suave.
 - As folhas são geradas numa imagem só a partir da imagem base de cada personagem (mais coerência entre quadros), sempre de perfil olhando para a direita. Isso também corrigiu goblin, orc, esqueleto e demônio, que andavam de costas.
-- O demônio, grande e com asas, encostava no vizinho na folha: as poses dele são geradas uma por imagem (`separate`).
+- O demônio, grande e com asas, encostava no vizinho na folha: a folha dele é gerada em formato 21:9 (`wide`). Gerar cada pose numa imagem separada não funciona: a IA repete a mesma pose.
 - Chão refeito: grama pintada lisa, sem pontinhos; ladrilho de 128 px lógicos para a repetição não aparecer.
 - A espadada do cavaleiro segue a direção do joystick (antes só esquerda/direita).
