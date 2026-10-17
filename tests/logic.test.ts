@@ -28,6 +28,16 @@ describe('arte', () => {
     ];
     for (const key of keys) expect(has(key), key).toBe(true);
   });
+  it('personagens animados têm os quadros do seu papel', () => {
+    const slots = (key: string) => (SPRITES as Record<string, { slots?: string[] }>)[key]?.slots ?? [];
+    for (const c of CHARACTERS) {
+      expect(slots(c.texture), c.texture).toEqual(['idle', 'walk_a', 'walk_b', 'attack', 'hurt', 'death', 'victory']);
+    }
+    for (const e of Object.values(ENEMIES)) {
+      const want = e.id === 'demon' ? ['idle', 'walk_a', 'walk_b', 'windup', 'attack', 'hurt', 'death'] : ['walk_a', 'walk_mid', 'walk_b', 'hurt', 'death'];
+      expect(slots(e.texture), e.texture).toEqual(want);
+    }
+  });
 });
 
 describe('atributos', () => {

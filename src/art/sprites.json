@@ -4,7 +4,14 @@
  },
  "bat": {
   "hd": 3,
-  "frames": 3
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
  },
  "bolt": {
   "hd": 4
@@ -17,7 +24,16 @@
  },
  "demon": {
   "hd": 3,
-  "frames": 3
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "dirt": {
   "hd": 2
@@ -39,7 +55,14 @@
  },
  "goblin": {
   "hd": 3,
-  "frames": 3
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
  },
  "ground": {
   "hd": 2
@@ -49,19 +72,55 @@
  },
  "hero_barbarian": {
   "hd": 3,
-  "frames": 4
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory"
+  ]
  },
  "hero_knight": {
   "hd": 3,
-  "frames": 4
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory"
+  ]
  },
  "hero_mage": {
   "hd": 3,
-  "frames": 4
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory"
+  ]
  },
  "hero_ranger": {
   "hd": 3,
-  "frames": 4
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory"
+  ]
  },
  "icon_bolt": {
   "hd": 4
@@ -110,7 +169,14 @@
  },
  "orc": {
   "hd": 3,
-  "frames": 3
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
  },
  "portrait_hero_barbarian": {
   "hd": 8
@@ -141,11 +207,25 @@
  },
  "skeleton": {
   "hd": 3,
-  "frames": 3
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
  },
  "slime": {
   "hd": 3,
-  "frames": 3
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
  },
  "stump": {
   "hd": 2
@@ -161,6 +241,13 @@
  },
  "wolf": {
   "hd": 3,
-  "frames": 3
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
  }
 }

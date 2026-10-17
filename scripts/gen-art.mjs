@@ -1,13 +1,14 @@
 // Gera com o Gemini as imagens de art/manifest.mjs que ainda não existem em art/source/:
 // - <nome>.png: a imagem base (o herói cavaleiro é a referência de estilo de todas);
-// - <nome>_sheet.png: a folha de animação, feita a partir da imagem base do próprio personagem
-//   (numa imagem só: gerando cada pose separada, a IA repete a mesma pose).
+// - <nome>_sheet.png e <nome>_action.png (e _action2...): as folhas de movimento e de ação do modelo de quadros
+//   (art/manifest.mjs), feitas a partir da imagem base do próprio personagem (cada folha numa imagem
+//   só: gerando cada pose separada, a IA repete a mesma pose).
 //
 //   node scripts/gen-art.mjs [nome ...]     (sem nomes: tudo o que falta; com nomes, ex. goblin_sheet: refaz esses)
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { ART } from '../art/manifest.mjs';
+import { ART, sheets } from '../art/manifest.mjs';
 
 const run = promisify(execFile);
 const STYLE = readFileSync('art/source/_style.txt', 'utf8').trim();
@@ -20,15 +21,19 @@ for (const [name, a] of Object.entries(ART)) {
     continue;
   }
   if (a.prompt) jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
-  if (a.frames) {
-    const poses = a.frames.map((f, i) => `${i + 1}) ${f}`).join('; ');
-    jobs.push({
-      out: `${name}_sheet`, ref: name, aspect: a.wide ? '21:9' : undefined, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
-        'Use the character from the reference image and keep exactly the same design, colors, outfit, proportions and art style. ' +
-        `Create a sprite sheet: one single horizontal row of ${a.frames.length} frames of this same character, all at exactly the same scale, ` +
-        'evenly spaced with wide magenta gaps between frames, no frame touching or overlapping another. ' +
-        `Every frame in strict side profile view, the character facing and moving to the RIGHT. Frames from left to right: ${poses}. ${BG}`,
-    });
+  if (a.role) {
+    const plan = sheets(a);
+    const named = [['sheet', plan.move], ...plan.actions.map((poses, i) => [i ? `action${i + 1}` : 'action', poses])];
+    for (const [suffix, poses] of named) {
+      const list = poses.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
+      jobs.push({
+        out: `${name}_${suffix}`, ref: name, aspect: a.wide ? '21:9' : undefined, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
+          'Use the character from the reference image and keep exactly the same design, colors, outfit, proportions and art style. ' +
+          `Create a sprite sheet: one single horizontal row of ${poses.length} frames of this same character, all at exactly the same scale, ` +
+          'evenly spaced with wide magenta gaps between frames, no frame touching or overlapping another. ' +
+          `Every frame in strict side profile view, the character facing and moving to the RIGHT. Frames from left to right: ${list}. ${BG}`,
+      });
+    }
   }
 }
 

@@ -7,8 +7,8 @@ import { SLICE, UI_FRAMES, UI_HD, frame } from './ui';
 // maior que a lógica: cada textura guarda seu fator `hd` e é desenhada no tamanho lógico.
 
 const URLS = import.meta.glob('../assets/art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-/** hd: resolução; frames: quantos quadros lado a lado (tira de animação). */
-const SPRITE = SPRITES as Record<string, { hd: number; frames?: number }>;
+/** hd: resolução; frames: quadros lado a lado; slots: nome de cada quadro (modelo de quadros, art/manifest.mjs). */
+const SPRITE = SPRITES as Record<string, { hd: number; frames?: number; slots?: string[] }>;
 const FX_HD = 2;
 
 /** Nome do quadro no atlas: `slime:0`, `coin:0`... */
@@ -17,8 +17,17 @@ export const frameName = (key: string, i = 0) => `${key}:${i}`;
 /** Fator de resolução de uma textura (1 = tamanho lógico). */
 export const hdOf = (key: string) => SPRITE[key]?.hd ?? 1;
 
-/** Quantidade de quadros de animação de uma textura. */
-export const frameCount = (key: string) => SPRITE[key]?.frames ?? 1;
+/** Índice de cada quadro nomeado (walk_a, hurt, death...) de uma textura animada. */
+export type Slots = Readonly<Record<string, number>>;
+const slotCache = new Map<string, Slots>();
+export function slotsOf(key: string): Slots {
+  let s = slotCache.get(key);
+  if (!s) {
+    s = Object.fromEntries((SPRITE[key]?.slots ?? []).map((name, i) => [name, i]));
+    slotCache.set(key, s);
+  }
+  return s;
+}
 
 const meta = (f: Phaser.Textures.Frame) => f.customData as { hd?: number };
 

@@ -1,6 +1,7 @@
 # Prepara a arte cartoon para o jogo: remove o fundo magenta, recorta e reduz cada imagem de
 # art/source/ ao tamanho de art/manifest.mjs, salvando em src/assets/art/ e o índice em src/art/sprites.json.
-# Personagens com folha de animação (<nome>_sheet.png) viram uma tira de quadros do mesmo tamanho.
+# Personagens animados (folhas <nome>_sheet.png e <nome>_action*.png) viram uma tira de quadros do mesmo
+# tamanho, na ordem do modelo de quadros; o índice guarda o nome de cada quadro (slots).
 #
 #   python3 scripts/process-art.py [nome ...]
 import json
@@ -18,7 +19,8 @@ GROUND_HD = 2
 
 
 def manifest():
-    js = "import('./art/manifest.mjs').then((m) => console.log(JSON.stringify(m.ART)))"
+    js = ("import('./art/manifest.mjs').then((m) => console.log(JSON.stringify(Object.fromEntries("
+          "Object.entries(m.ART).map(([k, a]) => [k, a.role ? { ...a, sheets: m.sheets(a) } : a])))))")
     return json.loads(subprocess.check_output(['node', '-e', js]))
 
 
@@ -194,28 +196,35 @@ def slice_sheet(path, n):
 
 
 def drop_slivers(im, q=4):
-    """Apaga lascas do quadro vizinho: pedaços minúsculos encostados na borda esquerda ou direita."""
+    """Apaga lascas do quadro vizinho: pedaços pequenos encostados na borda ou longe do corpo."""
     w, h = im.size
     small = im.getchannel('A').resize((max(1, w // q), max(1, h // q)), Image.BOX).load()
     sw, sh = max(1, w // q), max(1, h // q)
     _, regions = components([[small[x, y] >= 60 for x in range(sw)] for y in range(sh)])
     if len(regions) < 2:
         return im
-    biggest = max(len(r) for r in regions)
+    body = max(regions, key=len)
+    near = body[::4]
     out = im.copy()
     for pts in regions:
+        if pts is body or len(pts) >= len(body) * 0.4:
+            continue
         xs = [x for x, _ in pts]
-        if len(pts) < biggest * 0.02 and (min(xs) <= 1 or max(xs) >= sw - 2):
+        # distância (em px reduzidos) do pedaço até o corpo
+        gap = min(min((x - bx) ** 2 + (y - by) ** 2 for bx, by in near) for x, y in pts[::max(1, len(pts) // 20)]) ** 0.5
+        at_edge = min(xs) <= 1 or max(xs) >= sw - 2
+        if (at_edge and len(pts) < len(body) * 0.1) or gap > sh * 0.12:
             x0, x1 = min(xs) * q, (max(xs) + 1) * q
             y0, y1 = min(y for _, y in pts) * q, (max(y for _, y in pts) + 1) * q
             out.paste((0, 0, 0, 0), (max(0, x0 - q), max(0, y0 - q), min(w, x1 + q), min(h, y1 + q)))
     return crop_opaque(out)
 
 
-def strip(frames, a, res):
-    """Tira de quadros do mesmo tamanho, na mesma escala, alinhados pelos pés (ou pelo centro, se voa)."""
-    # escala única pela altura mediana: mantém a diferença de tamanho entre poses (achatar, esticar)
-    heights = sorted(f.height for f in frames)
+def strip(frames, a, res, n_ref):
+    """Tira de quadros do mesmo tamanho, na mesma escala, alinhados pelos pés (ou pelo centro, se voa).
+    A escala vem da altura mediana dos `n_ref` primeiros quadros (os de movimento)."""
+    # escala única: mantém a diferença de tamanho entre poses (achatar, esticar, cair)
+    heights = sorted(f.height for f in frames[:n_ref])
     k = a['h'] * res / heights[len(heights) // 2]
     frames = [premul_resize(f, (max(1, round(f.width * k)), max(1, round(f.height * k)))) for f in frames]
     fly = not a.get('shadow')
@@ -253,14 +262,25 @@ def main():
             continue
         hd = a.get('hd', 2)
         sheet = SRC / f'{name}_sheet.png'
-        if a.get('frames') and sheet.exists():
-            frames = slice_sheet(sheet, len(a['frames']))
+        if a.get('role') and sheet.exists():
+            plan = a['sheets']
+            frames = slice_sheet(sheet, len(plan['move']))
+            slots = [p['slot'] for p in plan['move']]
+            for i, poses in enumerate(plan['actions']):
+                action = SRC / f"{name}_action{i + 1 if i else ''}.png"
+                if not action.exists():
+                    break
+                act = slice_sheet(action, len(poses))
+                # o 1º quadro de cada folha de ação repete a 1ª pose de movimento: iguala a escala das folhas
+                k = frames[0].height / act[0].height
+                frames += [premul_resize(f, (max(1, round(f.width * k)), max(1, round(f.height * k)))) for f in act[1:]]
+                slots += [p['slot'] for p in poses[1:]]
             if a.get('flip'):
                 frames = [ImageOps.mirror(f) for f in frames]
-            img = strip(frames, a, hd)
+            img = strip(frames, a, hd, len(plan['move']))
             img.save(OUT / f'{name}.png', optimize=True)
-            index[name] = {'hd': hd, 'frames': len(frames)}
-            print(name, img.size, f'hd {hd}', f'{len(frames)} quadros', [f.size for f in frames])
+            index[name] = {'hd': hd, 'frames': len(frames), 'slots': slots}
+            print(name, img.size, f'hd {hd}', ' '.join(slots))
             variants = [(f'portrait_{name}', a['portrait'])] if 'portrait' in a else []
         else:
             variants = [(name, hd)] + ([(f'portrait_{name}', a['portrait'])] if 'portrait' in a else [])

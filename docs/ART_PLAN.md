@@ -46,3 +46,21 @@ Fluxo: gerar a primeira imagem de cada estilo, usar como `--ref` nas seguintes p
 - O demônio, grande e com asas, encostava no vizinho na folha: a folha dele é gerada em formato 21:9 (`wide`). Gerar cada pose numa imagem separada não funciona: a IA repete a mesma pose.
 - Chão refeito: grama pintada lisa, sem pontinhos; ladrilho de 128 px lógicos para a repetição não aparecer.
 - A espadada do cavaleiro segue a direção do joystick (antes só esquerda/direita).
+
+## Modelo de quadros (17/10/2026)
+Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manifest.mjs`); a descrição das poses muda com o tipo de corpo (`POSES`: bípede, quadrúpede, voador, gelatinoso).
+
+| Quadro | Monstro comum | Com ataque especial | Chefe | Herói |
+|---|---|---|---|---|
+| Parado | – | – | ✓ | ✓ |
+| Andar: passo A, pernas juntas, passo B | ✓ | ✓ | passo A e B | passo A e B |
+| Preparar ataque | – | ✓ | ✓ | – |
+| Atacar | – | ✓ | ✓ | ✓ |
+| Dano | ✓ | ✓ | ✓ | ✓ |
+| Morte | ✓ | ✓ | ✓ | ✓ |
+| Vitória | – | – | – | ✓ |
+
+- Duas folhas por criatura, ambas a partir da imagem base: movimento e ação. Cada folha de ação começa com a pose do 1º quadro de movimento, usada só para igualar a escala entre as folhas. Figuras grandes (`wide`) dividem a ação em folhas de 2 poses.
+- No jogo: o quadro de dano aparece por um instante a cada golpe; ao morrer, o monstro fica caído e some (até 60 corpos ao mesmo tempo); o herói mostra dano ao apanhar, cai na derrota e comemora na vitória.
+- O chefe ganhou um ataque para usar os quadros de preparar/atacar: perto do herói, para, mostra um anel vermelho no chão por 0,9 s e golpeia a área (1,5× o dano de contato), a cada ~4 s.
+- "Com ataque especial" ainda não é usado por nenhum monstro; fica pronto para criaturas novas.

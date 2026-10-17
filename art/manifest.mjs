@@ -6,30 +6,92 @@
 // portrait: gera também portrait_<nome>.png nesta resolução (herói grande no menu).
 // shadow: acrescenta sombra oval sob os pés.
 // flip: a imagem gerada olha para a esquerda; o jogo espera tudo olhando para a direita.
-// frames: poses da folha de animação (art/source/<nome>_sheet.png), gerada a partir da imagem base.
-// wide: folha em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
+// role/body: personagem animado pelo modelo de quadros abaixo (FRAME_TEMPLATES e POSES).
+// hold: o que o personagem segura, repetido em todas as poses (a IA às vezes larga a arma).
+// wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 const CHAR = 'full body, side view facing RIGHT';
 const ICON = 'game UI item icon, single object centered, bold readable silhouette, no circle or badge behind it';
 
-const WALK = ['walking, left leg forward, right leg back (contact pose)', 'walking, legs together under the body (passing pose)', 'walking, right leg forward, left leg back (contact pose)'];
-const HERO = ['idle stance, relaxed, weapon held ready', 'walking, left leg forward (contact pose)', 'walking, right leg forward (contact pose)', 'attacking: swinging or thrusting the weapon forward to the RIGHT, dynamic'];
+// ---------- Modelo de quadros ----------
+// Toda criatura nova segue o modelo do seu papel. Os quadros vêm de duas folhas geradas a partir da
+// imagem base: movimento (<nome>_sheet.png) e ação (<nome>_action.png, e _action2... nas figuras grandes).
+// Cada folha de ação começa com a pose do 1º quadro de movimento, só para acertar a escala (é descartada).
+export const FRAME_TEMPLATES = {
+  // monstro comum: só causa dano encostando
+  monster: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['hurt', 'death'] },
+  // monstro com ataque próprio, que precisa ser visto chegando
+  special: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
+  boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
+  hero: { move: ['idle', 'walk_a', 'walk_b', 'attack'], action: ['hurt', 'death', 'victory'] },
+};
+
+// Descrição de cada pose por tipo de corpo.
+const BIPED = {
+  idle: 'idle stance, relaxed, weapon held ready',
+  walk_a: 'walking, left leg forward, right leg back (contact pose)',
+  walk_mid: 'walking, legs together under the body (passing pose)',
+  walk_b: 'walking, right leg forward, left leg back (contact pose)',
+  windup: 'winding up a big attack: weapon raised high behind the head, body leaning back, menacing',
+  attack: 'attacking: swinging or thrusting the weapon forward to the RIGHT with full force, dynamic',
+  hurt: 'recoiling from a hit: flinching backwards, eyes squeezed shut, grimacing in pain',
+  death: 'defeated: collapsed lying flat on the ground, eyes closed, weapon dropped beside the body',
+  victory: 'celebrating victory: weapon raised high in the air, big happy smile, jumping with joy',
+};
+export const POSES = {
+  biped: BIPED,
+  quadruped: {
+    ...BIPED,
+    walk_a: 'running, all four legs gathered under the body',
+    walk_mid: 'running, legs fully stretched front and back',
+    walk_b: 'running, front paws touching the ground, back legs lifted',
+    windup: 'crouching low, ready to pounce, snarling',
+    attack: 'pouncing forward with jaws wide open',
+    hurt: 'recoiling from a hit: yelping, flinching backwards, eyes squeezed shut',
+    death: 'defeated: lying on its side on the ground, eyes closed, tongue out',
+  },
+  flyer: {
+    ...BIPED,
+    walk_a: 'wings raised high',
+    walk_mid: 'wings level, spread wide',
+    walk_b: 'wings swept down low',
+    hurt: 'knocked back in the air by a hit, wings crumpled, eyes squeezed shut',
+    death: 'defeated: falling, upside down with limp wings, eyes closed (X eyes)',
+  },
+  blob: {
+    ...BIPED,
+    walk_a: 'normal resting shape',
+    walk_mid: 'squashed flat and wide, about to hop',
+    walk_b: 'stretched tall and narrow, mid-hop',
+    hurt: 'dented and wobbling from a hit, eyes squeezed shut',
+    death: 'defeated: melted into a flat puddle, eyes closed (X eyes)',
+  },
+};
 
 export const ART = {
   // chão: textura que se repete (sem fundo para recortar)
   ground: { tile: true, prompt: `a seamless tileable texture of lush green grass ground seen from directly above, for a top-down RPG map. Very clean and calm: only soft, large, painterly patches of slightly lighter and darker green, like a smooth cartoon lawn. NO grass tufts, NO outlines, NO dots, NO speckles, NO flowers, NO objects. Even lighting, fills the whole square image edge to edge` },
   // heróis
-  hero_knight: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `a brave young knight hero in steel armor with a blue cape and a sword, ${CHAR}, heroic stance` },
-  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
-  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
-  hero_barbarian: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, holding a big battle axe, ${CHAR}, fierce stance` },
+  hero_knight: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `a brave young knight hero in steel armor with a blue cape and a sword, ${CHAR}, heroic stance` },
+  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
+  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
+  hero_barbarian: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, holding a big battle axe, ${CHAR}, fierce stance` },
   // inimigos
-  slime: { h: 22, hd: 3, shadow: true, frames: ['normal resting shape', 'squashed flat and wide, about to hop', 'stretched tall and narrow, mid-hop'] },
-  bat: { h: 22, hd: 3, frames: ['wings raised high', 'wings level, spread wide', 'wings swept down low'], prompt: `a small purple cave bat monster with big ears, open wings, fangs and glowing eyes, flying, ${CHAR}` },
-  goblin: { h: 32, hd: 3, shadow: true, frames: WALK.map((f) => `${f}, holding the crude dagger in the front hand`) },
-  wolf: { h: 28, hd: 3, shadow: true, frames: ['running, all four legs gathered under the body', 'running, legs fully stretched front and back', 'running, front paws touching the ground, back legs lifted'] },
-  skeleton: { h: 34, hd: 3, shadow: true, frames: WALK, prompt: `a skeleton warrior monster with a rusty sword and a broken wooden shield, glowing eye sockets, ${CHAR}, walking` },
-  orc: { h: 42, hd: 3, shadow: true, frames: WALK, prompt: `a big brutish green orc brute monster with tusks, iron shoulder armor and a spiked wooden club, ${CHAR}, menacing` },
-  demon: { h: 74, hd: 3, shadow: true, wide: true, frames: ['standing, both hooves planted, staff held across the body', 'big heavy stride: left leg stepping far forward, right leg stretched far back, body leaning forward', 'big heavy stride: right leg stepping far forward, left leg stretched far back, body leaning forward'] },
+  slime: { h: 22, hd: 3, shadow: true, role: 'monster', body: 'blob' },
+  bat: { h: 22, hd: 3, role: 'monster', body: 'flyer', prompt: `a small purple cave bat monster with big ears, open wings, fangs and glowing eyes, flying, ${CHAR}` },
+  goblin: { h: 32, hd: 3, shadow: true, role: 'monster', body: 'biped', hold: 'the crude dagger in the front hand' },
+  wolf: { h: 28, hd: 3, shadow: true, role: 'monster', body: 'quadruped' },
+  skeleton: { h: 34, hd: 3, shadow: true, role: 'monster', body: 'biped', prompt: `a skeleton warrior monster with a rusty sword and a broken wooden shield, glowing eye sockets, ${CHAR}, walking` },
+  orc: { h: 42, hd: 3, shadow: true, role: 'monster', body: 'biped', prompt: `a big brutish green orc brute monster with tusks, iron shoulder armor and a spiked wooden club, ${CHAR}, menacing` },
+  demon: {
+    h: 74, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped',
+    poses: {
+      idle: 'standing, both hooves planted, staff held across the body',
+      walk_a: 'big heavy stride: left leg stepping far forward, right leg stretched far back, body leaning forward',
+      walk_b: 'big heavy stride: right leg stepping far forward, left leg stretched far back, body leaning forward',
+      windup: 'winding up a ground slam: flaming staff raised high above the head with both hands, wings spread wide, roaring',
+      attack: 'slamming the flaming staff down into the ground in front of it, fire bursting from the impact',
+    },
+  },
   // coletáveis
   gem: { h: 14, hd: 4, prompt: `${ICON}: a small shiny blue experience crystal gem` },
   gem_green: { h: 14, hd: 4, prompt: `${ICON}: a small shiny green experience crystal gem` },
@@ -70,3 +132,21 @@ export const ART = {
   icon_skull: { h: 16, hd: 4, prompt: `${ICON}: a white cartoon skull` },
   icon_star: { h: 16, hd: 4, prompt: `${ICON}: a shiny gold star` },
 };
+
+/**
+ * Poses das folhas de um personagem animado: `move` (folha <nome>_sheet) e `actions` (folhas
+ * <nome>_action, <nome>_action2...), cada uma uma lista [{ slot, text }]. Toda folha de ação começa com a
+ * pose de calibragem (o 1º quadro de movimento), que serve só para igualar a escala das folhas.
+ * Figuras grandes (`wide`) levam no máximo 2 poses por folha de ação, para não se amontoarem.
+ */
+export function sheets(a) {
+  const t = FRAME_TEMPLATES[a.role];
+  const pose = (slot) => {
+    const text = a.poses?.[slot] ?? POSES[a.body][slot];
+    return { slot, text: a.hold ? `${text}, holding ${a.hold}` : text };
+  };
+  const per = a.wide ? 2 : 3;
+  const actions = [];
+  for (let i = 0; i < t.action.length; i += per) actions.push([t.move[0], ...t.action.slice(i, i + per)].map(pose));
+  return { move: t.move.map(pose), actions };
+}

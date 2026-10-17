@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { frameHd, frameName } from './art/textures';
+import { frameHd, frameName, slotsOf, type Slots } from './art/textures';
 import type { EnemyDef } from './data/enemies';
 import type { Element, WeaponId } from './data/weapons';
 
@@ -28,6 +28,15 @@ export class Enemy extends Phaser.GameObjects.Image {
   baseScale = 1;
   /** quadro de animação atual */
   animFrame = 0;
+  /** índice de cada quadro nomeado da textura (walk_a, hurt, death...) */
+  slots: Slots = {};
+  /** mostra o quadro de dano até este instante (s) */
+  hurtUntil = 0;
+  /** ataque do chefe: andando, preparando (aviso no chão) ou golpeando */
+  attackPhase: 'walk' | 'windup' | 'attack' = 'walk';
+  attackTimer = 0;
+  attackX = 0;
+  attackY = 0;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0, 'atlas', frameName('slime'));
@@ -52,6 +61,10 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.radius = def.radius * scale;
     this.baseScale = scale;
     this.animFrame = 0;
+    this.slots = slotsOf(def.texture);
+    this.hurtUntil = 0;
+    this.attackPhase = 'walk';
+    this.attackTimer = 3;
     this.setPosition(x, y).setActive(true).setVisible(true).setAlpha(1).setAngle(0);
     this.setFrame(frameName(def.texture, 0)).setScale(scale).setDepth(y);
     // a posição é o centro do corpo (a sombra fica embutida na base do sprite)

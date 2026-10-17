@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { VIEW, pointerPos, setupCamera } from '../ui/view';
 import { walkPose } from '../art/motion';
-import { generateTextures, groundSprite, preloadArt, scrollGround } from '../art/textures';
+import { generateTextures, groundSprite, preloadArt, scrollGround, slotsOf } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { CHARACTERS } from '../data/characters';
 import { META_UPGRADES, metaCost } from '../data/meta';
@@ -193,7 +193,7 @@ export class MenuScene extends Phaser.Scene {
       this.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dt: number) => {
         m.x += (dir * speed * dt) / 1000;
         const pose = walkPose(key, this.time.now / 1000 + i);
-        m.setFrame(pose.frame).setScale(1.5 * pose.sx, 1.5 * pose.sy).setRotation(dir < 0 ? -pose.rot : pose.rot);
+        m.setFrame(slotsOf(key)[pose.slot] ?? 0).setScale(1.5 * pose.sx, 1.5 * pose.sy).setRotation(dir < 0 ? -pose.rot : pose.rot);
         if (dir > 0 && m.x > width + 60) m.x = -60;
         if (dir < 0 && m.x < -60) m.x = width + 60;
       });

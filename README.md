@@ -29,10 +29,10 @@ O design completo está em [docs/GDD.md](docs/GDD.md).
 Estilo cartoon 2D (contorno grosso, sombreado suave, cores vivas), gerado com IA e preparado por scripts. O plano e as decisões estão em [docs/ART_PLAN.md](docs/ART_PLAN.md).
 
 - `art/manifest.mjs`: lista de toda a arte, com o prompt de cada imagem e o tamanho no jogo.
-- `node scripts/gen-art.mjs [nome ...]`: gera com o Gemini as imagens que faltam em `art/source/` (ou refaz as indicadas, ex. `goblin_sheet`), usando o cavaleiro como referência de estilo. Personagens ganham também uma folha de animação feita a partir da própria imagem base. A chave vem de `GEMINI_API_KEY`.
+- `node scripts/gen-art.mjs [nome ...]`: gera com o Gemini as imagens que faltam em `art/source/` (ou refaz as indicadas, ex. `goblin_sheet`), usando o cavaleiro como referência de estilo. Personagens ganham também as folhas de movimento e de ação do modelo de quadros, feitas a partir da própria imagem base. A chave vem de `GEMINI_API_KEY`.
 - `python3 scripts/process-art.py [nome ...]`: remove o fundo, recorta, reduz, acrescenta sombra e salva em `src/assets/art/`, com o índice (resolução e quantidade de quadros) em `src/art/sprites.json`. As folhas de animação viram tiras de quadros alinhados pelos pés.
 - As texturas ficam em resolução 2–4× maior que a lógica e são desenhadas no tamanho lógico (`installHdSprites` em `src/art/textures.ts`); por isso o jogo exige WebGL.
-- Animação (`src/art/motion.ts`): poucos quadros desenhados por personagem (heróis: parado, dois passos e ataque; monstros: três poses), em ciclo, com esticar/achatar, inclinação e respiração por código por cima.
+- Animação: toda criatura segue o **modelo de quadros** de `art/manifest.mjs` (`FRAME_TEMPLATES`): monstro comum com andar (3), dano e morte; chefe com parado, andar (2), preparar, atacar, dano e morte; herói com parado, andar (2), ataque, dano, morte e vitória. As poses mudam com o tipo de corpo (bípede, quadrúpede, voador, gelatinoso). O ciclo de andar e o balanço por código ficam em `src/art/motion.ts`; dano, morte, ataque e vitória são escolhidos pelo jogo.
 - Efeitos (brilho, golpe, aura, vinheta) e molduras da interface são desenhados por código (`src/art/fx.ts`, `src/art/ui.ts`).
 - `npm run artsheet` gera `screenshots/artsheet.png` com todos os sprites, para revisar a arte.
 

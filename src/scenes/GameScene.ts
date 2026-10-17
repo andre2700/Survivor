@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { VIEW } from '../ui/view';
-import { HERO_ATTACK_FRAME, walkPose } from '../art/motion';
-import { frameName, groundSprite, scrollGround } from '../art/textures';
+import { walkPose } from '../art/motion';
+import { frameName, groundSprite, scrollGround, slotsOf, type Slots } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { SpatialGrid } from '../core/grid';
 import {
@@ -41,6 +41,11 @@ export const LAYER = {
   text: 1.5e9,
   overlay: 2e9,
 };
+
+/** Pancada do chefe: perto do herói, para, avisa no chão e golpeia a área à frente. */
+const BOSS_SLAM = { range: 120, reach: 40, radius: 56, windup: 0.9, recover: 0.45, cooldown: 4, damage: 1.5 };
+/** Corpos caídos visíveis ao mesmo tempo (os demais inimigos só somem). */
+const MAX_CORPSES = 60;
 
 export interface RunResult {
   victory: boolean;
@@ -98,7 +103,10 @@ export class GameScene extends Phaser.Scene {
   private pendingLevels = 0;
   private invulnUntil = 0;
   private attackUntil = 0;
+  private hurtUntil = 0;
   private playerFrame = 0;
+  private playerSlots: Slots = {};
+  private corpses: { img: Phaser.GameObjects.Image; life: number; total: number }[] = [];
   private spawnAcc = 0;
   private eventsDone = new Set<number>();
   boss: Enemy | null = null;
@@ -144,6 +152,7 @@ export class GameScene extends Phaser.Scene {
     this.pendingLevels = 0;
     this.invulnUntil = 0;
     this.attackUntil = 0;
+    this.hurtUntil = 0;
     this.playerFrame = 0;
     this.spawnAcc = 0;
     this.eventsDone.clear();
@@ -165,6 +174,7 @@ export class GameScene extends Phaser.Scene {
     this.facing.set(1, 0);
     this.dmgTexts = [];
     this.active = [];
+    this.corpses = [];
     this.decor.clear();
 
     const width = this.viewW;
@@ -172,6 +182,7 @@ export class GameScene extends Phaser.Scene {
     // chão e vinheta acompanham a câmera (com margem para não aparecer borda)
     this.ground = groundSprite(this, 0, 0, width + 128, height + 128).setOrigin(0).setDepth(LAYER.ground);
     this.player = this.add.image(0, 0, 'atlas', frameName(this.char.texture)).setOrigin(0.5, 0.68);
+    this.playerSlots = slotsOf(this.char.texture);
     this.vignette = this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width + 40, height + 40).setDepth(LAYER.overlay);
     this.hpBar = this.add.graphics().setDepth(LAYER.fx + 4);
 
@@ -285,6 +296,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePickups(dt);
     this.updateSpawns(prev, dt);
     this.updateDamageTexts(dt);
+    this.updateCorpses(dt);
 
     if (this.stats.regen > 0) this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
 
@@ -301,6 +313,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- Jogador ----------
+
+  /** Troca o quadro do herói pelo nome (idle, walk_a, attack, hurt, death, victory). */
+  private setPlayerSlot(slot: string) {
+    const f = this.playerSlots[slot] ?? 0;
+    if (f === this.playerFrame) return;
+    this.playerFrame = f;
+    this.player.setFrame(frameName(this.char.texture, f));
+  }
 
   /** Mostra o quadro de ataque do herói por um instante (arma inicial disparou). */
   playerAttack() {
@@ -330,11 +350,7 @@ export class GameScene extends Phaser.Scene {
       if (Math.abs(x) > 0.1) this.player.setFlipX(x < 0);
     }
     const pose = walkPose('hero', this.elapsed, moving);
-    const frame = this.elapsed < this.attackUntil ? HERO_ATTACK_FRAME : pose.frame;
-    if (frame !== this.playerFrame) {
-      this.playerFrame = frame;
-      this.player.setFrame(frameName(this.char.texture, frame));
-    }
+    this.setPlayerSlot(this.elapsed < this.hurtUntil ? 'hurt' : this.elapsed < this.attackUntil ? 'attack' : pose.slot);
     this.player.setScale(pose.sx, pose.sy).setRotation(this.player.flipX ? -pose.rot : pose.rot);
     this.player.setDepth(this.player.y);
     const blinking = this.elapsed < this.invulnUntil;
@@ -370,15 +386,16 @@ export class GameScene extends Phaser.Scene {
     if (touched) this.onPlayerTouched(touched);
   }
 
-  private onPlayerTouched(e: Enemy) {
+  private onPlayerTouched(e: Enemy, mult = 1) {
     if (this.state !== 'playing' || !e.active || this.elapsed < this.invulnUntil) return;
     this.invulnUntil = this.elapsed + 0.5;
     if (Math.random() < dodgeChance(this.stats)) {
       this.floatText(this.player.x, this.player.y - 16, 'ESQUIVA', '#a7f070');
       return;
     }
-    const dmg = damageTaken(e.damage, this.stats);
+    const dmg = damageTaken(e.damage * mult, this.stats);
     this.hp -= dmg;
+    this.hurtUntil = this.elapsed + 0.25;
     if (this.stats.thorns > 0) this.hitEnemy(e, this.stats.thorns, 0.5, 'physical', false);
     this.cameras.main.shake(80, 0.004);
     this.player.setTintFill(0xffffff);
@@ -493,8 +510,9 @@ export class GameScene extends Phaser.Scene {
         dy = py - e.y;
       }
       const d = Math.hypot(dx, dy) || 1;
-      let vx = (dx / d) * e.speed;
-      let vy = (dy / d) * e.speed;
+      const still = e.boss && this.updateBossAttack(e, d, dx, dy, dt);
+      let vx = still ? 0 : (dx / d) * e.speed;
+      let vy = still ? 0 : (dy / d) * e.speed;
       if (e.def.id === 'bat') {
         const wob = Math.sin(t * 6 + e.phase) * 25;
         vx += (-dy / d) * wob;
@@ -507,10 +525,12 @@ export class GameScene extends Phaser.Scene {
       e.flipX = dx < 0;
       e.depth = e.y;
       if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
-      const pose = walkPose(e.def.id, t + e.phase);
-      if (pose.frame !== e.animFrame) {
-        e.animFrame = pose.frame;
-        e.setFrame(frameName(e.def.texture, pose.frame));
+      const pose = walkPose(e.def.id, t + e.phase, !still);
+      const slot = e.attackPhase !== 'walk' ? e.attackPhase : t < e.hurtUntil ? 'hurt' : pose.slot;
+      const f = e.slots[slot] ?? e.slots[pose.slot] ?? 0;
+      if (f !== e.animFrame) {
+        e.animFrame = f;
+        e.setFrame(frameName(e.def.texture, f));
       }
       e.scaleX = e.baseScale * pose.sx;
       e.scaleY = e.baseScale * pose.sy;
@@ -524,6 +544,65 @@ export class GameScene extends Phaser.Scene {
     }
     list.length = w;
     this.separate(list);
+  }
+
+  /** Ataque do chefe; devolve true enquanto ele está parado preparando ou golpeando. */
+  private updateBossAttack(e: Enemy, d: number, dx: number, dy: number, dt: number) {
+    e.attackTimer -= dt;
+    if (e.attackPhase === 'walk') {
+      if (e.attackTimer > 0 || d > BOSS_SLAM.range) return false;
+      e.attackPhase = 'windup';
+      e.attackTimer = BOSS_SLAM.windup;
+      e.attackX = e.x + (dx / d) * BOSS_SLAM.reach;
+      e.attackY = e.y + (dy / d) * BOSS_SLAM.reach;
+      // aviso no chão: o anel vermelho cresce até a hora do golpe
+      const ring = this.add.image(e.attackX, e.attackY, 'atlas', frameName('aura')).setTint(0xff3020).setDepth(LAYER.groundFx);
+      const s = (BOSS_SLAM.radius * 2) / 96;
+      ring.setScale(s * 0.3, s * 0.24).setAlpha(0.4);
+      this.tweens.add({ targets: ring, scaleX: s, scaleY: s * 0.8, alpha: 0.95, duration: BOSS_SLAM.windup * 1000, onComplete: () => ring.destroy() });
+      return true;
+    }
+    if (e.attackTimer > 0) return true;
+    if (e.attackPhase === 'windup') {
+      e.attackPhase = 'attack';
+      e.attackTimer = BOSS_SLAM.recover;
+      this.impact(e.attackX, e.attackY, 0xff6a2a, 2.5);
+      this.flames.explode(30, e.attackX, e.attackY);
+      this.cameras.main.shake(220, 0.012);
+      sfx('boss');
+      const r = BOSS_SLAM.radius;
+      if ((this.player.x - e.attackX) ** 2 + ((this.player.y - e.attackY) / 0.8) ** 2 < r * r) this.onPlayerTouched(e, BOSS_SLAM.damage);
+      return true;
+    }
+    e.attackPhase = 'walk';
+    e.attackTimer = BOSS_SLAM.cooldown * (0.8 + Math.random() * 0.4);
+    return false;
+  }
+
+  /** Corpo caído no quadro de morte, que some em seguida. */
+  private spawnCorpse(e: Enemy) {
+    const f = e.slots.death;
+    if (f === undefined) return;
+    let c = this.corpses.find((k) => k.life <= 0);
+    if (!c) {
+      if (this.corpses.length >= MAX_CORPSES) return;
+      c = { img: this.add.image(0, 0, 'atlas', frameName(e.def.texture, f)), life: 0, total: 0 };
+      this.corpses.push(c);
+    }
+    c.life = c.total = e.boss ? 2.5 : 0.6;
+    c.img.setFrame(frameName(e.def.texture, f)).setPosition(e.x, e.y).setOrigin(e.originX, e.originY).setScale(e.baseScale)
+      .setFlipX(e.flipX).setAlpha(1).setVisible(true).setDepth(e.y - 1);
+    if (e.elite) c.img.setTint(0xffcd75);
+    else c.img.clearTint();
+  }
+
+  private updateCorpses(dt: number) {
+    for (const c of this.corpses) {
+      if (c.life <= 0) continue;
+      c.life -= dt;
+      c.img.setAlpha(Math.min(1, (c.life / c.total) * 2));
+      if (c.life <= 0) c.img.setVisible(false);
+    }
   }
 
   /** Empurra inimigos sobrepostos (um terço por frame, para escalar). */
@@ -555,6 +634,7 @@ export class GameScene extends Phaser.Scene {
     e.hp -= dmg;
     e.setTintFill(0xffffff);
     e.flashUntil = this.elapsed + 0.06;
+    e.hurtUntil = this.elapsed + 0.15;
     if (knock > 0 && e.def.knockback > 0) {
       const dx = e.x - this.player.x;
       const dy = e.y - this.player.y;
@@ -577,6 +657,7 @@ export class GameScene extends Phaser.Scene {
     this.particles.setParticleTint(DEATH_TINT[e.def.id]);
     this.particles.explode(e.boss ? 60 : e.elite ? 20 : 6, x, y);
     if (e.boss || e.elite) this.impact(x, y, 0xffcd75, e.boss ? 3 : 1.6);
+    this.spawnCorpse(e);
     e.kill();
     this.kills++;
     sfx('kill');
@@ -902,6 +983,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.state = 'victory';
     this.joy.x = this.joy.y = 0;
+    this.setPlayerSlot('victory');
+    this.player.setScale(1).setRotation(0);
     this.scene.pause();
     this.scene.pause('Hud');
     this.scene.launch('Victory', this.result(true));
@@ -943,8 +1026,9 @@ export class GameScene extends Phaser.Scene {
       this.scene.launch('GameOver', result);
     });
     if (!victory || this.endless) {
-      this.player.setTint(0xb13e53);
-      this.tweens.add({ targets: this.player, angle: 90, alpha: 0.5, duration: 500 });
+      this.setPlayerSlot('death');
+      this.player.setScale(1).setRotation(0);
+      this.tweens.add({ targets: this.player, alpha: 0.75, duration: 500 });
     }
   }
 
