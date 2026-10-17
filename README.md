@@ -1,6 +1,6 @@
 # Survivor
 
-RPG 2D de sobrevivência em pixel art para Android e iOS (e navegador). Escolha um herói, sobreviva às hordas de inimigos por 10 minutos, suba de nível escolhendo armas e melhorias, e derrote o chefe no final. O ouro coletado compra melhorias permanentes e novos heróis.
+RPG 2D de sobrevivência em estilo cartoon para Android e iOS (e navegador). Escolha um herói, sobreviva às hordas de inimigos por 10 minutos, suba de nível escolhendo armas e melhorias, e derrote o chefe no final. O ouro coletado compra melhorias permanentes e novos heróis.
 
 ## Como jogar
 
@@ -26,14 +26,17 @@ O design completo está em [docs/GDD.md](docs/GDD.md).
 
 ### Arte
 
-Toda a arte é gerada por código, sem arquivos de imagem, por um mini motor de pixel art (`src/art/pixel.ts`): formas sombreadas por luz com rampas de cor, contorno automático, sombras e brilhos.
+Estilo cartoon 2D (contorno grosso, sombreado suave, cores vivas), gerado com IA e preparado por scripts. O plano e as decisões estão em [docs/ART_PLAN.md](docs/ART_PLAN.md).
 
-- `src/art/characters.ts`: heróis 32×40 montados em camadas (corpo, botas, armadura, capa, cabeça, elmo, arma) — base do equipamento visível.
-- `src/art/monsters.ts`: slime, morcego, goblin, lobo, esqueleto, orc e o chefe demônio, com 4 quadros de animação cada.
-- `src/art/items.ts`, `environment.ts`, `ui.ts`: coletáveis, projéteis, efeitos, ícones, cenário e molduras 9-slice da interface.
-- `npm run artsheet` gera `screenshots/artsheet.png` com os sprites ampliados, para revisar a arte.
+- `art/manifest.mjs`: lista de toda a arte, com o prompt de cada imagem e o tamanho no jogo.
+- `node scripts/gen-art.mjs [nome ...]`: gera com o Gemini as imagens que faltam em `art/source/` (ou refaz as indicadas), usando o cavaleiro como referência de estilo. A chave vem de `GEMINI_API_KEY`.
+- `python3 scripts/process-art.py [nome ...]`: remove o fundo, recorta, reduz, acrescenta sombra e salva em `src/assets/art/`, com o índice de resolução em `src/art/sprites.json`.
+- As texturas ficam em resolução 2–4× maior que a lógica e são desenhadas no tamanho lógico (`installHdSprites` em `src/art/textures.ts`); por isso o jogo exige WebGL.
+- Animação por código (`src/art/motion.ts`): cada personagem é uma imagem só, animada com esticar/achatar, inclinação e respiração.
+- Efeitos (brilho, golpe, aura, vinheta) e molduras da interface são desenhados por código (`src/art/fx.ts`, `src/art/ui.ts`).
+- `npm run artsheet` gera `screenshots/artsheet.png` com todos os sprites, para revisar a arte.
 
-O jogo renderiza em resolução lógica de 400 px de largura com zoom de 1–2× no canvas (pixel art nítida e textos limpos). A fonte é a Jersey 15. Os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
+O jogo usa resolução lógica de 400 px de largura com zoom de 1–2× no canvas. Fontes: Fredoka (texto) e Lilita One (títulos e botões). Os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
 
 ## Desenvolvimento
 
@@ -54,7 +57,8 @@ npm run stress       # 2.000 inimigos + build grande; mede FPS e tempo de lógic
 ```
 src/
   main.ts              configuração do Phaser (resolução 360px de largura, retrato)
-  art/                 pixel art (matrizes) e geração de texturas/animações
+  art/                 carregamento das texturas, efeitos, molduras e animação por código
+  assets/art/          sprites cartoon prontos (gerados por scripts/process-art.py)
   core/                atributos globais, grade espacial, formatação de números grandes
   data/                armas, tags, cartas, inimigos, ondas, heróis, melhorias permanentes
   systems/             sorteio de cartas, armas (padrões de ataque), save (localStorage), sons

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { VIEW } from '../ui/view';
-import { frameName } from '../art/textures';
+import { walkPose } from '../art/motion';
+import { frameName, groundSprite, scrollGround } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { SpatialGrid } from '../core/grid';
 import {
@@ -58,7 +59,7 @@ export interface LevelUpData {
 }
 
 export class GameScene extends Phaser.Scene {
-  player!: Phaser.GameObjects.Sprite;
+  player!: Phaser.GameObjects.Image;
   private hpBar!: Phaser.GameObjects.Graphics;
   private ground!: Phaser.GameObjects.TileSprite;
   private vignette!: Phaser.GameObjects.Image;
@@ -165,9 +166,8 @@ export class GameScene extends Phaser.Scene {
     const width = this.viewW;
     const height = this.viewH;
     // chão e vinheta acompanham a câmera (com margem para não aparecer borda)
-    this.ground = this.add.tileSprite(0, 0, width + 128, height + 128, 'ground').setOrigin(0).setDepth(LAYER.ground);
-    this.player = this.add.sprite(0, 0, this.char.texture, 0).setOrigin(0.5, 0.68);
-    this.player.play(`${this.char.texture}_walk`);
+    this.ground = groundSprite(this, 0, 0, width + 128, height + 128).setOrigin(0).setDepth(LAYER.ground);
+    this.player = this.add.image(0, 0, 'atlas', frameName(this.char.texture)).setOrigin(0.5, 0.68);
     this.vignette = this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width + 40, height + 40).setDepth(LAYER.overlay);
     this.hpBar = this.add.graphics().setDepth(LAYER.fx + 4);
 
@@ -288,8 +288,7 @@ export class GameScene extends Phaser.Scene {
     const vx = Math.floor(this.player.x - this.viewW / 2);
     const vy = Math.floor(this.player.y - this.viewH / 2);
     this.ground.setPosition(vx - 64, vy - 64);
-    this.ground.tilePositionX = vx - 64;
-    this.ground.tilePositionY = vy - 64;
+    scrollGround(this.ground, vx - 64, vy - 64);
     this.vignette.setPosition(cam.midPoint.x - this.viewW / 2 - 20, cam.midPoint.y - this.viewH / 2 - 20);
     this.motes.setPosition(cam.midPoint.x, cam.midPoint.y);
     this.drawPlayerHp();
@@ -316,13 +315,13 @@ export class GameScene extends Phaser.Scene {
     const dt = Math.min(this.game.loop.delta, 50) / 1000;
     this.player.x += x * speed * dt;
     this.player.y += y * speed * dt;
-    if (len > 0.1) {
+    const moving = len > 0.1;
+    if (moving) {
       this.facing.set(x, y).normalize();
       if (Math.abs(x) > 0.1) this.player.setFlipX(x < 0);
-      this.player.anims.resume();
-    } else {
-      this.player.anims.pause(this.player.anims.currentAnim?.frames[0]);
     }
+    const pose = walkPose('hero', this.elapsed, moving);
+    this.player.setScale(pose.sx, pose.sy).setRotation(this.player.flipX ? -pose.rot : pose.rot);
     this.player.setDepth(this.player.y);
     const blinking = this.elapsed < this.invulnUntil;
     this.player.setAlpha(blinking && Math.floor(this.elapsed * 20) % 2 === 0 ? 0.4 : 1);
@@ -494,12 +493,10 @@ export class GameScene extends Phaser.Scene {
       e.flipX = dx < 0;
       e.depth = e.y;
       if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
-      const rate = e.def.id === 'bat' ? 12 : e.def.id === 'wolf' ? 10 : 7;
-      const f = Math.floor(t * rate + e.phase) & 3;
-      if (f !== e.frameIdx) {
-        e.frameIdx = f;
-        e.setFrame(frameName(e.def.texture, f));
-      }
+      const pose = walkPose(e.def.id, t + e.phase);
+      e.scaleX = e.baseScale * pose.sx;
+      e.scaleY = e.baseScale * pose.sy;
+      e.rotation = e.flipX ? -pose.rot : pose.rot;
       if (e.flashUntil && t > e.flashUntil) {
         e.flashUntil = 0;
         if (e.elite) e.setTint(0xffcd75);
@@ -550,7 +547,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.stats.lifesteal > 0) this.hp = Math.min(this.stats.maxHp, this.hp + dmg * this.stats.lifesteal * 0.1);
     const color = tier >= 2 ? '#ef7d57' : tier === 1 ? '#ffcd75' : ELEMENT_COLORS[element];
-    this.floatText(e.x, e.y - 16 * e.scaleY, formatNumber(dmg) + (tier >= 2 ? '!!' : tier === 1 ? '!' : ''), color, tier > 0);
+    this.floatText(e.x, e.y - 16 * e.baseScale, formatNumber(dmg) + (tier >= 2 ? '!!' : tier === 1 ? '!' : ''), color, tier > 0);
     if (this.frame % 2 === 0) this.sparks.explode(tier > 0 ? 4 : 2, e.x, e.y - 4);
     sfx('hit');
     if (e.hp <= 0) this.killEnemy(e, true);
@@ -722,7 +719,7 @@ export class GameScene extends Phaser.Scene {
     }
     const p = this.pickups.get();
     if (!p) return;
-    p.setActive(true).setVisible(true).setPosition(x, y).setDepth(LAYER.pickups);
+    p.setActive(true).setVisible(true).setPosition(x, y).setScale(1).setDepth(LAYER.pickups);
     p.kind = kind;
     p.value = value;
     p.magnet = false;
@@ -739,10 +736,10 @@ export class GameScene extends Phaser.Scene {
     const px = this.player.x;
     const py = this.player.y;
     const mag2 = this.stats.magnet * this.stats.magnet;
-    const coinFrame = Math.floor(this.elapsed * 8);
     for (const p of this.pickups.items) {
       if (!p.active) continue;
-      if (p.kind === 'coin') p.setFrame(frameName('coin', (coinFrame + Math.floor(p.x)) & 3));
+      // moeda girando
+      if (p.kind === 'coin') p.scaleX = 0.25 + 0.75 * Math.abs(Math.cos(this.elapsed * 4 + p.x * 0.05));
       const dx = px - p.x;
       const dy = py - p.y;
       const d2 = dx * dx + dy * dy;

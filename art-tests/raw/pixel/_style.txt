@@ -1,1 +1,0 @@
-Pixel art game sprite, 16-bit SNES era style like a top-down action RPG, crisp hard-edged pixels, limited palette, dark 1-pixel outline, no anti-aliasing, no blur. Single subject, centered, small margin. Flat solid pure magenta background (#FF00FF), no ground shadow, no text, no border.

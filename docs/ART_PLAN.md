@@ -1,6 +1,6 @@
 # Plano de arte: teste de estilo com IA
 
-Status: primeiro teste feito (17/10/2026), aguardando a escolha do usuário entre pixel art e cartoon. Faturamento ativado no Google AI Studio; modelo usado: `gemini-3-pro-image`.
+Status: **estilo cartoon escolhido em definitivo** (17/10/2026). Toda a arte do jogo foi trocada; a pixel art gerada por código foi removida.
 
 ## Contexto
 - A arte atual (gerada por código em `src/art/`) é provisória.
@@ -32,3 +32,10 @@ Fluxo: gerar a primeira imagem de cada estilo, usar como `--ref` nas seguintes p
 - `npm run styletest` gera `screenshots/style-test.png` com a cena `dev/style-test.html`: arte atual, pixel e cartoon lado a lado, na escala do jogo (400 px lógicos, zoom 2).
 - Refeitos uma vez: goblin cartoon (vieram três), raio cartoon (fundo errado), árvore pixel (cortada).
 - Observações: a grama gerada é mais saturada que a atual e precisa de ajuste de cor; o demônio pixel ficou escuro demais sobre a grama.
+
+## Decisões (17/10/2026)
+- Estilo: cartoon 2D. O usuário achou com mais personalidade e mais apelo.
+- Animação: por código (uma imagem por personagem, com esticar/achatar, inclinação e respiração), em vez de quadros gerados pela IA ou esqueleto por partes.
+- Interface: também cartoon. Molduras arredondadas com contorno grosso; fontes Fredoka (texto) e Lilita One (títulos e botões).
+- Fluxo de produção: `art/manifest.mjs` → `scripts/gen-art.mjs` → `scripts/process-art.py` (ver README).
+- Os arquivos do teste de estilo (pixel × cartoon) foram removidos; estão no histórico do git.

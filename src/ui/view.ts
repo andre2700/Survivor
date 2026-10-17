@@ -2,7 +2,7 @@ import type Phaser from 'phaser';
 
 /**
  * Tamanho lógico da tela (em "pixels de jogo") e o zoom de renderização.
- * O canvas real tem `width × zoom` pixels: a pixel art é ampliada sem borrar
+ * O canvas real tem `width × zoom` pixels: a arte usa texturas em alta resolução
  * e os textos são desenhados na resolução real da tela, ficando nítidos.
  */
 export const VIEW = { width: 400, height: 800, zoom: 1 };

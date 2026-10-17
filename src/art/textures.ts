@@ -1,133 +1,136 @@
 import Phaser from 'phaser';
-import { HERO_LOOKS, heroFrames } from './characters';
-import { bush, dirtPatch, flowers, grassTile, mushroom, rock, stump, tallGrass, tree } from './environment';
-import {
-  ICONS, auraRing, axeProjectile, boltProjectile, coinFrames, gem, glowDot, heart, holyOrb, knifeProjectile, slash, softShadow, spark,
-} from './items';
-import { batFrames, demonFrames, goblinFrames, orcFrames, skeletonFrames, slimeFrames, wolfFrames } from './monsters';
-import { R, type PixelBuffer } from './pixel';
-import { UI_FRAMES, frame, vignette } from './ui';
+import SPRITES from './sprites.json';
+import { auraRing, glowDot, slash, softShadow, spark, vignette } from './fx';
+import { SLICE, UI_FRAMES, UI_HD, frame } from './ui';
+
+// A arte cartoon vem de PNGs (src/assets/art/, gerados por scripts/process-art.py) em resolução
+// maior que a lógica: cada textura guarda seu fator `hd` e é desenhada no tamanho lógico.
+
+const URLS = import.meta.glob('../assets/art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const HD = SPRITES as Record<string, number>;
+const FX_HD = 2;
+
+/** Nome do quadro no atlas: `slime:0`, `coin:0`... */
+export const frameName = (key: string, i = 0) => `${key}:${i}`;
+
+/** Fator de resolução de uma textura (1 = tamanho lógico). */
+export const hdOf = (key: string) => HD[key] ?? 1;
+
+const meta = (f: Phaser.Textures.Frame) => f.customData as { hd?: number };
+
+/** Fator de resolução do quadro de um objeto (para medir o tamanho lógico). */
+export const frameHd = (obj: { frame: Phaser.Textures.Frame }) => meta(obj.frame).hd ?? 1;
+
+/**
+ * Faz Image/Sprite com quadros de alta resolução aparecerem no tamanho lógico, sem mudar a escala
+ * vista pelo jogo (o `setScale` continua relativo ao tamanho lógico). Precisa do renderizador WebGL.
+ */
+export function installHdSprites() {
+  const proto = Phaser.Renderer.WebGL.Pipelines.MultiPipeline.prototype as unknown as {
+    batchSprite: (go: { frame: Phaser.Textures.Frame; _scaleX: number; _scaleY: number }, ...rest: unknown[]) => void;
+  };
+  const batch = proto.batchSprite;
+  proto.batchSprite = function (go, ...rest) {
+    const hd = meta(go.frame).hd;
+    if (!hd) return batch.call(this, go, ...rest);
+    const sx = go._scaleX;
+    const sy = go._scaleY;
+    go._scaleX = sx / hd;
+    go._scaleY = sy / hd;
+    batch.call(this, go, ...rest);
+    go._scaleX = sx;
+    go._scaleY = sy;
+  };
+}
+
+export function preloadArt(scene: Phaser.Scene) {
+  for (const [path, url] of Object.entries(URLS)) scene.load.image(path.replace(/^.*\/|\.png$/g, ''), url);
+}
 
 interface AtlasPart {
   name: string;
-  buf: PixelBuffer;
+  source: CanvasImageSource & { width: number; height: number };
+  hd: number;
 }
 
-/** Nome do quadro no atlas: `slime:0`, `coin:2`... */
-export const frameName = (key: string, i = 0) => `${key}:${i}`;
-
-/** Animações de 4 quadros geradas para estes sprites. */
-export const ANIMATED = ['hero_knight', 'hero_mage', 'hero_ranger', 'hero_barbarian', 'slime', 'bat', 'skeleton', 'goblin', 'wolf', 'orc', 'demon'];
-
 /**
- * Gera toda a arte do jogo. Cada imagem vira:
+ * Monta as texturas do jogo. Cada imagem vira:
  * - um quadro no atlas único 'atlas' (o jogo desenha milhares de sprites num só lote);
- * - e também uma textura própria (usada pela interface e pelas animações).
+ * - e também uma textura própria (interface, menus).
  */
 export function generateTextures(scene: Phaser.Scene) {
   const parts: AtlasPart[] = [];
-  const add = (key: string, frames: PixelBuffer[]) => {
-    const w = frames[0].w;
-    const h = frames[0].h;
-    const canvas = document.createElement('canvas');
-    canvas.width = w * frames.length;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-    frames.forEach((f, i) => ctx.drawImage(f.toCanvas(), i * w, 0));
-    const tex = scene.textures.addCanvas(key, canvas)!;
-    frames.forEach((f, i) => {
-      tex.add(i, 0, i * w, 0, w, h);
-      parts.push({ name: frameName(key, i), buf: f });
-    });
+  const mark = (key: string, hd: number) => {
+    if (hd !== 1) meta(scene.textures.get(key).get()).hd = hd;
   };
 
-  for (const key of Object.keys(HERO_LOOKS)) add(key, heroFrames(key));
-  add('slime', slimeFrames());
-  add('bat', batFrames());
-  add('skeleton', skeletonFrames());
-  add('goblin', goblinFrames());
-  add('wolf', wolfFrames());
-  add('orc', orcFrames());
-  add('demon', demonFrames());
-
-  add('gem', [gem(R.water)]);
-  add('gem_green', [gem(R.green)]);
-  add('gem_red', [gem(R.red)]);
-  add('coin', coinFrames());
-  add('heart', [heart()]);
-
-  add('proj_bolt', [boltProjectile()]);
-  add('proj_knife', [knifeProjectile()]);
-  add('proj_axe', [axeProjectile()]);
-  add('proj_orb', [holyOrb()]);
-  add('slash', [slash()]);
-  add('aura', [auraRing()]);
-  add('glow', [glowDot(32)]);
-  add('px', [spark()]);
-  add('shadow', [softShadow()]);
-
-  add('tree', [tree(0)]);
-  add('tree2', [tree(1)]);
-  add('bush', [bush()]);
-  add('rock', [rock()]);
-  add('stump', [stump()]);
-  add('flowers', [flowers()]);
-  add('mushroom', [mushroom()]);
-  add('tallgrass', [tallGrass()]);
-  add('dirt', [dirtPatch(0)]);
-  add('dirt2', [dirtPatch(1)]);
-
-  for (const [key, draw] of Object.entries(ICONS)) {
-    // ícones com o mesmo nome de um coletável (heart, coin, gem...) ganham prefixo
-    add(scene.textures.exists(key) ? `icon:${key}` : key, [draw()]);
+  for (const key of Object.keys(HD)) {
+    if (!scene.textures.exists(key)) continue;
+    mark(key, HD[key]);
+    if (key !== 'ground') parts.push({ name: key, source: scene.textures.get(key).getSourceImage() as HTMLImageElement, hd: HD[key] });
   }
-  for (const [key, style] of Object.entries(UI_FRAMES)) scene.textures.addCanvas(key, frame(style).toCanvas());
-  scene.textures.addCanvas('vignette', vignette().toCanvas());
-  scene.textures.addCanvas('ground', grassTile().toCanvas());
+
+  const fx = (key: string, source: HTMLCanvasElement, hd: number) => {
+    scene.textures.addCanvas(key, source);
+    mark(key, hd);
+    parts.push({ name: key, source, hd });
+  };
+  // partículas usam estes quadros direto do atlas e não passam pelo ajuste de resolução: ficam em 1×
+  fx('glow', glowDot(32), 1);
+  fx('px', spark(), 1);
+  fx('shadow', softShadow(FX_HD), FX_HD);
+  fx('slash', slash(FX_HD), FX_HD);
+  fx('aura', auraRing(FX_HD), FX_HD);
+
+  for (const [key, style] of Object.entries(UI_FRAMES)) scene.textures.addCanvas(key, frame(style));
+  scene.textures.addCanvas('vignette', vignette());
 
   buildAtlas(scene, parts);
 }
 
 /** Empacota as partes em prateleiras numa textura única. */
 function buildAtlas(scene: Phaser.Scene, parts: AtlasPart[]) {
-  const width = 1024;
-  const pad = 1;
+  const width = 2048;
+  const pad = 2;
   let x = 0;
   let y = 0;
   let shelf = 0;
   const placed: { part: AtlasPart; x: number; y: number }[] = [];
-  for (const part of [...parts].sort((a, b) => b.buf.h - a.buf.h)) {
-    if (x + part.buf.w > width) {
+  for (const part of [...parts].sort((a, b) => b.source.height - a.source.height)) {
+    if (x + part.source.width > width) {
       x = 0;
       y += shelf + pad;
       shelf = 0;
     }
     placed.push({ part, x, y });
-    x += part.buf.w + pad;
-    shelf = Math.max(shelf, part.buf.h);
+    x += part.source.width + pad;
+    shelf = Math.max(shelf, part.source.height);
   }
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = y + shelf;
   const ctx = canvas.getContext('2d')!;
-  for (const { part, x: px, y: py } of placed) ctx.drawImage(part.buf.toCanvas(), px, py);
+  for (const { part, x: px, y: py } of placed) ctx.drawImage(part.source, px, py);
   const tex = scene.textures.addCanvas('atlas', canvas)!;
-  for (const { part, x: px, y: py } of placed) tex.add(part.name, 0, px, py, part.buf.w, part.buf.h);
-}
-
-/** Chave de textura do ícone (coletáveis e ícones podem ter o mesmo nome). */
-export function iconKey(scene: Phaser.Scene, key: string) {
-  return scene.textures.exists(`icon:${key}`) ? `icon:${key}` : key;
-}
-
-export function createAnimations(scene: Phaser.Scene) {
-  for (const key of ANIMATED) {
-    if (scene.anims.exists(`${key}_walk`)) continue;
-    scene.anims.create({
-      key: `${key}_walk`,
-      frames: scene.anims.generateFrameNumbers(key, { start: 0, end: 3 }),
-      frameRate: key === 'bat' ? 12 : key === 'wolf' ? 10 : 8,
-      repeat: -1,
-    });
+  for (const { part, x: px, y: py } of placed) {
+    const f = tex.add(frameName(part.name), 0, px, py, part.source.width, part.source.height)!;
+    if (part.hd !== 1) meta(f).hd = part.hd;
   }
+}
+
+/** Chão de grama repetido; `scroll` desloca a textura em unidades lógicas. */
+export function groundSprite(scene: Phaser.Scene, x: number, y: number, w: number, h: number) {
+  return scene.add.tileSprite(x, y, w, h, 'ground').setTileScale(1 / hdOf('ground'));
+}
+
+export function scrollGround(ground: Phaser.GameObjects.TileSprite, x: number, y: number) {
+  const hd = hdOf('ground');
+  ground.tilePositionX = x * hd;
+  ground.tilePositionY = y * hd;
+}
+
+/** Moldura 9-slice no tamanho lógico w×h. */
+export function nineSlice(scene: Phaser.Scene, x: number, y: number, key: string, w: number, h: number) {
+  return scene.add.nineslice(x, y, key, undefined, Math.round(w * UI_HD), Math.round(h * UI_HD), SLICE, SLICE, SLICE, SLICE)
+    .setScale(1 / UI_HD);
 }

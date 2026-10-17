@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { VIEW, pointerPos, setupCamera } from '../ui/view';
-import { iconKey } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { RUN_DURATION } from '../data/waves';
 import { WEAPONS } from '../data/weapons';
@@ -52,9 +51,9 @@ export class HudScene extends Phaser.Scene {
 
     // cronômetro, abates e ouro
     this.timeText = text(this, width / 2, 46, '00:00', 22, '#ffffff', { bold: true, strokeThickness: 5 });
-    this.add.image(18, 44, iconKey(this, 'icon_skull'));
+    this.add.image(18, 44, 'icon_skull');
     this.killText = text(this, 30, 44, '0', 13, '#f4f4f4', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5);
-    this.add.image(18, 64, iconKey(this, 'coin'));
+    this.add.image(18, 64, 'coin');
     this.goldText = text(this, 30, 64, '0', 13, '#ffd86a', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5);
     this.icons = this.add.container(8, 78);
 
@@ -170,7 +169,7 @@ export class HudScene extends Phaser.Scene {
     this.iconSig = sig;
     this.icons.removeAll(true);
     // sem limite de armas: quebra em linhas de 8 ícones
-    weapons.forEach(([id, lvl], i) => this.addIcon(iconKey(this, WEAPONS[id].icon), lvl, (i % 8) * 24, Math.floor(i / 8) * 24));
+    weapons.forEach(([id, lvl], i) => this.addIcon(WEAPONS[id].icon, lvl, (i % 8) * 24, Math.floor(i / 8) * 24));
   }
 
   private addIcon(key: string, level: number, x: number, y: number) {

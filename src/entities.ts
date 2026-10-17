@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { frameName } from './art/textures';
+import { frameHd, frameName } from './art/textures';
 import type { EnemyDef } from './data/enemies';
 import type { Element, WeaponId } from './data/weapons';
 
@@ -24,7 +24,8 @@ export class Enemy extends Phaser.GameObjects.Image {
   orbHitAt = -99;
   auraHitAt = -99;
   phase = 0;
-  frameIdx = 0;
+  /** escala sem a animação de andar */
+  baseScale = 1;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0, 'atlas', frameName('slime'));
@@ -45,9 +46,9 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.flashUntil = 0;
     this.orbHitAt = this.auraHitAt = -99;
     this.phase = Math.random() * Math.PI * 2;
-    this.frameIdx = 0;
     const scale = def.scale * (elite ? 1.6 : 1);
     this.radius = def.radius * scale;
+    this.baseScale = scale;
     this.setPosition(x, y).setActive(true).setVisible(true).setAlpha(1).setAngle(0);
     this.setFrame(frameName(def.texture, 0)).setScale(scale).setDepth(y);
     // a posição é o centro do corpo (a sombra fica embutida na base do sprite)
@@ -93,9 +94,7 @@ export class Projectile extends Phaser.GameObjects.Image {
     this.spin = kind === 'axe' ? 12 : 0;
     this.hits.clear();
     this.setPosition(x, y).setActive(true).setVisible(true).setFrame(frameName(texture)).setScale(scale).setDepth(1e9);
-    // projéteis mágicos brilham (mistura aditiva)
-    this.setBlendMode(kind === 'bolt' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
-    this.radius = Math.max(4, (Math.min(this.width, this.height) / 2) * scale * (kind === 'bolt' ? 0.6 : 1));
+    this.radius = Math.max(4, (Math.min(this.width, this.height) / frameHd(this) / 2) * scale * (kind === 'bolt' ? 0.6 : 1));
     this.setRotation(kind === 'axe' ? 0 : Math.atan2(vy, vx));
   }
 

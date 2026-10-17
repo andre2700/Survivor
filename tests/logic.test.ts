@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { HERO_H, HERO_LOOKS, heroFrames } from '../src/art/characters';
-import { batFrames, demonFrames, goblinFrames, orcFrames, skeletonFrames, slimeFrames, wolfFrames } from '../src/art/monsters';
-import { PixelBuffer } from '../src/art/pixel';
+import SPRITES from '../src/art/sprites.json';
 import { formatNumber } from '../src/core/format';
 import {
   BASE_STATS, combine, cooldownMult, critMultiplier, damageTaken, defenseReduction, moveSpeed, rollCritTier,
 } from '../src/core/stats';
 import { STAT_CARDS } from '../src/data/cards';
+import { ENEMIES } from '../src/data/enemies';
 import { CHARACTERS } from '../src/data/characters';
 import { META_UPGRADES, metaCost, metaModifiers } from '../src/data/meta';
 import { applyTagBonuses, countTags } from '../src/data/tags';
@@ -16,34 +15,18 @@ import { migrate } from '../src/systems/save';
 import { applyOption, describeOption, loadoutModifiers, optionKey, rollOptions, rollRarity, type Loadout } from '../src/systems/upgrades';
 
 describe('arte', () => {
-  const opaque = (b: PixelBuffer) => {
-    let n = 0;
-    for (let i = 3; i < b.data.length; i += 4) if (b.data[i]) n++;
-    return n;
-  };
-  it('heróis têm 4 quadros do mesmo tamanho e com conteúdo', () => {
-    for (const key of Object.keys(HERO_LOOKS)) {
-      const frames = heroFrames(key);
-      expect(frames).toHaveLength(4);
-      for (const f of frames) {
-        expect([f.w, f.h]).toEqual([32, HERO_H]);
-        expect(opaque(f)).toBeGreaterThan(200);
-      }
-    }
-  });
-  it('inimigos têm 4 quadros de tamanho constante', () => {
-    for (const make of [slimeFrames, batFrames, skeletonFrames, goblinFrames, wolfFrames, orcFrames, demonFrames]) {
-      const frames = make();
-      expect(frames).toHaveLength(4);
-      expect(new Set(frames.map((f) => `${f.w}x${f.h}`)).size).toBe(1);
-      for (const f of frames) expect(opaque(f)).toBeGreaterThan(50);
-    }
-  });
-  it('contorno só pinta pixels vizinhos do desenho', () => {
-    const b = new PixelBuffer(5, 5);
-    b.set(2, 2, '#ffffff');
-    b.outline();
-    expect(opaque(b)).toBe(5);
+  const files = Object.keys(import.meta.glob('../src/assets/art/*.png'));
+  const has = (key: string) => key in SPRITES && files.includes(`../src/assets/art/${key}.png`);
+  it('toda textura usada pelos dados existe', () => {
+    const keys = [
+      ...CHARACTERS.flatMap((c) => [c.texture, `portrait_${c.texture}`]),
+      ...Object.values(ENEMIES).map((e) => e.texture),
+      ...Object.values(WEAPONS).map((w) => w.icon),
+      ...STAT_CARDS.map((c) => c.icon),
+      ...META_UPGRADES.map((m) => m.icon),
+      'ground', 'gem', 'gem_green', 'gem_red', 'coin', 'heart', 'proj_bolt', 'proj_knife', 'proj_axe', 'proj_orb',
+    ];
+    for (const key of keys) expect(has(key), key).toBe(true);
   });
 });
 

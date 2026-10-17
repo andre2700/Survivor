@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { VIEW, pointerPos, setupCamera } from '../ui/view';
-import { createAnimations, generateTextures, iconKey } from '../art/textures';
+import { walkPose } from '../art/motion';
+import { generateTextures, groundSprite, preloadArt, scrollGround } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { CHARACTERS } from '../data/characters';
 import { META_UPGRADES, metaCost } from '../data/meta';
@@ -15,9 +16,12 @@ export class BootScene extends Phaser.Scene {
     super('Boot');
   }
 
+  preload() {
+    preloadArt(this);
+  }
+
   create() {
     generateTextures(this);
-    createAnimations(this);
     setSoundEnabled(loadSave().sound);
     this.scene.start('Menu');
   }
@@ -26,7 +30,8 @@ export class BootScene extends Phaser.Scene {
 /** Cenário vivo de fundo dos menus: grama rolando, árvores nas bordas, vaga-lumes e vinheta. */
 export function menuBackground(scene: Phaser.Scene, darken = 0.25) {
   const { width, height } = VIEW;
-  const ground = scene.add.tileSprite(0, 0, width, height, 'ground').setOrigin(0);
+  const ground = groundSprite(scene, 0, 0, width, height).setOrigin(0);
+  let scroll = 0;
   const decor = scene.add.container(0, 0);
   const trees: [string, number, number][] = [
     ['tree', 18, 120], ['tree2', width - 14, 170], ['bush', 30, 300], ['tree', width - 30, height - 120], ['tree2', 10, height - 60],
@@ -48,7 +53,8 @@ export function menuBackground(scene: Phaser.Scene, darken = 0.25) {
   });
   scene.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width, height);
   scene.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dt: number) => {
-    ground.tilePositionY -= dt * 0.012;
+    scroll -= dt * 0.012;
+    scrollGround(ground, 0, scroll);
     decor.y += dt * 0.012;
     if (decor.y > 160) decor.y -= 160;
   });
@@ -98,8 +104,11 @@ export class MenuScene extends Phaser.Scene {
     const cy = height * 0.33;
     const glow = this.add.image(width / 2, cy + 70, 'aura').setScale(2.4, 1.1).setTint(0xffe9a0).setAlpha(0.6).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.95, duration: 1200, yoyo: true, repeat: -1 });
-    this.add.ellipse(width / 2, cy + 70, 120, 26, 0x0b0a14, 0.45);
-    const hero = this.add.sprite(width / 2, cy + 74, CHARACTERS[this.index].texture, 0).setOrigin(0.5, 0.97).setScale(5);
+    const hero = this.add.image(width / 2, cy + 78, `portrait_${CHARACTERS[this.index].texture}`).setOrigin(0.5, 0.97).setScale(4.4);
+    this.events.on(Phaser.Scenes.Events.UPDATE, (t: number) => {
+      const pose = walkPose('hero', t / 1000, false);
+      hero.setScale(4.4 * pose.sx, 4.4 * pose.sy);
+    });
     this.add.particles(width / 2, cy + 60, 'glow', {
       x: { min: -50, max: 50 },
       speedY: { min: -40, max: -15 },
@@ -123,10 +132,10 @@ export class MenuScene extends Phaser.Scene {
     const refresh = () => {
       const c = CHARACTERS[this.index];
       const unlocked = save.unlocked.includes(c.id);
-      hero.setTexture(c.texture, 0).play(`${c.texture}_walk`).setTint(unlocked ? 0xffffff : 0x2a2c3a);
+      hero.setTexture(`portrait_${c.texture}`).setTint(unlocked ? 0xffffff : 0x2a2c3a);
       name.setText(unlocked ? c.name : `${c.name} · bloqueado`);
       desc.setText(c.description);
-      weaponIcon.setTexture(iconKey(this, WEAPONS[c.weapon].icon));
+      weaponIcon.setTexture(WEAPONS[c.weapon].icon);
       weaponName.setText(`Arma inicial: ${WEAPONS[c.weapon].name}`);
       if (unlocked) {
         save.selected = c.id;
@@ -180,10 +189,11 @@ export class MenuScene extends Phaser.Scene {
     kinds.forEach(([key, speed], i) => {
       const y = top + ((i * 37) % Math.max(1, bottom - top));
       const dir = i % 2 === 0 ? 1 : -1;
-      const m = this.add.sprite(30 + ((i * 131) % (width - 60)), y, key).play(`${key}_walk`).setFlipX(dir < 0).setDepth(y);
-      m.setScale(key === 'wolf' ? 1.6 : 2);
+      const m = this.add.image(30 + ((i * 131) % (width - 60)), y, key).setOrigin(0.5, 1).setFlipX(dir < 0).setDepth(y);
       this.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dt: number) => {
         m.x += (dir * speed * dt) / 1000;
+        const pose = walkPose(key, this.time.now / 1000 + i);
+        m.setScale(1.5 * pose.sx, 1.5 * pose.sy).setRotation(dir < 0 ? -pose.rot : pose.rot);
         if (dir > 0 && m.x > width + 60) m.x = -60;
         if (dir < 0 && m.x < -60) m.x = width + 60;
       });
@@ -231,7 +241,7 @@ export class ShopScene extends Phaser.Scene {
       const row = this.add.container(0, y);
       row.add(panel(this, width / 2, 0, width - 20, rowH - 6, 'ui_panel'));
       row.add(panel(this, 36, 0, 36, 36, 'ui_slot'));
-      row.add(this.add.image(36, 0, iconKey(this, def.icon)).setScale(1.5));
+      row.add(this.add.image(36, 0, def.icon).setScale(1.5));
       row.add(this.add.text(62, -13, def.name, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: '#f4f4f4' }).setOrigin(0, 0.5));
       row.add(this.add.text(62, 3, def.description, { fontFamily: FONT, fontSize: px(11), color: '#b8bdd8' }).setOrigin(0, 0.5));
       const lvlText = def.maxLevel !== undefined ? `Nível ${lvl}/${def.maxLevel}` : `Nível ${lvl}`;

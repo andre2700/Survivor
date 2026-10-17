@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
+import { nineSlice } from '../art/textures';
 
-export const FONT = '"Jersey 15", sans-serif';
+/** Texto corrido: Fredoka (arredondada). Títulos e botões: Lilita One (grossa, estilo jogo mobile). */
+export const FONT = '"Fredoka", sans-serif';
+export const TITLE_FONT = '"Lilita One", sans-serif';
 
-/** A Jersey 15 é condensada: os tamanhos são ampliados para manter a leitura. */
-export const FONT_SCALE = 1.3;
+export const FONT_SCALE = 1.05;
 export const px = (size: number) => `${Math.round(size * FONT_SCALE)}px`;
 
 export const COLORS = {
@@ -46,7 +48,7 @@ export function text(scene: Phaser.Scene, x: number, y: number, str: string, siz
 
 /** Título com gradiente dourado (logo e cabeçalhos grandes). */
 export function goldTitle(scene: Phaser.Scene, x: number, y: number, str: string, size: number) {
-  const t = text(scene, x, y, str, size, '#ffffff', { bold: true, stroke: '#2a1206', strokeThickness: Math.max(4, Math.round(size / 6)) });
+  const t = text(scene, x, y, str, size, '#ffffff', { stroke: '#2a1206', strokeThickness: Math.max(4, Math.round(size / 6)) }).setFontFamily(TITLE_FONT);
   const grad = t.context.createLinearGradient(0, 0, 0, t.height);
   grad.addColorStop(0.15, '#fff6c2');
   grad.addColorStop(0.5, '#f7c948');
@@ -58,7 +60,7 @@ export function goldTitle(scene: Phaser.Scene, x: number, y: number, str: string
 
 /** Painel com moldura 9-slice (`key` = estilo da moldura). */
 export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, key = 'ui_panel') {
-  return scene.add.nineslice(x, y, key, undefined, Math.round(w), Math.round(h), 8, 8, 8, 8);
+  return nineSlice(scene, x, y, key, w, h);
 }
 
 export type ButtonVariant = 'normal' | 'primary' | 'purple';
@@ -81,12 +83,12 @@ export function button(scene: Phaser.Scene, x: number, y: number, label: string,
   const h = opts.height ?? 32;
   const key = opts.disabled ? 'ui_btn_off' : VARIANT_KEY[opts.variant ?? 'normal'];
   const container = scene.add.container(x, y);
-  const bg = scene.add.nineslice(0, 0, key, undefined, w, h, 8, 8, 8, 8);
+  const bg = nineSlice(scene, 0, 0, key, w, h);
   const size = opts.size ?? 13;
   const color = opts.disabled ? '#6a6c80' : opts.color ?? (opts.variant === 'primary' ? '#2a1206' : '#f4f4f4');
   const t = scene.add.text(0, -1, label, {
-    fontFamily: FONT, fontSize: px(size), fontStyle: 'bold', color,
-    stroke: opts.variant === 'primary' && !opts.disabled ? '#ffe9a0' : '#0b0a14', strokeThickness: opts.variant === 'primary' ? 0 : 3,
+    fontFamily: TITLE_FONT, fontSize: px(size + 1), color,
+    stroke: opts.variant === 'primary' && !opts.disabled ? '#fff2b0' : '#14101e', strokeThickness: opts.variant === 'primary' ? 0 : 3,
   }).setOrigin(0.5);
   container.add([bg, t]);
   if (opts.icon) {

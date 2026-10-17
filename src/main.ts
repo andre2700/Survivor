@@ -1,10 +1,13 @@
-import '@fontsource/jersey-15';
+import '@fontsource/fredoka/400.css';
+import '@fontsource/fredoka/700.css';
+import '@fontsource/lilita-one';
 import Phaser from 'phaser';
 import { GameScene } from './scenes/GameScene';
 import { HudScene } from './scenes/HudScene';
 import { BootScene, MenuScene, ShopScene } from './scenes/MenuScenes';
 import { GameOverScene, LevelUpScene, PauseScene, VictoryScene } from './scenes/OverlayScenes';
 import { setupNative } from './native';
+import { installHdSprites } from './art/textures';
 import { initView } from './ui/view';
 
 // Resolução lógica: largura fixa de 400px; a altura acompanha a proporção da tela (retrato).
@@ -17,7 +20,7 @@ function logicalHeight() {
 
 async function start() {
   try {
-    await Promise.all([document.fonts.load('16px "Jersey 15"'), document.fonts.load('bold 16px "Jersey 15"')]);
+    await Promise.all(['16px "Fredoka"', 'bold 16px "Fredoka"', '16px "Lilita One"'].map((f) => document.fonts.load(f)));
   } catch {
     // segue com a fonte padrão
   }
@@ -34,12 +37,15 @@ async function start() {
     return originalText.call(this, x, y, str, { resolution: zoom, ...style });
   };
 
+  installHdSprites();
   const game = new Phaser.Game({
-    type: Phaser.AUTO,
+    // a arte em alta resolução depende do renderizador WebGL (ver installHdSprites)
+    type: Phaser.WEBGL,
     parent: 'game',
     backgroundColor: '#1a1c2c',
-    pixelArt: true,
-    roundPixels: true,
+    // texturas com filtro suave; sem MSAA (as bordas já vêm suavizadas na arte, e o MSAA pesa no celular)
+    antialias: true,
+    antialiasGL: false,
     width: BASE_WIDTH * zoom,
     height: height * zoom,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },

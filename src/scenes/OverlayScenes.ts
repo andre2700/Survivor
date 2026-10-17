@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { VIEW, setupCamera } from '../ui/view';
-import { iconKey } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { getCharacter } from '../data/characters';
 import { TAGS } from '../data/tags';
@@ -83,7 +82,7 @@ export class LevelUpScene extends Phaser.Scene {
       const slot = Math.min(52, cardH - 18);
       const sx = -cardW / 2 + 12 + slot / 2;
       const slotBg = panel(this, sx, 0, slot, slot, 'ui_slot');
-      const icon = this.add.image(sx, 0, iconKey(this, info.icon)).setScale(slot >= 44 ? 2 : 1.5);
+      const icon = this.add.image(sx, 0, info.icon).setScale(slot >= 44 ? 2 : 1.5);
       const left = sx + slot / 2 + 10;
       const textW = cardW / 2 - left - 10;
       const yTop = -cardH / 2 + 10;
@@ -300,7 +299,7 @@ export class GameOverScene extends Phaser.Scene {
     for (const w of weapons) {
       const def = WEAPONS[w.id as WeaponId];
       panel(this, 32, y, 26, 26, 'ui_slot');
-      this.add.image(32, y, iconKey(this, def.icon));
+      this.add.image(32, y, def.icon);
       this.add.text(52, y - 6, `${def.name} · nv ${w.level}`, { fontFamily: FONT, fontSize: px(12), color: '#dfe3f5' }).setOrigin(0, 0.5);
       const barW = (width - 150) * (w.dealt / total);
       this.add.rectangle(52, y + 7, Math.max(3, barW), 5, 0x5d8ced).setOrigin(0, 0.5).setStrokeStyle(1, 0x0b0a14);
