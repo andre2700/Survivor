@@ -4,9 +4,9 @@ import { ORIGINS, type Primary } from './elements';
 export type Element = 'physical' | 'fire' | 'water' | 'air' | 'earth' | 'light' | 'dark' | 'lightning';
 export type Tag = 'melee' | 'projectile' | 'spell' | 'area' | 'heavy' | 'fast' | Primary;
 /** Como a arma ataca. Cada padrão é implementado uma vez em `systems/weapons.ts`. */
-export type Pattern = 'nearest' | 'volley' | 'arc' | 'lob' | 'orbit' | 'aura' | 'strike' | 'wave' | 'fissure' | 'tornado';
+export type Pattern = 'nearest' | 'volley' | 'arc' | 'lob' | 'orbit' | 'aura' | 'strike' | 'wave' | 'fissure' | 'tornado' | 'laser' | 'fireball' | 'tremor';
 
-export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives' | 'wave' | 'quake' | 'tornado';
+export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives' | 'wave' | 'quake' | 'tornado' | 'laser' | 'fireball' | 'tremor';
 
 export interface WeaponStats {
   damage: number;
@@ -95,21 +95,41 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   wave: {
     id: 'wave', name: 'Onda', icon: 'icon_water', pattern: 'wave', element: 'water', tags: ['spell', 'area'],
-    description: 'Uma onda varre a área à frente e empurra os inimigos. Nv 5: cresce ao avançar; nv 10: Maremoto; nv 20: Tsunami.',
+    description: 'Uma onda varre a área à frente e empurra os inimigos.',
     base: { damage: 12, cooldown: 2, amount: 1, pierce: 999, area: 1, speed: 190, duration: 1.1, effect: 1.2 },
     growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
   },
   quake: {
     id: 'quake', name: 'Fissura', icon: 'icon_quake', pattern: 'fissure', element: 'earth', tags: ['area', 'heavy'],
-    description: 'Rachaduras correm pelo chão e espinhos de pedra brotam. Nv 5: ramificam; nv 10: Terremoto; nv 20: abalo na tela toda.',
+    description: 'Rachaduras correm pelo chão e espinhos de pedra brotam.',
     base: { damage: 18, cooldown: 2.4, amount: 1, pierce: 999, area: 1, speed: 320, duration: 0.45, effect: 1.6 },
     growth: [{ damage: 0.35 }, { amount: 1 }, { area: 0.15 }, { damage: 0.35 }, { cooldown: 0.1 }],
   },
   tornado: {
     id: 'tornado', name: 'Tornado', icon: 'icon_tornado', pattern: 'tornado', element: 'air', tags: ['spell', 'area'],
-    description: 'Redemoinhos vagam, puxam e ferem os inimigos. Nv 5: crescem; nv 10: Ciclone; nv 20: tornado gigante ao seu redor.',
+    description: 'Redemoinhos vagam, puxam e ferem os inimigos.',
     base: { damage: 5, cooldown: 3, amount: 1, pierce: 999, area: 1, speed: 60, duration: 2.6, effect: 0.6 },
     growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
+  },
+  laser: {
+    id: 'laser', name: 'Raio de Luz', icon: 'icon_laser', pattern: 'laser', element: 'light', tags: ['spell'],
+    description: 'Um laser em linha reta que rebate nas bordas da tela e fica ligado por um tempo.',
+    // quantidade = rebotes nas bordas; duração = tempo ligado depois do último rebote
+    base: { damage: 7, cooldown: 4, amount: 1, pierce: 999, area: 1, speed: 1600, duration: 1.2, effect: 0.5 },
+    growth: [{ amount: 1 }, { damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
+  },
+  fireball: {
+    id: 'fireball', name: 'Bola de Fogo', icon: 'icon_fireball', pattern: 'fireball', element: 'fire', tags: ['projectile', 'spell'],
+    description: 'Lança bolas de fogo que explodem em área ao acertar.',
+    base: { damage: 16, cooldown: 1.6, amount: 1, pierce: 1, area: 1, speed: 210, duration: 1.4, effect: 1.2 },
+    growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
+  },
+  tremor: {
+    id: 'tremor', name: 'Passos Sísmicos', icon: 'icon_tremor', pattern: 'tremor', element: 'earth', tags: ['area', 'heavy'],
+    description: 'Enquanto você anda, o chão treme ao seu redor e fere os inimigos.',
+    // recarga = distância andada (÷ 100 px) entre tremores
+    base: { damage: 14, cooldown: 0.9, amount: 1, pierce: 999, area: 1, speed: 0, duration: 0, effect: 1.4 },
+    growth: [{ damage: 0.3 }, { area: 0.15 }, { cooldown: 0.1 }, { amount: 1 }, { damage: 0.3 }],
   },
 };
 

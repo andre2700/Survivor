@@ -136,7 +136,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Área visível do mundo (unidades do jogo). */
   get viewW() {
-    return VIEW.width / WORLD_ZOOM;
+    return VIEW.screenWidth / WORLD_ZOOM;
   }
 
   get viewH() {
@@ -305,7 +305,7 @@ export class GameScene extends Phaser.Scene {
     this.updateSpawns(prev, dt);
     this.updateDamageTexts(dt);
     this.updateCorpses(dt);
-    this.elements.tick();
+    this.elements.tick(dt);
 
     if (this.stats.regen > 0) this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
 
@@ -1018,6 +1018,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- Ferramentas de desenvolvedor (painel DEV na pausa) ----------
+
+  /** A tela girou: chão e vinheta acompanham o novo tamanho da área visível. */
+  onResize() {
+    this.ground.setSize(this.viewW + 128, this.viewH + 128);
+    this.vignette.setDisplaySize(this.viewW + 40, this.viewH + 40);
+  }
 
   /** Velocidade do jogo, timers e animações. */
   applyDevSpeed() {

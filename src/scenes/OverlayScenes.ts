@@ -13,9 +13,9 @@ import type { GameScene, RunResult } from './GameScene';
 import { formatTime } from './HudScene';
 
 function dim(scene: Phaser.Scene, alpha = 0.72) {
-  const { width, height } = VIEW;
-  scene.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width, height).setDepth(-1);
-  return scene.add.rectangle(0, 0, width, height, 0x0b0a14, alpha).setOrigin(0).setInteractive().setDepth(-2);
+  const { height } = VIEW;
+  scene.add.image(-VIEW.bleed, 0, 'vignette').setOrigin(0).setDisplaySize(VIEW.screenWidth, height).setDepth(-1);
+  return scene.add.rectangle(-VIEW.bleed, 0, VIEW.screenWidth, height, 0x0b0a14, alpha).setOrigin(0).setInteractive().setDepth(-2);
 }
 
 /** Raios de luz girando atrás de um título (vitória, nível). */
@@ -85,14 +85,23 @@ export class LevelUpScene extends Phaser.Scene {
       const slotBg = panel(this, sx, 0, slot, slot, 'ui_slot');
       const icon = this.add.image(sx, 0, info.icon).setScale(slot >= 44 ? 2 : 1.5);
       const left = sx + slot / 2 + 10;
-      const textW = cardW / 2 - left - 10;
-      const yTop = -cardH / 2 + 10;
+      // largura útil até a borda direita do cartão
+      const textW = cardW / 2 - left - 12;
+      const yTop = -cardH / 2 + 8;
       const t = this.add.text(left, yTop, info.title, { fontFamily: FONT, fontSize: px(15), fontStyle: 'bold', color: '#ffffff', stroke: '#0b0a14', strokeThickness: 3 });
+      fitText(t, textW, 22, 10);
       const tag = this.add.text(left, yTop + 19, info.tag, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: rarity.text });
-      const desc = this.add.text(left, yTop + 34, info.text, { fontFamily: FONT, fontSize: px(12), color: '#dfe3f5', wordWrap: { width: textW + cardW / 2 - 10 }, lineSpacing: 1 });
+      fitText(tag, textW, 16, 8);
+      const showChange = !!info.change && cardH >= 70;
+      const descTop = yTop + 33;
+      const descBottom = cardH / 2 - (showChange ? 20 : 6);
+      const desc = this.add.text(left, descTop, info.text, { fontFamily: FONT, fontSize: px(12), color: '#dfe3f5', wordWrap: { width: textW }, lineSpacing: 0 });
+      fitText(desc, textW, descBottom - descTop, 8);
       c.add([bg, slotBg, icon, t, tag, desc]);
-      if (info.change && cardH >= 70) {
-        c.add(this.add.text(left, cardH / 2 - 9, info.change, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: '#8cf08a' }).setOrigin(0, 1));
+      if (showChange) {
+        const ch = this.add.text(left, cardH / 2 - 6, info.change!, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: '#8cf08a' }).setOrigin(0, 1);
+        fitText(ch, textW, 16, 8);
+        c.add(ch);
       }
       if (opt.rarity >= 2) {
         // brilho nas cartas épicas e lendárias
@@ -191,6 +200,17 @@ export class PauseScene extends Phaser.Scene {
     }
     this.input.keyboard?.on('keydown-ESC', () => game.resumeFromPause());
   }
+}
+
+/** Diminui a fonte do texto até caber em `maxW` × `maxH` (quebrando linhas se tiver quebra automática). */
+function fitText(t: Phaser.GameObjects.Text, maxW: number, maxH: number, minSize: number) {
+  let size = parseFloat(String(t.style.fontSize));
+  const wraps = !!t.style.wordWrapWidth;
+  while (size > minSize && (t.height > maxH || (!wraps && t.width > maxW))) {
+    size -= 1;
+    t.setFontSize(size);
+  }
+  if (!wraps && t.width > maxW) t.setScale(maxW / t.width);
 }
 
 /** Painel de atributos atuais e bônus de tags (visível na pausa). */

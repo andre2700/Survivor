@@ -55,22 +55,13 @@
  "flowers": {
   "hd": 2
  },
- "fx_ice": {
+ "fx_fireball": {
   "hd": 2
  },
- "fx_lava": {
-  "hd": 2
- },
- "fx_mud": {
-  "hd": 2
- },
- "fx_sand": {
+ "fx_firering": {
   "hd": 2
  },
  "fx_spike": {
-  "hd": 2
- },
- "fx_steam": {
   "hd": 2
  },
  "fx_tornado": {
@@ -189,6 +180,12 @@
  "icon_fire": {
   "hd": 4
  },
+ "icon_fireball": {
+  "hd": 4
+ },
+ "icon_laser": {
+  "hd": 4
+ },
  "icon_magnet": {
   "hd": 4
  },
@@ -211,6 +208,9 @@
   "hd": 4
  },
  "icon_tornado": {
+  "hd": 4
+ },
+ "icon_tremor": {
   "hd": 4
  },
  "icon_water": {
@@ -318,6 +318,30 @@
  },
  "tree2": {
   "hd": 2
+ },
+ "vfx_explosion": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_ice": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_lava": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_mud": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_sand": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_steam": {
+  "hd": 2,
+  "frames": 4
  },
  "wolf": {
   "hd": 3,

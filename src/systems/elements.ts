@@ -122,7 +122,8 @@ export class ElementSystem {
     this.present(r, x, y);
     switch (r.id) {
       case 'lava':
-        this.erupt(x, y, r.radius);
+        // erupção no chão, por baixo dos inimigos; a poça esfria e some
+        this.vfx('vfx_lava', x, y + 6, r.radius * 1.7, [[0, 0.08], [1, 0.1], [2, 0.12], [3, 1.1]], { ground: true });
         sc.flames.explode(30, x, y);
         this.area(r, x, y, dmg, (o) => this.apply(o, 'fire', dmg * 0.5, t));
         break;
@@ -132,14 +133,15 @@ export class ElementSystem {
           e.frozenUntil = t + REACTION_RULES.freeze;
           e.statusEnd = Math.max(e.statusEnd, e.frozenUntil);
           sc.restoreTint(e);
-          this.encase(e);
+          // cristais crescem em volta dos pés e estilhaçam ao descongelar (ou se ele morrer)
+          this.vfx('vfx_ice', e.x, e.y + 6, Math.max(22, e.radius * 3.2), [[0, 0.06], [1, 0.08], [2, REACTION_RULES.freeze - 0.14], [3, 0.25]], { follow: e, alpha: 0.92 });
         }
         break;
       case 'lightning':
         this.chain(r, e, dmg);
         break;
       case 'mud':
-        this.decal('fx_mud', x, y + 4, (r.radius * 2.2) / 72, REACTION_RULES.mudDuration, false);
+        this.vfx('vfx_mud', x, y + 4, r.radius * 2.2, [[0, 0.07], [1, 0.1], [2, REACTION_RULES.mudDuration - 0.6], [3, 0.4]], { ground: true });
         this.area(r, x, y, dmg, (o) => {
           o.mudUntil = t + REACTION_RULES.mudDuration;
           o.statusEnd = Math.max(o.statusEnd, o.mudUntil);
@@ -149,13 +151,15 @@ export class ElementSystem {
       case 'sand': {
         const pulses = r.id === 'steam' ? REACTION_RULES.steamPulses : REACTION_RULES.sandPulses;
         const seconds = pulses * REACTION_RULES.pulseEvery;
+        const each = seconds / 4;
         if (r.id === 'steam') {
-          for (let i = 0; i < 3; i++) {
-            const a = (i / 3) * Math.PI * 2;
-            this.decal('fx_steam', x + Math.cos(a) * r.radius * 0.4, y + Math.sin(a) * r.radius * 0.3, (r.radius * 1.3) / 56, seconds, true);
+          // duas colunas de vapor subindo, semitransparentes
+          for (const dx of [-0.35, 0.35]) {
+            this.vfx('vfx_steam', x + dx * r.radius, y + 4, r.radius * 0.8, [[0, each * 0.6], [1, each], [2, each * 1.4], [3, each]], { alpha: 0.55, rise: 10 });
           }
         } else {
-          this.decal('fx_sand', x, y + 6, (r.radius * 2.2) / 56, seconds, true, true);
+          // o giro vem dos próprios quadros
+          this.vfx('vfx_sand', x, y + 6, r.radius * 1.9, [[0, 0.1], [1, each], [2, each * 1.6], [1, each * 0.5], [2, each * 0.6], [3, 0.3]], { alpha: 0.85 });
         }
         sc.time.addEvent({ delay: REACTION_RULES.pulseEvery * 1000, repeat: pulses - 1, callback: () => this.area(r, x, y, dmg) });
         this.area(r, x, y, dmg);
@@ -174,7 +178,6 @@ export class ElementSystem {
   private banners = 0;
   /** último título mostrado de cada reação (um por reação a cada meio segundo) */
   private lastBanner: Partial<Record<ReactionId, number>> = {};
-  private ices: { e: Enemy; img: Phaser.GameObjects.Image }[] = [];
 
   /** Título, onda de choque, clarão e som; tremor e clarão de tela com intervalo mínimo. */
   private present(r: ReactionDef, x: number, y: number) {
@@ -229,48 +232,50 @@ export class ElementSystem {
     }
   }
 
-  /** Lava: erupção que sobe e afunda. */
-  private erupt(x: number, y: number, radius: number) {
-    const img = this.scene.add.image(x, y + 8, 'atlas', frameName('fx_lava')).setOrigin(0.5, 0.95).setDepth(y + 8).setScale(0.2, 0);
-    const s = (radius * 1.6) / 56;
-    this.scene.tweens.add({ targets: img, scaleX: s, scaleY: s, duration: 140, ease: 'Back.Out' });
-    this.scene.tweens.add({ targets: img, scaleY: 0, alpha: 0, delay: 520, duration: 320, ease: 'Quad.In', onComplete: () => img.destroy() });
+  /** Animações de efeito em andamento (quadros, posição, transparência). */
+  private anims: { img: Phaser.GameObjects.Image; key: string; seq: [number, number][]; i: number; t: number; follow?: Enemy; alpha: number; rise: number; y0: number }[] = [];
+
+  /**
+   * Toca uma animação de efeito de 4 quadros com `width` px lógicos de largura. `seq` é a ordem dos
+   * quadros e quantos segundos cada um fica; o último some aos poucos. `ground` desenha no chão
+   * (por baixo dos personagens).
+   */
+  vfx(key: string, x: number, y: number, width: number, seq: [number, number][],
+    o: { ground?: boolean; follow?: Enemy; alpha?: number; rise?: number } = {}) {
+    const f = this.scene.textures.getFrame('atlas', frameName(key, 0));
+    const scale = width / (f.cutWidth / ((f.customData as { hd?: number }).hd ?? 1));
+    const img = this.scene.add.image(x, y, 'atlas', frameName(key, seq[0][0])).setOrigin(0.5, 0.85)
+      .setScale(scale).setAlpha(o.alpha ?? 1).setDepth(o.ground ? LAYER.groundFx : y + 2);
+    this.anims.push({ img, key, seq, i: 0, t: 0, follow: o.follow, alpha: o.alpha ?? 1, rise: o.rise ?? 0, y0: y });
   }
 
-  /** Gelo: o inimigo fica preso num bloco de gelo que estilhaça ao soltar. */
-  private encase(e: Enemy) {
-    const img = this.scene.add.image(e.x, e.y + 4, 'atlas', frameName('fx_ice')).setOrigin(0.5, 0.85).setDepth(e.y + 1).setAlpha(0.85);
-    const s = Math.max(0.6, (e.displayWidth * 1.2) / 58);
-    img.setScale(s * 1.4).setAlpha(0);
-    this.scene.tweens.add({ targets: img, scale: s, alpha: 0.85, duration: 120 });
-    this.ices.push({ e, img });
-  }
-
-  /** Mancha, nuvem ou redemoinho que aparece e some com o tempo. */
-  private decal(key: string, x: number, y: number, scale: number, seconds: number, rise: boolean, spin = false) {
-    const img = this.scene.add.image(x, y, 'atlas', frameName(key)).setOrigin(0.5, rise ? 0.9 : 0.5)
-      .setDepth(rise ? y : LAYER.groundFx).setScale(scale * 0.3).setAlpha(0);
-    this.scene.tweens.add({ targets: img, scale, alpha: rise ? 0.95 : 0.9, duration: 180, ease: 'Back.Out' });
-    if (spin) this.scene.tweens.add({ targets: img, scaleX: -scale, duration: 220, yoyo: true, repeat: Math.ceil(seconds / 0.44) });
-    if (rise) this.scene.tweens.add({ targets: img, y: y - 6, duration: seconds * 1000 });
-    this.scene.tweens.add({ targets: img, alpha: 0, delay: seconds * 1000 - 300, duration: 300, onComplete: () => img.destroy() });
-  }
-
-  /** Por quadro: blocos de gelo acompanham e estilhaçam quando o congelamento acaba. */
-  tick() {
-    const t = this.scene.elapsed;
+  /** Por quadro: avança as animações de efeito. */
+  tick(dt: number) {
     this.moteBudget = 8;
     this.showBudget = Math.min(6, this.showBudget + 0.25);
-    this.ices = this.ices.filter(({ e, img }) => {
-      if (e.active && t < e.frozenUntil) {
-        img.setPosition(e.x, e.y + 4);
-        return true;
+    this.anims = this.anims.filter((a) => {
+      a.t += dt;
+      // quem foi seguido morreu: pula para o último quadro (gelo estilhaça)
+      if (a.follow && !a.follow.active && a.i < a.seq.length - 1) {
+        a.i = a.seq.length - 1;
+        a.t = 0;
+        a.img.setFrame(frameName(a.key, a.seq[a.i][0]));
       }
-      // estilhaça
-      this.scene.sparks.setParticleTint(0xbfefff).explode(10, img.x, img.y - 10);
-      this.scene.sparks.setParticleTint(0xffffff);
-      this.scene.tweens.add({ targets: img, scale: img.scale * 1.3, alpha: 0, duration: 160, onComplete: () => img.destroy() });
-      return false;
+      while (a.t >= a.seq[a.i][1] && a.i < a.seq.length - 1) {
+        a.t -= a.seq[a.i][1];
+        a.i++;
+        a.img.setFrame(frameName(a.key, a.seq[a.i][0]));
+      }
+      const last = a.i === a.seq.length - 1;
+      const k = last ? a.t / a.seq[a.i][1] : 0;
+      if (a.follow?.active) a.img.setPosition(a.follow.x, a.follow.y + 6).setDepth(a.follow.y + 2);
+      else if (a.rise) a.img.y = a.y0 - a.rise * ((a.i + k) / a.seq.length);
+      a.img.setAlpha(a.alpha * (last ? 1 - k : 1));
+      if (last && k >= 1) {
+        a.img.destroy();
+        return false;
+      }
+      return true;
     });
   }
 

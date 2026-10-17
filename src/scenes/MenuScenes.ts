@@ -31,7 +31,7 @@ export class BootScene extends Phaser.Scene {
 /** Cenário vivo de fundo dos menus: grama rolando, árvores nas bordas, vaga-lumes e vinheta. */
 export function menuBackground(scene: Phaser.Scene, darken = 0.25) {
   const { width, height } = VIEW;
-  const ground = groundSprite(scene, 0, 0, width, height).setOrigin(0);
+  const ground = groundSprite(scene, -VIEW.bleed, 0, VIEW.screenWidth, height).setOrigin(0);
   let scroll = 0;
   const decor = scene.add.container(0, 0);
   const trees: [string, number, number][] = [
@@ -39,7 +39,7 @@ export function menuBackground(scene: Phaser.Scene, darken = 0.25) {
     ['rock', width - 60, 330], ['flowers', 70, 250], ['mushroom', width - 80, height - 200], ['tallgrass', 50, height - 220], ['stump', width - 40, 420],
   ];
   for (const [key, x, y] of trees) decor.add(scene.add.image(x, y, key).setOrigin(0.5, 1));
-  scene.add.rectangle(0, 0, width, height, 0x0b0a14, darken).setOrigin(0);
+  scene.add.rectangle(-VIEW.bleed, 0, VIEW.screenWidth, height, 0x0b0a14, darken).setOrigin(0);
   scene.add.particles(0, 0, 'glow', {
     x: { min: 0, max: width },
     y: { min: 0, max: height },
@@ -52,7 +52,7 @@ export function menuBackground(scene: Phaser.Scene, darken = 0.25) {
     blendMode: Phaser.BlendModes.ADD,
     frequency: 180,
   });
-  scene.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width, height);
+  scene.add.image(-VIEW.bleed, 0, 'vignette').setOrigin(0).setDisplaySize(VIEW.screenWidth, height);
   scene.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dt: number) => {
     scroll -= dt * 0.012;
     scrollGround(ground, 0, scroll);

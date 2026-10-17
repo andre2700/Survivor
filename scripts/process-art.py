@@ -172,14 +172,24 @@ def slice_sheet(path, n):
     # região grande (figura, ou figuras encostadas): dividida pelas colunas de corte. Pedaço pequeno
     # solto (chama, ponta de asa): vai inteiro para o quadro da figura mais próxima dele
     owner = {}
-    big = {i for i, pts in enumerate(regions, 1) if max(x for x, _ in pts) - min(x for x, _ in pts) >= w / n * 0.5 / q}
+    column = lambda x: next(k for k in range(n) if x * q < cuts[k + 1] or k == n - 1)
+    largest = max(len(pts) for pts in regions)
+    # figura: região larga ou com bastante área (uma estrela pequena, uma nuvem de fumaça)
+    big = {i for i, pts in enumerate(regions, 1)
+           if max(x for x, _ in pts) - min(x for x, _ in pts) >= w / n * 0.5 / q or len(pts) >= largest * 0.15}
+    framed = {column(sum(x for x, _ in regions[i - 1]) / len(regions[i - 1])) for i in big}
     edge = [p for i in big for p in regions[i - 1][::3]]
     for i, pts in enumerate(regions, 1):
         if i in big:
             continue
+        cx = sum(x for x, _ in pts) / len(pts)
+        if column(cx) not in framed:
+            # quadro sem nenhuma figura grande (só pedaços soltos): fica com o que está na coluna dele
+            owner[i] = column(cx)
+            continue
         sample = pts[::max(1, len(pts) // 40)]
         nx, _ = min(edge, key=lambda e: min((e[0] - x) ** 2 + (e[1] - y) ** 2 for x, y in sample))
-        owner[i] = next(k for k in range(n) if nx * q < cuts[k + 1] or k == n - 1)
+        owner[i] = column(nx)
     frames = []
     for k in range(n):
         m = Image.new('L', (w // q, h // q))
@@ -279,6 +289,17 @@ def main():
             recolor(Image.open(base).convert('RGBA'), a).save(OUT / f'{name}.png', optimize=True)
             index[name] = dict(index[a['variant']])
             print(name, 'variante de', a['variant'])
+            continue
+        if a.get('role') == 'vfx':
+            sheet = SRC / f'{name}_sheet.png'
+            if not sheet.exists():
+                print('falta', sheet)
+                continue
+            frames = slice_sheet(sheet, 4)
+            img = strip(frames, a, a.get('hd', 2), 4)
+            img.save(OUT / f'{name}.png', optimize=True)
+            index[name] = {'hd': a.get('hd', 2), 'frames': 4}
+            print(name, img.size, 'efeito 4 quadros')
             continue
         src = SRC / f'{name}.png'
         if not src.exists():

@@ -14,7 +14,7 @@ RPG 2D de sobrevivência em estilo cartoon para Android e iOS (e navegador). Esc
 O design completo está em [docs/GDD.md](docs/GDD.md).
 
 - **Sem limite de armas:** qualquer arma pode aparecer a qualquer momento, e todas sobem de nível sem teto. A cada 10 níveis a arma **desperta** (dano ×1,5, +1 quantidade, visual dourado).
-- **Armas modulares** (`src/data/weapons.ts`): padrão de ataque + elemento + tags + ciclo de crescimento. Hoje: Varinha, Espada, Machado, Orbe, Aura de Fogo, Raio, Adagas, Onda (Água), Fissura (Terra) e Tornado (Ar).
+- **Armas modulares** (`src/data/weapons.ts`): padrão de ataque + elemento + tags + ciclo de crescimento. Hoje: Varinha, Espada, Machado, Orbe, Aura de Fogo, Raio, Adagas, Onda (Água), Fissura (Terra), Tornado (Ar), Raio de Luz (laser que rebate nas bordas da tela), Bola de Fogo (explode em área) e Passos Sísmicos (tremores enquanto você anda).
 - **Grandeza por nível**: os ataques começam simples e crescem em faixas (nv 5, 10 = despertar, 20). Ex.: Onda → Maremoto → Tsunami; Fissura → Terremoto → abalo na tela toda; Tornado → Ciclone → tornado gigante; Espada despertada solta a lâmina; Raio despertado salta entre inimigos.
 - **Elementos** (`src/data/elements.ts`, Marco 2): vantagens Água > Fogo > Ar > Terra > Água, efeitos por chance (Queimando, Encharcado, Desequilibrado, Fraturado) e 6 reações quando dois efeitos se encontram (Lava, Gelo, Raio, Vapor, Lama, Areia). Inimigos com variantes elementais.
 - **Bônus de tags** (`src/data/tags.ts`): várias armas com a mesma tag (Projétil, Corpo a corpo, Feitiço, Área...) fortalecem todas elas.
@@ -38,7 +38,7 @@ Estilo cartoon 2D (contorno grosso, sombreado suave, cores vivas), gerado com IA
 - Efeitos (brilho, golpe, aura, vinheta) e molduras da interface são desenhados por código (`src/art/fx.ts`, `src/art/ui.ts`).
 - `npm run artsheet` gera `screenshots/artsheet.png` com todos os sprites, para revisar a arte.
 
-O jogo usa resolução lógica de 400 px de largura com zoom de 1–2× no canvas. Fontes: Fredoka (texto) e Lilita One (títulos e botões). Os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
+O jogo usa resolução lógica de 400 px de largura com zoom de 1–2× no canvas. Funciona em retrato e na horizontal (gira junto com o celular): na horizontal a partida usa a largura inteira e os menus ficam numa coluna central. Fontes: Fredoka (texto) e Lilita One (títulos e botões). Os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
 
 ## Desenvolvimento
 

@@ -29,7 +29,8 @@ Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
 - Tags de elemento: 2 armas = +30% chance de efeito; 4 = +30% dano.
 - Armas elementais com padrões próprios: Onda (Água, varre e empurra), Fissura (Terra, rachaduras com espinhos), Tornado (Ar, puxa e fere). Carta Catalisador (potência elemental).
 - Grandeza: todo ataque cresce em faixas de nível (5, 10 = despertar, 20) até formas grandiosas (Tsunami, Terremoto, tornado gigante).
-- Reações marcantes: título grande, onda de choque, clarão, véu de cor na tela, som e arte próprios (erupção de lava, bloco de gelo, raios em ziguezague, nuvens de vapor, poça de lama, redemoinho de areia).
+- Reações marcantes: título grande, onda de choque, clarão, véu de cor na tela, som e uma animação própria de 4 quadros no chão ou em volta do alvo, sem tampar os inimigos (erupção de lava, cristais de gelo nos pés, raios em ziguezague, colunas de vapor, poça de lama, redemoinho de areia).
+- Pode haver mais de um ataque por elemento, desde que diferentes: Raio de Luz (laser que rebate nas bordas), Bola de Fogo (explosão; nv 10 se divide; nv 20 Meteoro), Passos Sísmicos (tremores ao andar; nv 10 tremor secundário; nv 20 abre fissuras).
 - Variantes elementais por troca de cor: Slime de Fogo, Slime d'Água, Goblin da Terra, Morcego do Vento.
 - Estatísticas pós-partida mostram o dano por reação.
 - Pendente: reações triplas, Luz/Trevas, resistências mostradas antes da partida.

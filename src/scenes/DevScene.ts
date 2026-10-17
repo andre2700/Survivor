@@ -30,7 +30,7 @@ export class DevScene extends Phaser.Scene {
     const { width, height } = VIEW;
     const inRun = this.from === 'Pause';
     const game = this.scene.get('Game') as GameScene;
-    this.add.rectangle(0, 0, width, height, 0x0b0a14, 0.92).setOrigin(0).setInteractive();
+    this.add.rectangle(-VIEW.bleed, 0, VIEW.screenWidth, height, 0x0b0a14, 0.92).setOrigin(0).setInteractive();
     goldTitle(this, width / 2, 34, 'DEV', 30);
     const refresh = () => this.scene.restart({ from: this.from });
     const yes = (on: boolean) => (on ? 'SIM' : 'NÃO');

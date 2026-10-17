@@ -64,3 +64,8 @@ Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manife
 - No jogo: o quadro de dano aparece por um instante a cada golpe; ao morrer, o monstro fica caído e some (até 60 corpos ao mesmo tempo); o herói mostra dano ao apanhar, cai na derrota e comemora na vitória.
 - O chefe ganhou um ataque para usar os quadros de preparar/atacar: perto do herói, para, mostra um anel vermelho no chão por 0,9 s e golpeia a área (1,5× o dano de contato), a cada ~4 s.
 - "Com ataque especial" ainda não é usado por nenhum monstro; fica pronto para criaturas novas.
+
+## Efeitos animados (VFX)
+- Papel `vfx` no modelo de quadros: 4 quadros numa folha só (formato 21:9), descritos em `poses` e gerados com o cavaleiro como referência de estilo (`vfx_lava`, `vfx_ice`, `vfx_steam`, `vfx_mud`, `vfx_sand`, `vfx_explosion`).
+- No jogo, `ElementSystem.vfx()` toca a sequência de quadros com tempos próprios, no chão ou seguindo um inimigo.
+- Evitar brilho difuso em volta da arte gerada: mistura com o magenta e vira halo rosado (pedir "crisp outlines, no soft glow").

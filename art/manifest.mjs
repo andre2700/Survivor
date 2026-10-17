@@ -25,6 +25,8 @@ export const FRAME_TEMPLATES = {
   special: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   hero: { move: ['idle', 'walk_a', 'walk_b', 'attack'], action: ['hurt', 'death', 'victory'] },
+  // efeito visual animado (reações, explosões): 4 quadros numa folha só, descritos em `poses`
+  vfx: { move: ['f1', 'f2', 'f3', 'f4'], action: [] },
 };
 
 // Descrição de cada pose por tipo de corpo.
@@ -114,11 +116,23 @@ export const ART = {
   fx_wave: { w: 64, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
   fx_spike: { h: 28, prompt: `${FX}a sharp brown rock spike erupting from the ground with small flying debris chunks` },
   fx_tornado: { h: 64, prompt: `${FX}a cartoon tornado whirlwind funnel of pale green and white swirling wind with a few small leaves` },
-  fx_lava: { h: 56, prompt: `${FX}a cartoon eruption of glowing orange-yellow lava splashing upward with molten droplets and small dark rocks` },
-  fx_ice: { h: 40, prompt: `${FX}an empty cartoon block of clear light-blue ice crystal with sharp facets, frost and shine` },
-  fx_steam: { h: 56, prompt: `${FX}a cartoon puffy cloud of white hot steam with soft swirls and a light orange glow at the base` },
-  fx_mud: { w: 72, prompt: `${FX}a cartoon puddle of thick brown mud with bubbles and splats, seen from above at an angle, flat on the ground` },
-  fx_sand: { h: 56, prompt: `${FX}a cartoon swirling sandstorm vortex of golden sand with small pebbles` },
+  // efeitos animados (4 quadros): effect descreve o efeito; poses, cada quadro
+  vfx_lava: { h: 40, role: 'vfx', wide: true, effect: 'a lava eruption bursting from cracked ground', poses: {
+    f1: 'glowing orange cracks opening on the ground', f2: 'lava bursting upward in a short fountain with molten droplets',
+    f3: 'lava splashing down in all directions', f4: 'a small cooling puddle of orange-red lava with smoke wisps' } },
+  vfx_ice: { h: 30, role: 'vfx', wide: true, effect: 'ice crystals growing from the ground', poses: {
+    f1: 'a thin ring of frost on the ground', f2: 'small sharp ice crystals sprouting in a ring', f3: 'a cluster of tall light-blue ice crystals in a ring, open in the middle',
+    f4: 'the ice crystals shattering into flying shards' } },
+  vfx_steam: { h: 40, role: 'vfx', wide: true, effect: 'a hot steam burst', poses: {
+    f1: 'a small puff of white steam', f2: 'a bigger billowing steam cloud rising', f3: 'a tall swirling steam column', f4: 'thin fading wisps of steam' } },
+  vfx_mud: { h: 24, role: 'vfx', wide: true, effect: 'a mud splash on the ground, seen from a top-down angle', poses: {
+    f1: 'a blob of brown mud hitting the ground', f2: 'mud splashing outward with droplets', f3: 'a wide flat brown mud puddle with bubbles', f4: 'the same mud puddle, flatter and drier' } },
+  vfx_sand: { h: 44, role: 'vfx', wide: true, effect: 'a small sandstorm whirlwind of golden sand', poses: {
+    f1: 'a low swirl of sand starting on the ground', f2: 'a growing sand whirlwind', f3: 'a tall sand whirlwind with flying pebbles', f4: 'the whirlwind collapsing into falling sand' } },
+  vfx_explosion: { h: 40, role: 'vfx', wide: true, effect: 'a cartoon fire explosion with crisp outlines and NO soft glow or halo around it', poses: {
+    f1: 'a small bright yellow flash', f2: 'a round orange fireball blast expanding', f3: 'a big fiery explosion with flames and sparks', f4: 'dark smoke puffs with a few embers' } },
+  fx_fireball: { w: 20, prompt: `${FX}a cartoon fireball projectile with a flaming tail, flying horizontally to the RIGHT` },
+  fx_firering: { w: 96, prompt: `${FX}a flat ring of orange and yellow flames seen from a top-down angle, empty in the middle, flames licking upward around the circle` },
   // cenário (visto de cima, estilo mapa de RPG)
   tree: { h: 72, shadow: true },
   tree2: { h: 78, shadow: true, prompt: `a single tall green pine tree with brown trunk, front view, like a top-down RPG map object` },
@@ -150,6 +164,9 @@ export const ART = {
   icon_water: { h: 16, hd: 4, prompt: `${ICON}: a swirling blue water droplet with a splash` },
   icon_quake: { h: 16, hd: 4, prompt: `${ICON}: cracked brown ground split open by a fissure with rocks bursting out` },
   icon_tornado: { h: 16, hd: 4, prompt: `${ICON}: a pale green and white tornado swirl` },
+  icon_laser: { h: 16, hd: 4, prompt: `${ICON}: a bright golden-white beam of light zigzagging between two small mirrors` },
+  icon_fireball: { h: 16, hd: 4, prompt: `${ICON}: a blazing round fireball with a flaming tail` },
+  icon_tremor: { h: 16, hd: 4, prompt: `${ICON}: a brown leather boot stomping on cracked ground with rocks flying` },
   icon_element: { h: 16, hd: 4, prompt: `${ICON}: a magic orb split into four colored quarters: red fire, blue water, green wind and brown earth` },
 };
 
@@ -162,7 +179,7 @@ export const ART = {
 export function sheets(a) {
   const t = FRAME_TEMPLATES[a.role];
   const pose = (slot) => {
-    const text = a.poses?.[slot] ?? POSES[a.body][slot];
+    const text = a.poses?.[slot] ?? POSES[a.body]?.[slot];
     return { slot, text: a.hold ? `${text}, holding ${a.hold}` : text };
   };
   const per = a.wide ? 2 : 3;

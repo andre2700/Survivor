@@ -21,7 +21,15 @@ for (const [name, a] of Object.entries(ART)) {
     continue;
   }
   if (a.prompt) jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
-  if (a.role) {
+  if (a.role === 'vfx') {
+    const list = sheets(a).move.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
+    jobs.push({
+      out: `${name}_sheet`, ref: 'hero_knight', aspect: '21:9', prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
+        'Match the art style, outline weight, shading and palette of the reference image (do not draw the character). ' +
+        `Create a sprite sheet of an animated game visual effect: one single horizontal row of 4 frames of ${a.effect}, all at the same scale, ` +
+        `evenly spaced with wide magenta gaps between frames, no frame touching or overlapping another. Frames from left to right: ${list}. ${BG}`,
+    });
+  } else if (a.role) {
     const plan = sheets(a);
     const named = [['sheet', plan.move], ...plan.actions.map((poses, i) => [i ? `action${i + 1}` : 'action', poses])];
     for (const [suffix, poses] of named) {

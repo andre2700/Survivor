@@ -18,6 +18,15 @@ interface WeaponRuntime {
   dealt: number;
 }
 
+/** Distância de um ponto ao segmento a–b. */
+function distToSegment(px: number, py: number, a: { x: number; y: number }, b: { x: number; y: number }) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len2));
+  return Math.hypot(px - (a.x + dx * t), py - (a.y + dy * t));
+}
+
 /** Efeito em andamento (onda, rachadura, tornado): chamado a cada quadro até devolver false. */
 type Live = (dt: number) => boolean;
 
@@ -29,6 +38,11 @@ export class WeaponSystem {
   private giant = false;
   /** disparos da Onda nv 20+: o Tsunami sai a cada 3 */
   private tsunamiCount = 0;
+  /** disparos da Bola de Fogo nv 20+: o Meteoro sai a cada 2 */
+  private meteorCount = 0;
+  /** Passos Sísmicos: distância andada desde o último tremor */
+  private walked = 0;
+  private lastPos: { x: number; y: number } | null = null;
   private orbs: Phaser.GameObjects.Image[] = [];
   private orbAngle = 0;
   private aura?: Phaser.GameObjects.Image;
@@ -100,6 +114,10 @@ export class WeaponSystem {
         this.updateOrbs(w, dt);
         continue;
       }
+      if (w.def.pattern === 'tremor') {
+        this.updateTremor(w);
+        continue;
+      }
       if (w.def.pattern === 'aura') this.updateAuraVisual(w);
       w.timer -= dt;
       if (w.timer > 0) continue;
@@ -129,6 +147,10 @@ export class WeaponSystem {
         return this.fireFissure(w);
       case 'tornado':
         return this.fireTornado(w);
+      case 'laser':
+        return this.fireLaser(w);
+      case 'fireball':
+        return this.fireFireball(w);
       default:
         return false;
     }
@@ -228,14 +250,18 @@ export class WeaponSystem {
   private updateAuraVisual(w: WeaponRuntime) {
     const p = this.scene.player;
     if (!this.aura) {
-      this.aura = this.scene.add.image(p.x, p.y, 'atlas', frameName('aura')).setDepth(LAYER.groundFx).setBlendMode(Phaser.BlendModes.ADD);
-      this.scene.tweens.add({ targets: this.aura, alpha: { from: 0.6, to: 0.95 }, duration: 380, yoyo: true, repeat: -1 });
-      this.scene.tweens.add({ targets: this.aura, angle: 360, duration: 6000, repeat: -1 });
+      // anel de chamas no chão (arte), tremulando
+      this.aura = this.scene.add.image(p.x, p.y, 'atlas', frameName('fx_firering')).setDepth(LAYER.groundFx).setOrigin(0.5, 0.55);
+      this.scene.tweens.add({ targets: this.aura, alpha: { from: 0.8, to: 1 }, duration: 160, yoyo: true, repeat: -1 });
     }
     const radius = 40 * w.stats.area;
-    this.aura.setPosition(p.x, p.y + 6).setScale((radius * 2) / 96, (radius * 1.6) / 96);
-    // chamas subindo de pontos do anel
-    if (Math.random() < 0.5) this.scene.emitFlame(p.x + (Math.random() * 2 - 1) * radius * 0.9, p.y + 6 + (Math.random() * 2 - 1) * radius * 0.7);
+    const flicker = 1 + Math.sin(this.scene.elapsed * 18) * 0.03;
+    this.aura.setPosition(p.x, p.y + 6).setScale(((radius * 2.3) / 96) * flicker).setFlipX(Math.floor(this.scene.elapsed * 7) % 2 === 0);
+    // labaredas subindo da borda do anel
+    for (let i = 0; i < 2; i++) {
+      const a = Math.random() * Math.PI * 2;
+      this.scene.emitFlame(p.x + Math.cos(a) * radius * 0.95, p.y + 6 + Math.sin(a) * radius * 0.68);
+    }
   }
 
   private tickAura(w: WeaponRuntime): boolean {
@@ -363,7 +389,12 @@ export class WeaponSystem {
     const range = o.range ?? s.speed * s.duration;
     const hit = new Set<number>();
     let traveled = 6;
-    const img = this.scene.add.image(x0, y0, 'atlas', frameName('fx_wave')).setRotation(angle).setFlipY(cos < 0).setDepth(LAYER.fx);
+    // a arte é uma onda de perfil quebrando para a direita: fica sempre em pé, espelhada para o lado
+    // do movimento e inclinada no máximo ~30° (subindo ou descendo, a crista fica de frente)
+    const left = cos < 0;
+    const tilt = Phaser.Math.Clamp(Math.atan2(sin, Math.abs(cos)), -0.5, 0.5);
+    const vertical = Math.abs(sin);
+    const img = this.scene.add.image(x0, y0, 'atlas', frameName('fx_wave')).setFlipX(left).setRotation(left ? -tilt : tilt).setDepth(LAYER.fx);
     if (w.level >= AWAKEN_EVERY) img.setTint(0xd8f4ff);
     this.live.push((dt) => {
       traveled += speed * dt;
@@ -372,7 +403,9 @@ export class WeaponSystem {
       const width = width0 * (g >= 1 ? 0.8 + k * 0.7 : 1);
       const cx = x0 + cos * traveled;
       const cy = y0 + sin * traveled;
-      img.setPosition(cx, cy).setScale((width / 54) * 0.75, width / 54).setAlpha((o.alpha ?? 1) * (k > 0.8 ? (1 - k) * 5 : 1));
+      // de lado, a largura da faixa é a altura da onda; na vertical, é a largura dela
+      const sc = (width / 54) * (1 - vertical) + (width / 64) * vertical;
+      img.setPosition(cx, cy).setScale(sc).setDepth(cy).setAlpha((o.alpha ?? 1) * (k > 0.8 ? (1 - k) * 5 : 1));
       this.scene.queryEnemies(cx, cy, width, (e) => {
         if (hit.has(e.uid)) return;
         const dx = e.x - x0;
@@ -463,7 +496,8 @@ export class WeaponSystem {
         this.scene.impact(cx, cy, 0xc69c6d, 2);
         this.burst(w, cx, cy, 46 * s.area, 1.8, 120);
       }
-      this.scene.tweens.add({ targets: gfx, alpha: 0, delay: 700, duration: 900, onComplete: () => gfx.destroy() });
+      // o rastro some junto com os espinhos
+      this.scene.tweens.add({ targets: gfx, alpha: 0, delay: 200, duration: 350, onComplete: () => gfx.destroy() });
       return false;
     });
   }
@@ -554,6 +588,223 @@ export class WeaponSystem {
       }
       return false;
     });
+  }
+
+  // ---------- Raio de Luz ----------
+
+  private fireLaser(w: WeaponRuntime): boolean {
+    const p = this.scene.player;
+    const g = grandeur(w.level);
+    const target = this.scene.nearestEnemies(p.x, p.y, 1, 320)[0];
+    const f = this.scene.facing;
+    const base = target ? Math.atan2(target.y - p.y, target.x - p.x) : Math.atan2(f.y, f.x);
+    const view = this.scene.cameras.main.worldView;
+    this.laser(w, base, view, g);
+    // despertado: um segundo feixe para trás; nv 20: mais dois em leque
+    if (g >= 2) this.laser(w, base + Math.PI, view, g);
+    if (g >= 3) {
+      this.laser(w, base + 0.6, view, g);
+      this.laser(w, base - 0.6, view, g);
+    }
+    sfx('zap');
+    return true;
+  }
+
+  /** Caminho do laser: em linha reta até a borda da tela, rebatendo `bounces` vezes (ângulo de reflexão). */
+  private laserPath(x: number, y: number, angle: number, view: Phaser.Geom.Rectangle, bounces: number) {
+    const pts = [{ x, y }];
+    let dx = Math.cos(angle);
+    let dy = Math.sin(angle);
+    for (let b = 0; b <= bounces; b++) {
+      const tx = dx > 1e-6 ? (view.right - x) / dx : dx < -1e-6 ? (view.left - x) / dx : Infinity;
+      const ty = dy > 1e-6 ? (view.bottom - y) / dy : dy < -1e-6 ? (view.top - y) / dy : Infinity;
+      const t = Math.max(0, Math.min(tx, ty));
+      x += dx * t;
+      y += dy * t;
+      pts.push({ x, y });
+      if (tx <= ty) dx = -dx;
+      if (ty <= tx) dy = -dy;
+    }
+    return pts;
+  }
+
+  private laser(w: WeaponRuntime, angle: number, view: Phaser.Geom.Rectangle, g: number) {
+    const s = w.stats;
+    const p = this.scene.player;
+    const pts = this.laserPath(p.x, p.y - 6, angle, view, Math.floor(s.amount));
+    const lens: number[] = [];
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) lens.push((total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)));
+    const width = 6 * s.area * (g >= 1 ? 1.3 : 1);
+    const color = w.level >= AWAKEN_EVERY ? 0xffd86a : 0xfff4b0;
+    const gfx = this.scene.add.graphics().setDepth(LAYER.fx + 1).setBlendMode(Phaser.BlendModes.ADD);
+    let drawn = 0;
+    let on = 0;
+    let tick = 0;
+    this.live.push((dt) => {
+      // o feixe corre até o último rebote e depois fica ligado por `duration`
+      if (drawn < total) drawn = Math.min(total, drawn + s.speed * dt);
+      else on += dt;
+      const k = on / s.duration;
+      const path: Phaser.Math.Vector2[] = [new Phaser.Math.Vector2(pts[0].x, pts[0].y)];
+      for (let i = 1; i < pts.length; i++) {
+        const start = lens[i - 2] ?? 0;
+        if (drawn >= lens[i - 1]) {
+          path.push(new Phaser.Math.Vector2(pts[i].x, pts[i].y));
+          continue;
+        }
+        const f = (drawn - start) / (lens[i - 1] - start);
+        path.push(new Phaser.Math.Vector2(pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f));
+        break;
+      }
+      const fade = k > 0.8 ? (1 - k) / 0.2 : 1;
+      const flick = 0.85 + Math.random() * 0.15;
+      gfx.clear();
+      gfx.lineStyle(width * 2.6, color, 0.22 * fade).strokePoints(path);
+      gfx.lineStyle(width, color, 0.9 * fade * flick).strokePoints(path);
+      gfx.lineStyle(Math.max(1.5, width * 0.35), 0xffffff, fade).strokePoints(path);
+      // brilho nos pontos de rebote e na ponta
+      for (let i = 1; i < path.length; i++) gfx.fillStyle(0xffffff, 0.8 * fade).fillCircle(path[i].x, path[i].y, width * (i === path.length - 1 && drawn < total ? 1.4 : 0.9));
+      // dano a cada 0,2 s em quem está sobre o feixe
+      tick -= dt;
+      if (tick <= 0) {
+        tick = 0.2;
+        for (const e of this.scene.activeEnemies()) {
+          for (let i = 1; i < path.length; i++) {
+            if (distToSegment(e.x, e.y - 4, path[i - 1], path[i]) < width / 2 + e.radius) {
+              this.hit(w, e, 0);
+              break;
+            }
+          }
+        }
+      }
+      if (k < 1) return true;
+      gfx.destroy();
+      return false;
+    });
+  }
+
+  // ---------- Bola de Fogo ----------
+
+  private fireFireball(w: WeaponRuntime): boolean {
+    const p = this.scene.player;
+    const g = grandeur(w.level);
+    const s = w.stats;
+    const targets = this.scene.nearestEnemies(p.x, p.y, s.amount, 300);
+    const f = this.scene.facing;
+    for (let i = 0; i < s.amount; i++) {
+      const t = targets[i % Math.max(1, targets.length)];
+      const a = t ? Math.atan2(t.y - p.y, t.x - p.x) + (i >= targets.length ? (i - targets.length + 1) * 0.25 : 0) : Math.atan2(f.y, f.x) + i * 0.3;
+      this.scene.time.delayedCall(i * 90, () => this.fireball(w, p.x, p.y - 8, a, g, 1, true));
+    }
+    // nv 20: Meteoro cai do céu sobre um inimigo na tela, a cada 2 disparos
+    if (g >= 3 && ++this.meteorCount % 2 === 1) this.meteor(w);
+    sfx('whoosh');
+    return true;
+  }
+
+  private fireball(w: WeaponRuntime, x: number, y: number, angle: number, g: number, size: number, splits: boolean) {
+    const s = w.stats;
+    const vx = Math.cos(angle) * s.speed;
+    const vy = Math.sin(angle) * s.speed;
+    const img = this.scene.add.image(x, y, 'atlas', frameName('fx_fireball')).setRotation(angle).setScale(size * (0.8 + s.area * 0.4)).setDepth(LAYER.fx);
+    let life = 0;
+    this.live.push((dt) => {
+      life += dt;
+      x += vx * dt;
+      y += vy * dt;
+      img.setPosition(x, y);
+      if (Math.random() < 0.5) this.scene.emitFlame(x - vx * 0.03, y - vy * 0.03);
+      let hit = false;
+      this.scene.queryEnemies(x, y, 24, (e) => {
+        if (!hit && (e.x - x) ** 2 + (e.y - 4 - y) ** 2 < (8 * size + e.radius) ** 2) hit = true;
+      });
+      if (!hit && life < s.duration) return true;
+      img.destroy();
+      const radius = 30 * s.area * size * (g >= 1 ? 1.25 : 1);
+      this.explode(w, x, y, radius, size, g >= 1 ? 0.004 : 0);
+      // despertada: estoura em três bolinhas
+      if (splits && g >= 2) for (let k = 0; k < 3; k++) this.fireball(w, x, y, angle + Math.PI + (k - 1) * 0.9, g, 0.55, false);
+      return false;
+    });
+  }
+
+  private explode(w: WeaponRuntime, x: number, y: number, radius: number, mult: number, shake: number) {
+    this.scene.elements.vfx('vfx_explosion', x, y + radius * 0.5, radius * 2.1, [[0, 0.04], [1, 0.06], [2, 0.12], [3, 0.28]]);
+    this.burst(w, x, y, radius, mult, 90);
+    if (shake) this.scene.cameras.main.shake(120, shake);
+    sfx('boom');
+  }
+
+  private meteor(w: WeaponRuntime) {
+    const view = this.scene.cameras.main.worldView;
+    const visible = this.scene.activeEnemies().filter((e) => view.contains(e.x, e.y));
+    if (!visible.length) return;
+    const t = visible[Math.floor(Math.random() * visible.length)];
+    const tx = t.x;
+    const ty = t.y;
+    const img = this.scene.add.image(tx + 80, view.y - 40, 'atlas', frameName('fx_fireball')).setScale(3).setDepth(LAYER.fx + 2)
+      .setRotation(Math.atan2(ty - (view.y - 40), tx - (tx + 80)));
+    this.scene.tweens.add({
+      targets: img, x: tx, y: ty, duration: 520, ease: 'Quad.In',
+      onComplete: () => {
+        img.destroy();
+        this.explode(w, tx, ty, 70 * w.stats.area, 3, 0.014);
+      },
+    });
+  }
+
+  // ---------- Passos Sísmicos ----------
+
+  /** A cada trecho andado, o chão treme em pontos ao redor do herói. */
+  private updateTremor(w: WeaponRuntime) {
+    const p = this.scene.player;
+    if (!this.lastPos) this.lastPos = { x: p.x, y: p.y };
+    this.walked += Math.hypot(p.x - this.lastPos.x, p.y - this.lastPos.y);
+    this.lastPos.x = p.x;
+    this.lastPos.y = p.y;
+    const step = 100 * w.stats.cooldown;
+    if (this.walked < step) return;
+    this.walked = Math.min(this.walked - step, step);
+    const g = grandeur(w.level);
+    for (let i = 0; i < w.stats.amount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = (30 + Math.random() * 50) * w.stats.area;
+      this.quakeAt(w, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.8, g, false);
+    }
+  }
+
+  private quakeAt(w: WeaponRuntime, x: number, y: number, g: number, aftershock: boolean) {
+    const s = w.stats;
+    const radius = 28 * s.area * (g >= 1 ? 1.25 : 1) * (aftershock ? 0.8 : 1);
+    // rachaduras curtas saindo do centro + espinhos em volta
+    const gfx = this.scene.add.graphics().setDepth(LAYER.groundFx);
+    for (let k = 0; k < 6; k++) {
+      let a = (k / 6) * Math.PI * 2 + Math.random() * 0.4;
+      let cx = x;
+      let cy = y;
+      for (let j = 0; j < 3; j++) {
+        a += (Math.random() - 0.5) * 0.7;
+        const nx = cx + Math.cos(a) * radius * 0.35;
+        const ny = cy + Math.sin(a) * radius * 0.28;
+        gfx.lineStyle(4 * s.area, 0x2a180c, 0.85).lineBetween(cx, cy, nx, ny);
+        cx = nx;
+        cy = ny;
+      }
+    }
+    this.scene.tweens.add({ targets: gfx, alpha: 0, delay: 250, duration: 350, onComplete: () => gfx.destroy() });
+    this.spike(x, y + 2, s.area * 1.1);
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      this.spike(x + Math.cos(a) * radius * 0.75, y + Math.sin(a) * radius * 0.6, s.area * 0.7);
+    }
+    this.burst(w, x, y, radius, aftershock ? 0.6 : 1, 60);
+    if (g >= 1) this.scene.cameras.main.shake(90, 0.003);
+    sfx('boom');
+    if (aftershock) return;
+    // despertado: tremor secundário no mesmo lugar; nv 20: abre também uma fissura
+    if (g >= 2) this.scene.time.delayedCall(350, () => this.quakeAt(w, x, y, g, true));
+    if (g >= 3) this.crack(w, x, y, Math.random() * Math.PI * 2, 120 * s.area, g, 1);
   }
 
   /** Registra dano de projéteis na estatística da arma dona. */
