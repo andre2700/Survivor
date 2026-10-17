@@ -1,6 +1,6 @@
 # Plano de arte: teste de estilo com IA
 
-Status: bloqueado (17/10/2026). A chave funciona (`--list` responde), mas todos os modelos de imagem (`gemini-2.5-flash-image`, `gemini-3.1-flash-image`, `gemini-3.1-flash-lite-image`, `gemini-3-pro-image`) retornam 429 com cota gratuita = 0: geração de imagem exige faturamento ativo no projeto do Google AI Studio. O estilo final (pixel art ou 2D cartoon) ainda não foi decidido; o usuário decide depois de ver o teste.
+Status: primeiro teste feito (17/10/2026), aguardando a escolha do usuário entre pixel art e cartoon. Faturamento ativado no Google AI Studio; modelo usado: `gemini-3-pro-image`.
 
 ## Contexto
 - A arte atual (gerada por código em `src/art/`) é provisória.
@@ -25,3 +25,10 @@ Gerar o mesmo conjunto nos dois estilos e colocar dentro do jogo para comparar l
 5. Ícones: espada, raio, orbe
 
 Fluxo: gerar a primeira imagem de cada estilo, usar como `--ref` nas seguintes para manter coerência, remover o fundo, reduzir ao tamanho do jogo, montar uma cena de demonstração e tirar screenshots para o usuário.
+
+## Resultado do primeiro teste
+- Imagens brutas: `art-tests/raw/<estilo>/` (o `_style.txt` de cada pasta é o prompt de estilo; o herói foi a referência das demais).
+- `python3 scripts/process-art-test.py` remove o fundo magenta, recorta e reduz para `dev/art-test/<estilo>/` nos tamanhos da arte atual (pixel em 1×, cartoon em 2× com filtro suave).
+- `npm run styletest` gera `screenshots/style-test.png` com a cena `dev/style-test.html`: arte atual, pixel e cartoon lado a lado, na escala do jogo (400 px lógicos, zoom 2).
+- Refeitos uma vez: goblin cartoon (vieram três), raio cartoon (fundo errado), árvore pixel (cortada).
+- Observações: a grama gerada é mais saturada que a atual e precisa de ajuste de cor; o demônio pixel ficou escuro demais sobre a grama.

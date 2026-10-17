@@ -15,7 +15,8 @@
     "android": "npm run cap:sync && cap open android",
     "ios": "npm run cap:sync && cap open ios",
     "stress": "node scripts/stress.mjs",
-    "artsheet": "node scripts/artsheet.mjs"
+    "artsheet": "node scripts/artsheet.mjs",
+    "styletest": "node scripts/style-test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
