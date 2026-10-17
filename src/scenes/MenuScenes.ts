@@ -189,11 +189,11 @@ export class MenuScene extends Phaser.Scene {
     kinds.forEach(([key, speed], i) => {
       const y = top + ((i * 37) % Math.max(1, bottom - top));
       const dir = i % 2 === 0 ? 1 : -1;
-      const m = this.add.image(30 + ((i * 131) % (width - 60)), y, key).setOrigin(0.5, 1).setFlipX(dir < 0).setDepth(y);
+      const m = this.add.image(30 + ((i * 131) % (width - 60)), y, key, 0).setOrigin(0.5, 1).setFlipX(dir < 0).setDepth(y);
       this.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dt: number) => {
         m.x += (dir * speed * dt) / 1000;
         const pose = walkPose(key, this.time.now / 1000 + i);
-        m.setScale(1.5 * pose.sx, 1.5 * pose.sy).setRotation(dir < 0 ? -pose.rot : pose.rot);
+        m.setFrame(pose.frame).setScale(1.5 * pose.sx, 1.5 * pose.sy).setRotation(dir < 0 ? -pose.rot : pose.rot);
         if (dir > 0 && m.x > width + 60) m.x = -60;
         if (dir < 0 && m.x < -60) m.x = width + 60;
       });

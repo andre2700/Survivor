@@ -26,6 +26,8 @@ export class Enemy extends Phaser.GameObjects.Image {
   phase = 0;
   /** escala sem a animação de andar */
   baseScale = 1;
+  /** quadro de animação atual */
+  animFrame = 0;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0, 'atlas', frameName('slime'));
@@ -49,6 +51,7 @@ export class Enemy extends Phaser.GameObjects.Image {
     const scale = def.scale * (elite ? 1.6 : 1);
     this.radius = def.radius * scale;
     this.baseScale = scale;
+    this.animFrame = 0;
     this.setPosition(x, y).setActive(true).setVisible(true).setAlpha(1).setAngle(0);
     this.setFrame(frameName(def.texture, 0)).setScale(scale).setDepth(y);
     // a posição é o centro do corpo (a sombra fica embutida na base do sprite)

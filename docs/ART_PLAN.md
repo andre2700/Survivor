@@ -39,3 +39,10 @@ Fluxo: gerar a primeira imagem de cada estilo, usar como `--ref` nas seguintes p
 - Interface: também cartoon. Molduras arredondadas com contorno grosso; fontes Fredoka (texto) e Lilita One (títulos e botões).
 - Fluxo de produção: `art/manifest.mjs` → `scripts/gen-art.mjs` → `scripts/process-art.py` (ver README).
 - Os arquivos do teste de estilo (pixel × cartoon) foram removidos; estão no histórico do git.
+
+## Refinamento (17/10/2026)
+- Quadros de animação: heróis com 4 (parado, passo esquerdo, passo direito, ataque); monstros com 3 (passo, pernas juntas, passo; slime: normal, achatado, esticado; morcego: asas em cima, no meio, embaixo). A animação por código continua por cima, mais suave.
+- As folhas são geradas numa imagem só a partir da imagem base de cada personagem (mais coerência entre quadros), sempre de perfil olhando para a direita. Isso também corrigiu goblin, orc, esqueleto e demônio, que andavam de costas.
+- O demônio, grande e com asas, encostava no vizinho na folha: as poses dele são geradas uma por imagem (`separate`).
+- Chão refeito: grama pintada lisa, sem pontinhos; ladrilho de 128 px lógicos para a repetição não aparecer.
+- A espadada do cavaleiro segue a direção do joystick (antes só esquerda/direita).

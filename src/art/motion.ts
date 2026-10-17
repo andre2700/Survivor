@@ -1,57 +1,65 @@
-// Animação por código: cada personagem é uma imagem só, animada com balanço, esticar/achatar e inclinação.
+// Animação: poucos quadros desenhados por personagem (art/manifest.mjs) intercalados em ciclo,
+// com balanço por código por cima (esticar/achatar, inclinação, respiração).
 
 interface Gait {
-  /** passos por segundo (em radianos de fase) */
-  rate: number;
+  /** quadros por segundo do ciclo */
+  fps: number;
+  /** ordem dos quadros no ciclo */
+  cycle: number[];
   /** esticar/achatar */
   squash: number;
   /** inclinação máxima (rad) */
   tilt: number;
-  /** bater de asas: achata só na vertical, rápido */
-  flap?: boolean;
 }
 
+// quadros dos monstros: 0 e 2 = passos, 1 = pernas juntas (slime: normal, achatado, esticado; morcego: asas)
+const STEP = [0, 1, 2, 1];
 const GAITS: Record<string, Gait> = {
-  hero: { rate: 11, squash: 0.05, tilt: 0.07 },
-  slime: { rate: 7, squash: 0.13, tilt: 0 },
-  bat: { rate: 22, squash: 0.18, tilt: 0.05, flap: true },
-  goblin: { rate: 12, squash: 0.05, tilt: 0.09 },
-  wolf: { rate: 15, squash: 0.06, tilt: 0.1 },
-  skeleton: { rate: 10, squash: 0.04, tilt: 0.08 },
-  orc: { rate: 8, squash: 0.05, tilt: 0.06 },
-  demon: { rate: 5, squash: 0.035, tilt: 0.04 },
+  hero: { fps: 7, cycle: [1, 0, 2, 0], squash: 0.03, tilt: 0.04 },
+  slime: { fps: 6, cycle: [0, 1, 2, 0], squash: 0.05, tilt: 0 },
+  bat: { fps: 12, cycle: STEP, squash: 0.03, tilt: 0.05 },
+  goblin: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.05 },
+  wolf: { fps: 10, cycle: STEP, squash: 0.03, tilt: 0.05 },
+  skeleton: { fps: 7, cycle: STEP, squash: 0.025, tilt: 0.05 },
+  orc: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.04 },
+  demon: { fps: 4, cycle: STEP, squash: 0.02, tilt: 0.025 },
 };
 
+/** Quadro do herói ao atacar. */
+export const HERO_ATTACK_FRAME = 3;
+/** Quadro do herói parado. */
+export const HERO_IDLE_FRAME = 0;
+
 export interface Pose {
+  frame: number;
   sx: number;
   sy: number;
   rot: number;
 }
 
-const pose: Pose = { sx: 1, sy: 1, rot: 0 };
+const pose: Pose = { frame: 0, sx: 1, sy: 1, rot: 0 };
 
 /**
- * Pose do quadro para o tempo `t` (s). Parado, só respira. O objeto retornado é reutilizado:
- * copie os valores antes de chamar de novo.
+ * Pose para o tempo `t` (s). Parado, fica no quadro de descanso e só respira. O objeto retornado é
+ * reutilizado: copie os valores antes de chamar de novo.
  */
 export function walkPose(kind: string, t: number, moving = true): Pose {
   const g = GAITS[kind] ?? GAITS.hero;
   if (!moving) {
     const b = Math.sin(t * 2.4) * 0.025;
+    pose.frame = kind === 'hero' ? HERO_IDLE_FRAME : 0;
     pose.sx = 1 - b * 0.5;
     pose.sy = 1 + b;
     pose.rot = 0;
     return pose;
   }
-  const ph = t * g.rate;
-  const s = Math.sin(ph * 2);
-  if (g.flap) {
-    pose.sx = 1 + s * g.squash * 0.3;
-    pose.sy = 1 - s * g.squash;
-  } else {
-    pose.sx = 1 - s * g.squash * 0.7;
-    pose.sy = 1 + s * g.squash;
-  }
-  pose.rot = Math.sin(ph) * g.tilt;
+  const step = t * g.fps;
+  pose.frame = g.cycle[Math.floor(step) % g.cycle.length];
+  // um balanço por quadro: a figura "pisa" a cada troca de quadro
+  const ph = (step % 1) * Math.PI;
+  const s = Math.sin(ph);
+  pose.sx = 1 - s * g.squash * 0.7;
+  pose.sy = 1 + s * g.squash;
+  pose.rot = Math.sin(t * g.fps * Math.PI * 0.5) * g.tilt;
   return pose;
 }

@@ -76,6 +76,7 @@ export class WeaponSystem {
       w.timer -= dt;
       if (w.timer > 0) continue;
       const fired = this.fire(w);
+      if (fired && w.id === this.scene.char.weapon) this.scene.playerAttack();
       w.timer = fired ? w.stats.cooldown : 0.1;
     }
   }
@@ -147,28 +148,37 @@ export class WeaponSystem {
   }
 
   private fireArc(w: WeaponRuntime): boolean {
-    const dir = this.scene.player.flipX ? -1 : 1;
+    // golpeia na direção do movimento (joystick); parado, mantém a última direção
+    const f = this.scene.facing;
+    const angle = Math.atan2(f.y, f.x);
     for (let i = 0; i < w.stats.amount; i++) {
       // 1º golpe para frente, 2º para trás, os seguintes alternam com leve atraso
-      const side = i % 2 === 0 ? dir : -dir;
-      this.scene.time.delayedCall(i * 140, () => this.slash(w, side));
+      this.scene.time.delayedCall(i * 140, () => this.slash(w, i % 2 === 0 ? angle : angle + Math.PI));
     }
     return true;
   }
 
-  private slash(w: WeaponRuntime, side: number) {
+  private slash(w: WeaponRuntime, angle: number) {
     const p = this.scene.player;
     const width = 56 * w.stats.area;
     const height = 36 * w.stats.area;
-    const cx = p.x + side * (width / 2 + 2);
-    const cy = p.y - 2;
-    const cy2 = cy - 6;
-    const img = this.scene.add.image(cx, cy2, 'atlas', frameName('slash')).setScale(width / 48, height / 30).setFlipX(side < 0).setDepth(LAYER.fx);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const cx = p.x + cos * (width / 2 + 2);
+    const cy = p.y - 2 + sin * (width / 2 + 2);
+    const img = this.scene.add.image(cx, cy - 6, 'atlas', frameName('slash')).setScale(width / 48, height / 30).setRotation(angle).setDepth(LAYER.fx);
     img.setBlendMode(Phaser.BlendModes.ADD);
     if (w.level >= AWAKEN_EVERY) img.setTint(0xffe9a8);
-    this.scene.tweens.add({ targets: img, alpha: 0, x: cx + side * 6, scaleY: (height / 30) * 0.5, duration: 200, ease: 'Quad.Out', onComplete: () => img.destroy() });
+    this.scene.tweens.add({
+      targets: img, alpha: 0, x: img.x + cos * 6, y: img.y + sin * 6, scaleY: (height / 30) * 0.5, duration: 200, ease: 'Quad.Out', onComplete: () => img.destroy(),
+    });
+    // área do golpe: retângulo girado na direção do ataque
     this.scene.queryEnemies(cx, cy, Math.max(width, height), (e) => {
-      if (Math.abs(e.x - cx) < width / 2 + e.radius && Math.abs(e.y - cy) < height / 2 + e.radius) this.hit(w, e, 1);
+      const dx = e.x - cx;
+      const dy = e.y - cy;
+      const u = dx * cos + dy * sin;
+      const v = -dx * sin + dy * cos;
+      if (Math.abs(u) < width / 2 + e.radius && Math.abs(v) < height / 2 + e.radius) this.hit(w, e, 1);
     });
   }
 

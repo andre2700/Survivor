@@ -6,23 +6,30 @@
 // portrait: gera também portrait_<nome>.png nesta resolução (herói grande no menu).
 // shadow: acrescenta sombra oval sob os pés.
 // flip: a imagem gerada olha para a esquerda; o jogo espera tudo olhando para a direita.
+// frames: poses da folha de animação (art/source/<nome>_sheet.png), gerada a partir da imagem base.
+// separate: gera uma imagem por pose (<nome>_f1.png...) em vez da folha (figuras grandes que se encostariam).
 const CHAR = 'full body, side view facing RIGHT';
 const ICON = 'game UI item icon, single object centered, bold readable silhouette, no circle or badge behind it';
 
+const WALK = ['walking, left leg forward, right leg back (contact pose)', 'walking, legs together under the body (passing pose)', 'walking, right leg forward, left leg back (contact pose)'];
+const HERO = ['idle stance, relaxed, weapon held ready', 'walking, left leg forward (contact pose)', 'walking, right leg forward (contact pose)', 'attacking: swinging or thrusting the weapon forward to the RIGHT, dynamic'];
+
 export const ART = {
+  // chão: textura que se repete (sem fundo para recortar)
+  ground: { tile: true, prompt: `a seamless tileable texture of lush green grass ground seen from directly above, for a top-down RPG map. Very clean and calm: only soft, large, painterly patches of slightly lighter and darker green, like a smooth cartoon lawn. NO grass tufts, NO outlines, NO dots, NO speckles, NO flowers, NO objects. Even lighting, fills the whole square image edge to edge` },
   // heróis
-  hero_knight: { h: 44, hd: 3, portrait: 8, shadow: true, prompt: `a brave young knight hero in steel armor with a blue cape and a sword, ${CHAR}, heroic stance` },
-  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
-  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
-  hero_barbarian: { h: 44, hd: 3, portrait: 8, shadow: true, prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, holding a big battle axe, ${CHAR}, fierce stance` },
+  hero_knight: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `a brave young knight hero in steel armor with a blue cape and a sword, ${CHAR}, heroic stance` },
+  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
+  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
+  hero_barbarian: { h: 44, hd: 3, portrait: 8, shadow: true, frames: HERO, prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, holding a big battle axe, ${CHAR}, fierce stance` },
   // inimigos
-  slime: { h: 22, hd: 3, shadow: true, flip: true },
-  bat: { h: 22, hd: 3, prompt: `a small purple cave bat monster with big ears, open wings, fangs and glowing eyes, flying, ${CHAR}` },
-  goblin: { h: 32, hd: 3, shadow: true, flip: true },
-  wolf: { h: 28, hd: 3, shadow: true, flip: true },
-  skeleton: { h: 34, hd: 3, shadow: true, prompt: `a skeleton warrior monster with a rusty sword and a broken wooden shield, glowing eye sockets, ${CHAR}, walking` },
-  orc: { h: 42, hd: 3, shadow: true, prompt: `a big brutish green orc brute monster with tusks, iron shoulder armor and a spiked wooden club, ${CHAR}, menacing` },
-  demon: { h: 74, hd: 3, shadow: true, flip: true },
+  slime: { h: 22, hd: 3, shadow: true, frames: ['normal resting shape', 'squashed flat and wide, about to hop', 'stretched tall and narrow, mid-hop'] },
+  bat: { h: 22, hd: 3, frames: ['wings raised high', 'wings level, spread wide', 'wings swept down low'], prompt: `a small purple cave bat monster with big ears, open wings, fangs and glowing eyes, flying, ${CHAR}` },
+  goblin: { h: 32, hd: 3, shadow: true, frames: WALK.map((f) => `${f}, holding the crude dagger in the front hand`) },
+  wolf: { h: 28, hd: 3, shadow: true, frames: ['running, all four legs gathered under the body', 'running, legs fully stretched front and back', 'running, front paws touching the ground, back legs lifted'] },
+  skeleton: { h: 34, hd: 3, shadow: true, frames: WALK, prompt: `a skeleton warrior monster with a rusty sword and a broken wooden shield, glowing eye sockets, ${CHAR}, walking` },
+  orc: { h: 42, hd: 3, shadow: true, frames: WALK, prompt: `a big brutish green orc brute monster with tusks, iron shoulder armor and a spiked wooden club, ${CHAR}, menacing` },
+  demon: { h: 74, hd: 3, shadow: true, frames: WALK, separate: true },
   // coletáveis
   gem: { h: 14, hd: 4, prompt: `${ICON}: a small shiny blue experience crystal gem` },
   gem_green: { h: 14, hd: 4, prompt: `${ICON}: a small shiny green experience crystal gem` },

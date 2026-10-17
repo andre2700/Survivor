@@ -1,53 +1,166 @@
 {
- "axe": 4,
- "bat": 3,
- "bolt": 4,
- "bush": 2,
- "coin": 4,
- "demon": 3,
- "dirt": 2,
- "dirt2": 2,
- "flowers": 2,
- "gem": 4,
- "gem_green": 4,
- "gem_red": 4,
- "goblin": 3,
- "ground": 2,
- "heart": 4,
- "hero_barbarian": 3,
- "hero_knight": 3,
- "hero_mage": 3,
- "hero_ranger": 3,
- "icon_bolt": 4,
- "icon_book": 4,
- "icon_boot": 4,
- "icon_cross": 4,
- "icon_dice": 4,
- "icon_fire": 4,
- "icon_magnet": 4,
- "icon_potion": 4,
- "icon_shield": 4,
- "icon_skull": 4,
- "icon_star": 4,
- "icon_sword": 4,
- "knife": 4,
- "mushroom": 2,
- "orb": 4,
- "orc": 3,
- "portrait_hero_barbarian": 8,
- "portrait_hero_knight": 8,
- "portrait_hero_mage": 8,
- "portrait_hero_ranger": 8,
- "proj_axe": 2,
- "proj_bolt": 2,
- "proj_knife": 2,
- "proj_orb": 2,
- "rock": 2,
- "skeleton": 3,
- "slime": 3,
- "stump": 2,
- "tallgrass": 2,
- "tree": 2,
- "tree2": 2,
- "wolf": 3
+ "axe": {
+  "hd": 4
+ },
+ "bat": {
+  "hd": 3,
+  "frames": 3
+ },
+ "bolt": {
+  "hd": 4
+ },
+ "bush": {
+  "hd": 2
+ },
+ "coin": {
+  "hd": 4
+ },
+ "demon": {
+  "hd": 3,
+  "frames": 3
+ },
+ "dirt": {
+  "hd": 2
+ },
+ "dirt2": {
+  "hd": 2
+ },
+ "flowers": {
+  "hd": 2
+ },
+ "gem": {
+  "hd": 4
+ },
+ "gem_green": {
+  "hd": 4
+ },
+ "gem_red": {
+  "hd": 4
+ },
+ "goblin": {
+  "hd": 3,
+  "frames": 3
+ },
+ "ground": {
+  "hd": 2
+ },
+ "heart": {
+  "hd": 4
+ },
+ "hero_barbarian": {
+  "hd": 3,
+  "frames": 4
+ },
+ "hero_knight": {
+  "hd": 3,
+  "frames": 4
+ },
+ "hero_mage": {
+  "hd": 3,
+  "frames": 4
+ },
+ "hero_ranger": {
+  "hd": 3,
+  "frames": 4
+ },
+ "icon_bolt": {
+  "hd": 4
+ },
+ "icon_book": {
+  "hd": 4
+ },
+ "icon_boot": {
+  "hd": 4
+ },
+ "icon_cross": {
+  "hd": 4
+ },
+ "icon_dice": {
+  "hd": 4
+ },
+ "icon_fire": {
+  "hd": 4
+ },
+ "icon_magnet": {
+  "hd": 4
+ },
+ "icon_potion": {
+  "hd": 4
+ },
+ "icon_shield": {
+  "hd": 4
+ },
+ "icon_skull": {
+  "hd": 4
+ },
+ "icon_star": {
+  "hd": 4
+ },
+ "icon_sword": {
+  "hd": 4
+ },
+ "knife": {
+  "hd": 4
+ },
+ "mushroom": {
+  "hd": 2
+ },
+ "orb": {
+  "hd": 4
+ },
+ "orc": {
+  "hd": 3,
+  "frames": 3
+ },
+ "portrait_hero_barbarian": {
+  "hd": 8
+ },
+ "portrait_hero_knight": {
+  "hd": 8
+ },
+ "portrait_hero_mage": {
+  "hd": 8
+ },
+ "portrait_hero_ranger": {
+  "hd": 8
+ },
+ "proj_axe": {
+  "hd": 2
+ },
+ "proj_bolt": {
+  "hd": 2
+ },
+ "proj_knife": {
+  "hd": 2
+ },
+ "proj_orb": {
+  "hd": 2
+ },
+ "rock": {
+  "hd": 2
+ },
+ "skeleton": {
+  "hd": 3,
+  "frames": 3
+ },
+ "slime": {
+  "hd": 3,
+  "frames": 3
+ },
+ "stump": {
+  "hd": 2
+ },
+ "tallgrass": {
+  "hd": 2
+ },
+ "tree": {
+  "hd": 2
+ },
+ "tree2": {
+  "hd": 2
+ },
+ "wolf": {
+  "hd": 3,
+  "frames": 3
+ }
 }

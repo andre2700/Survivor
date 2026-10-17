@@ -7,14 +7,18 @@ import { SLICE, UI_FRAMES, UI_HD, frame } from './ui';
 // maior que a lógica: cada textura guarda seu fator `hd` e é desenhada no tamanho lógico.
 
 const URLS = import.meta.glob('../assets/art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const HD = SPRITES as Record<string, number>;
+/** hd: resolução; frames: quantos quadros lado a lado (tira de animação). */
+const SPRITE = SPRITES as Record<string, { hd: number; frames?: number }>;
 const FX_HD = 2;
 
 /** Nome do quadro no atlas: `slime:0`, `coin:0`... */
 export const frameName = (key: string, i = 0) => `${key}:${i}`;
 
 /** Fator de resolução de uma textura (1 = tamanho lógico). */
-export const hdOf = (key: string) => HD[key] ?? 1;
+export const hdOf = (key: string) => SPRITE[key]?.hd ?? 1;
+
+/** Quantidade de quadros de animação de uma textura. */
+export const frameCount = (key: string) => SPRITE[key]?.frames ?? 1;
 
 const meta = (f: Phaser.Textures.Frame) => f.customData as { hd?: number };
 
@@ -49,7 +53,10 @@ export function preloadArt(scene: Phaser.Scene) {
 
 interface AtlasPart {
   name: string;
-  source: CanvasImageSource & { width: number; height: number };
+  source: CanvasImageSource;
+  sx: number;
+  w: number;
+  h: number;
   hd: number;
 }
 
@@ -64,16 +71,24 @@ export function generateTextures(scene: Phaser.Scene) {
     if (hd !== 1) meta(scene.textures.get(key).get()).hd = hd;
   };
 
-  for (const key of Object.keys(HD)) {
+  for (const [key, { hd, frames = 1 }] of Object.entries(SPRITE)) {
     if (!scene.textures.exists(key)) continue;
-    mark(key, HD[key]);
-    if (key !== 'ground') parts.push({ name: key, source: scene.textures.get(key).getSourceImage() as HTMLImageElement, hd: HD[key] });
+    mark(key, hd);
+    if (key === 'ground') continue;
+    const tex = scene.textures.get(key);
+    const source = tex.getSourceImage() as HTMLImageElement;
+    const w = source.width / frames;
+    for (let i = 0; i < frames; i++) {
+      // quadros numerados também na textura própria (menus): image(x, y, key, i)
+      if (frames > 1 && hd !== 1) meta(tex.add(i, 0, i * w, 0, w, source.height)!).hd = hd;
+      parts.push({ name: frameName(key, i), source, sx: i * w, w, h: source.height, hd });
+    }
   }
 
   const fx = (key: string, source: HTMLCanvasElement, hd: number) => {
     scene.textures.addCanvas(key, source);
     mark(key, hd);
-    parts.push({ name: key, source, hd });
+    parts.push({ name: frameName(key), source, sx: 0, w: source.width, h: source.height, hd });
   };
   // partículas usam estes quadros direto do atlas e não passam pelo ajuste de resolução: ficam em 1×
   fx('glow', glowDot(32), 1);
@@ -96,24 +111,24 @@ function buildAtlas(scene: Phaser.Scene, parts: AtlasPart[]) {
   let y = 0;
   let shelf = 0;
   const placed: { part: AtlasPart; x: number; y: number }[] = [];
-  for (const part of [...parts].sort((a, b) => b.source.height - a.source.height)) {
-    if (x + part.source.width > width) {
+  for (const part of [...parts].sort((a, b) => b.h - a.h)) {
+    if (x + part.w > width) {
       x = 0;
       y += shelf + pad;
       shelf = 0;
     }
     placed.push({ part, x, y });
-    x += part.source.width + pad;
-    shelf = Math.max(shelf, part.source.height);
+    x += part.w + pad;
+    shelf = Math.max(shelf, part.h);
   }
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = y + shelf;
   const ctx = canvas.getContext('2d')!;
-  for (const { part, x: px, y: py } of placed) ctx.drawImage(part.source, px, py);
+  for (const { part, x: px, y: py } of placed) ctx.drawImage(part.source, part.sx, 0, part.w, part.h, px, py, part.w, part.h);
   const tex = scene.textures.addCanvas('atlas', canvas)!;
   for (const { part, x: px, y: py } of placed) {
-    const f = tex.add(frameName(part.name), 0, px, py, part.source.width, part.source.height)!;
+    const f = tex.add(part.name, 0, px, py, part.w, part.h)!;
     if (part.hd !== 1) meta(f).hd = part.hd;
   }
 }

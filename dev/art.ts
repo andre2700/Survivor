@@ -3,7 +3,7 @@ import SPRITES from '../src/art/sprites.json';
 
 const SCALE = Number(new URLSearchParams(location.search).get('s') ?? 2);
 const URLS = import.meta.glob('../src/assets/art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const HD = SPRITES as Record<string, number>;
+const SPRITE = SPRITES as Record<string, { hd: number; frames?: number }>;
 const c = document.getElementById('c') as HTMLCanvasElement;
 
 const load = (url: string) => new Promise<HTMLImageElement>((ok) => {
@@ -15,7 +15,7 @@ const load = (url: string) => new Promise<HTMLImageElement>((ok) => {
 const items = await Promise.all(Object.entries(URLS)
   .map(([path, url]) => [path.replace(/^.*\/|\.png$/g, ''), url] as const)
   .filter(([name]) => !name.startsWith('portrait_'))
-  .map(async ([name, url]) => ({ name, img: await load(url), k: SCALE / (HD[name] ?? 1) })));
+  .map(async ([name, url]) => ({ name, img: await load(url), k: SCALE / (SPRITE[name]?.hd ?? 1) })));
 
 const pad = 8;
 const maxW = 1400;

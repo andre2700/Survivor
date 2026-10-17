@@ -29,10 +29,10 @@ O design completo está em [docs/GDD.md](docs/GDD.md).
 Estilo cartoon 2D (contorno grosso, sombreado suave, cores vivas), gerado com IA e preparado por scripts. O plano e as decisões estão em [docs/ART_PLAN.md](docs/ART_PLAN.md).
 
 - `art/manifest.mjs`: lista de toda a arte, com o prompt de cada imagem e o tamanho no jogo.
-- `node scripts/gen-art.mjs [nome ...]`: gera com o Gemini as imagens que faltam em `art/source/` (ou refaz as indicadas), usando o cavaleiro como referência de estilo. A chave vem de `GEMINI_API_KEY`.
-- `python3 scripts/process-art.py [nome ...]`: remove o fundo, recorta, reduz, acrescenta sombra e salva em `src/assets/art/`, com o índice de resolução em `src/art/sprites.json`.
+- `node scripts/gen-art.mjs [nome ...]`: gera com o Gemini as imagens que faltam em `art/source/` (ou refaz as indicadas, ex. `goblin_sheet`), usando o cavaleiro como referência de estilo. Personagens ganham também uma folha de animação feita a partir da própria imagem base. A chave vem de `GEMINI_API_KEY`.
+- `python3 scripts/process-art.py [nome ...]`: remove o fundo, recorta, reduz, acrescenta sombra e salva em `src/assets/art/`, com o índice (resolução e quantidade de quadros) em `src/art/sprites.json`. As folhas de animação viram tiras de quadros alinhados pelos pés.
 - As texturas ficam em resolução 2–4× maior que a lógica e são desenhadas no tamanho lógico (`installHdSprites` em `src/art/textures.ts`); por isso o jogo exige WebGL.
-- Animação por código (`src/art/motion.ts`): cada personagem é uma imagem só, animada com esticar/achatar, inclinação e respiração.
+- Animação (`src/art/motion.ts`): poucos quadros desenhados por personagem (heróis: parado, dois passos e ataque; monstros: três poses), em ciclo, com esticar/achatar, inclinação e respiração por código por cima.
 - Efeitos (brilho, golpe, aura, vinheta) e molduras da interface são desenhados por código (`src/art/fx.ts`, `src/art/ui.ts`).
 - `npm run artsheet` gera `screenshots/artsheet.png` com todos os sprites, para revisar a arte.
 

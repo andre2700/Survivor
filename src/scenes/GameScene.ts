@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { VIEW } from '../ui/view';
-import { walkPose } from '../art/motion';
+import { HERO_ATTACK_FRAME, walkPose } from '../art/motion';
 import { frameName, groundSprite, scrollGround } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { SpatialGrid } from '../core/grid';
@@ -97,6 +97,8 @@ export class GameScene extends Phaser.Scene {
   private revivesLeft = 0;
   private pendingLevels = 0;
   private invulnUntil = 0;
+  private attackUntil = 0;
+  private playerFrame = 0;
   private spawnAcc = 0;
   private eventsDone = new Set<number>();
   boss: Enemy | null = null;
@@ -141,6 +143,8 @@ export class GameScene extends Phaser.Scene {
     this.elapsed = 0;
     this.pendingLevels = 0;
     this.invulnUntil = 0;
+    this.attackUntil = 0;
+    this.playerFrame = 0;
     this.spawnAcc = 0;
     this.eventsDone.clear();
     this.boss = null;
@@ -298,6 +302,11 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- Jogador ----------
 
+  /** Mostra o quadro de ataque do herói por um instante (arma inicial disparou). */
+  playerAttack() {
+    this.attackUntil = this.elapsed + 0.18;
+  }
+
   private updatePlayer() {
     const k = this.keys;
     let x = this.joy.x;
@@ -321,6 +330,11 @@ export class GameScene extends Phaser.Scene {
       if (Math.abs(x) > 0.1) this.player.setFlipX(x < 0);
     }
     const pose = walkPose('hero', this.elapsed, moving);
+    const frame = this.elapsed < this.attackUntil ? HERO_ATTACK_FRAME : pose.frame;
+    if (frame !== this.playerFrame) {
+      this.playerFrame = frame;
+      this.player.setFrame(frameName(this.char.texture, frame));
+    }
     this.player.setScale(pose.sx, pose.sy).setRotation(this.player.flipX ? -pose.rot : pose.rot);
     this.player.setDepth(this.player.y);
     const blinking = this.elapsed < this.invulnUntil;
@@ -494,6 +508,10 @@ export class GameScene extends Phaser.Scene {
       e.depth = e.y;
       if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
       const pose = walkPose(e.def.id, t + e.phase);
+      if (pose.frame !== e.animFrame) {
+        e.animFrame = pose.frame;
+        e.setFrame(frameName(e.def.texture, pose.frame));
+      }
       e.scaleX = e.baseScale * pose.sx;
       e.scaleY = e.baseScale * pose.sy;
       e.rotation = e.flipX ? -pose.rot : pose.rot;
