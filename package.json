@@ -13,7 +13,8 @@
     "smoke": "node scripts/smoke.mjs",
     "cap:sync": "npm run build && cap sync",
     "android": "npm run cap:sync && cap open android",
-    "ios": "npm run cap:sync && cap open ios"
+    "ios": "npm run cap:sync && cap open ios",
+    "stress": "node scripts/stress.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

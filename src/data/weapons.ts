@@ -1,15 +1,34 @@
+// Armas modulares: padrão de ataque + elemento + tags + curva de crescimento infinita.
+
+export type Element = 'physical' | 'fire' | 'water' | 'air' | 'earth' | 'light' | 'dark' | 'lightning';
+export type Tag = 'melee' | 'projectile' | 'spell' | 'area' | 'heavy' | 'fast';
+/** Como a arma ataca. Cada padrão é implementado uma vez em `systems/weapons.ts`. */
+export type Pattern = 'nearest' | 'volley' | 'arc' | 'lob' | 'orbit' | 'aura' | 'strike';
+
 export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives';
 
 export interface WeaponStats {
   damage: number;
-  /** segundos entre ataques (para orbe/aura: intervalo de dano por inimigo) */
+  /** segundos entre ataques (orbe/aura: intervalo de dano no mesmo inimigo) */
   cooldown: number;
   amount: number;
   pierce: number;
-  /** multiplicador de área/tamanho */
+  /** multiplicador de tamanho */
   area: number;
-  /** velocidade do projétil (px/s) ou rotação (rad/s) no caso do orbe */
+  /** px/s do projétil, ou rad/s do orbe */
   speed: number;
+  /** vida do projétil em segundos */
+  duration: number;
+}
+
+/** Um passo de crescimento: frações são relativas ao valor base. */
+export interface Growth {
+  damage?: number;
+  amount?: number;
+  cooldown?: number;
+  area?: number;
+  pierce?: number;
+  speed?: number;
 }
 
 export interface WeaponDef {
@@ -17,125 +36,114 @@ export interface WeaponDef {
   name: string;
   icon: string;
   description: string;
-  /** Stats absolutos por nível (índice 0 = nível 1). */
-  levels: WeaponStats[];
-  /** Texto exibido ao subir para o nível N (índice 0 = nível 2). */
-  upgrades: string[];
-}
-
-function lv(base: WeaponStats, ...changes: Partial<WeaponStats>[]): WeaponStats[] {
-  const out = [base];
-  for (const c of changes) out.push({ ...out[out.length - 1], ...c });
-  return out;
+  pattern: Pattern;
+  element: Element;
+  tags: Tag[];
+  base: WeaponStats;
+  /** Ciclo de crescimento repetido para sempre a partir do nível 2. */
+  growth: Growth[];
 }
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   wand: {
-    id: 'wand',
-    name: 'Varinha Mágica',
-    icon: 'bolt',
-    description: 'Dispara orbes no inimigo mais próximo.',
-    levels: lv(
-      { damage: 10, cooldown: 1.1, amount: 1, pierce: 1, area: 1, speed: 240 },
-      { amount: 2 },
-      { damage: 15 },
-      { cooldown: 0.85 },
-      { amount: 3 },
-      { damage: 22, pierce: 2 },
-    ),
-    upgrades: ['+1 projétil', '+50% de dano', 'Dispara mais rápido', '+1 projétil', '+dano e atravessa inimigos'],
+    id: 'wand', name: 'Varinha Mágica', icon: 'bolt', pattern: 'nearest', element: 'light', tags: ['projectile', 'spell'],
+    description: 'Dispara orbes de luz no inimigo mais próximo.',
+    base: { damage: 10, cooldown: 1.1, amount: 1, pierce: 1, area: 1, speed: 240, duration: 1.6 },
+    growth: [{ amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }, { damage: 0.3 }, { pierce: 1 }],
   },
   sword: {
-    id: 'sword',
-    name: 'Espada',
-    icon: 'icon_sword',
-    description: 'Golpe em arco na direção em que você anda.',
-    levels: lv(
-      { damage: 20, cooldown: 1.05, amount: 1, pierce: 99, area: 1, speed: 0 },
-      { damage: 28 },
-      { amount: 2 },
-      { area: 1.3 },
-      { damage: 38 },
-      { cooldown: 0.8, area: 1.5 },
-    ),
-    upgrades: ['+33% de dano', 'Golpeia para os dois lados', '+30% de alcance', '+33% de dano', 'Mais rápido e maior'],
+    id: 'sword', name: 'Espada', icon: 'icon_sword', pattern: 'arc', element: 'physical', tags: ['melee'],
+    description: 'Golpe em arco para o lado em que você olha.',
+    base: { damage: 22, cooldown: 0.95, amount: 1, pierce: 999, area: 1.1, speed: 0, duration: 0.18 },
+    growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
   },
   axe: {
-    id: 'axe',
-    name: 'Machado',
-    icon: 'axe',
+    id: 'axe', name: 'Machado', icon: 'axe', pattern: 'lob', element: 'physical', tags: ['projectile', 'heavy'],
     description: 'Arremessa machados em arco. Dano alto.',
-    levels: lv(
-      { damage: 25, cooldown: 1.8, amount: 1, pierce: 3, area: 1, speed: 300 },
-      { amount: 2 },
-      { damage: 35 },
-      { pierce: 5, area: 1.25 },
-      { amount: 3 },
-      { damage: 50 },
-    ),
-    upgrades: ['+1 machado', '+40% de dano', 'Maior e atravessa mais', '+1 machado', '+40% de dano'],
+    base: { damage: 25, cooldown: 1.8, amount: 1, pierce: 3, area: 1, speed: 300, duration: 2.2 },
+    growth: [{ amount: 1 }, { damage: 0.35 }, { pierce: 2 }, { area: 0.15 }, { damage: 0.35 }],
   },
   orb: {
-    id: 'orb',
-    name: 'Orbe Sagrado',
-    icon: 'orb',
+    id: 'orb', name: 'Orbe Sagrado', icon: 'orb', pattern: 'orbit', element: 'light', tags: ['spell', 'area'],
     description: 'Orbes giram ao seu redor causando dano.',
-    levels: lv(
-      { damage: 8, cooldown: 0.5, amount: 2, pierce: 99, area: 1, speed: 3 },
-      { amount: 3 },
-      { damage: 12 },
-      { area: 1.3, speed: 3.8 },
-      { amount: 4 },
-      { damage: 18, amount: 5 },
-    ),
-    upgrades: ['+1 orbe', '+50% de dano', 'Raio maior e mais rápido', '+1 orbe', '+dano e +1 orbe'],
+    base: { damage: 8, cooldown: 0.5, amount: 2, pierce: 999, area: 1, speed: 3, duration: 0 },
+    growth: [{ amount: 1 }, { damage: 0.3 }, { area: 0.15, speed: 0.15 }, { damage: 0.3 }, { amount: 1 }],
   },
   aura: {
-    id: 'aura',
-    name: 'Aura de Fogo',
-    icon: 'icon_fire',
+    id: 'aura', name: 'Aura de Fogo', icon: 'icon_fire', pattern: 'aura', element: 'fire', tags: ['spell', 'area'],
     description: 'Queima inimigos próximos continuamente.',
-    levels: lv(
-      { damage: 5, cooldown: 0.5, amount: 1, pierce: 99, area: 1, speed: 0 },
-      { area: 1.2 },
-      { damage: 8 },
-      { area: 1.4 },
-      { cooldown: 0.38 },
-      { damage: 12, area: 1.6 },
-    ),
-    upgrades: ['+20% de área', '+60% de dano', '+20% de área', 'Queima mais rápido', '+dano e +área'],
+    base: { damage: 5, cooldown: 0.5, amount: 1, pierce: 999, area: 1, speed: 0, duration: 0 },
+    growth: [{ area: 0.15 }, { damage: 0.35 }, { cooldown: 0.1 }, { area: 0.15 }, { damage: 0.35 }],
   },
   lightning: {
-    id: 'lightning',
-    name: 'Raio',
-    icon: 'icon_bolt',
+    id: 'lightning', name: 'Raio', icon: 'icon_bolt', pattern: 'strike', element: 'lightning', tags: ['spell', 'area'],
     description: 'Raios atingem inimigos aleatórios na tela.',
-    levels: lv(
-      { damage: 22, cooldown: 2.2, amount: 2, pierce: 99, area: 1, speed: 0 },
-      { amount: 3 },
-      { damage: 32 },
-      { cooldown: 1.7 },
-      { amount: 4 },
-      { damage: 45, area: 1.5 },
-    ),
-    upgrades: ['+1 raio', '+45% de dano', 'Cai mais rápido', '+1 raio', '+dano e área maior'],
+    base: { damage: 22, cooldown: 2.2, amount: 2, pierce: 999, area: 1, speed: 0, duration: 0 },
+    growth: [{ amount: 1 }, { damage: 0.35 }, { cooldown: 0.1 }, { area: 0.2 }, { damage: 0.35 }],
   },
   knives: {
-    id: 'knives',
-    name: 'Adagas',
-    icon: 'knife',
+    id: 'knives', name: 'Adagas', icon: 'knife', pattern: 'volley', element: 'physical', tags: ['projectile', 'fast'],
     description: 'Lança adagas rápidas na direção do movimento.',
-    levels: lv(
-      { damage: 7, cooldown: 0.45, amount: 1, pierce: 1, area: 1, speed: 360 },
-      { amount: 2 },
-      { damage: 10 },
-      { cooldown: 0.34 },
-      { amount: 3 },
-      { damage: 13, pierce: 2 },
-    ),
-    upgrades: ['+1 adaga', '+40% de dano', 'Lança mais rápido', '+1 adaga', '+dano e atravessa'],
+    base: { damage: 7, cooldown: 0.45, amount: 1, pierce: 1, area: 1, speed: 360, duration: 1 },
+    growth: [{ amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }, { pierce: 1 }, { damage: 0.3 }],
   },
 };
 
 export const WEAPON_IDS = Object.keys(WEAPONS) as WeaponId[];
-export const MAX_WEAPONS = 5;
+
+/** A cada quantos níveis a arma desperta. */
+export const AWAKEN_EVERY = 10;
+/** Acima disso, cada projétil extra vira +12% de dano (protege o desempenho). */
+export const MAX_PHYSICAL_AMOUNT = 8;
+
+export function isAwakening(level: number) {
+  return level % AWAKEN_EVERY === 0;
+}
+
+/** Stats absolutos da arma num nível qualquer (sem teto). */
+export function weaponStatsAt(def: WeaponDef, level: number): WeaponStats {
+  const b = def.base;
+  const s: WeaponStats = { ...b };
+  for (let l = 2; l <= level; l++) {
+    const g = def.growth[(l - 2) % def.growth.length];
+    if (g.damage) s.damage += b.damage * g.damage;
+    if (g.amount) s.amount += g.amount;
+    if (g.cooldown) s.cooldown *= 1 - g.cooldown;
+    if (g.area) s.area += g.area;
+    if (g.pierce) s.pierce += g.pierce;
+    if (g.speed) s.speed += b.speed * g.speed;
+    if (isAwakening(l)) {
+      s.damage *= 1.5;
+      s.amount += 1;
+    }
+  }
+  return s;
+}
+
+/** Converte o excesso de quantidade em dano. */
+export function capAmount(s: WeaponStats): WeaponStats {
+  if (s.amount <= MAX_PHYSICAL_AMOUNT) return s;
+  return { ...s, damage: s.damage * (1 + (s.amount - MAX_PHYSICAL_AMOUNT) * 0.12), amount: MAX_PHYSICAL_AMOUNT };
+}
+
+export function describeGrowth(g: Growth): string {
+  const parts: string[] = [];
+  if (g.damage) parts.push(`+${Math.round(g.damage * 100)}% dano`);
+  if (g.amount) parts.push(`+${g.amount} quantidade`);
+  if (g.cooldown) parts.push(`-${Math.round(g.cooldown * 100)}% recarga`);
+  if (g.area) parts.push(`+${Math.round(g.area * 100)}% área`);
+  if (g.pierce) parts.push(`+${g.pierce} perfuração`);
+  if (g.speed) parts.push(`+${Math.round(g.speed * 100)}% velocidade`);
+  return parts.join(', ');
+}
+
+export const ELEMENT_COLORS: Record<Element, string> = {
+  physical: '#f4f4f4',
+  fire: '#ef7d57',
+  water: '#41a6f6',
+  air: '#a7f070',
+  earth: '#c69c6d',
+  light: '#ffcd75',
+  dark: '#c56cf0',
+  lightning: '#73eff7',
+};

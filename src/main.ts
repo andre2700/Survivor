@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { GameScene } from './scenes/GameScene';
 import { HudScene } from './scenes/HudScene';
 import { BootScene, MenuScene, ShopScene } from './scenes/MenuScenes';
-import { GameOverScene, LevelUpScene, PauseScene } from './scenes/OverlayScenes';
+import { GameOverScene, LevelUpScene, PauseScene, VictoryScene } from './scenes/OverlayScenes';
 import { setupNative } from './native';
 
 // A fonte pixel não tem maiúsculas acentuadas: troca por versões sem acento em todo texto.
@@ -40,7 +40,7 @@ async function start() {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
     input: { activePointers: 3 },
-    scene: [BootScene, MenuScene, ShopScene, GameScene, HudScene, LevelUpScene, PauseScene, GameOverScene],
+    scene: [BootScene, MenuScene, ShopScene, GameScene, HudScene, LevelUpScene, PauseScene, VictoryScene, GameOverScene],
   });
 
   (window as unknown as { __game: Phaser.Game }).__game = game;

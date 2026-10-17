@@ -1,16 +1,24 @@
 import Phaser from 'phaser';
-import { WEAPONS, type WeaponId, type WeaponStats } from '../data/weapons';
-import type { Enemy, Projectile } from '../entities';
+import { frameName } from '../art/textures';
+import { areaMult, cooldownMult, damageMult, durationMult, projectileSpeedMult } from '../core/stats';
+import { applyTagBonuses, countTags } from '../data/tags';
+import { AWAKEN_EVERY, WEAPONS, capAmount, weaponStatsAt, type WeaponDef, type WeaponId, type WeaponStats } from '../data/weapons';
+import type { Enemy, ProjectileKind } from '../entities';
 import type { GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
 
 interface WeaponRuntime {
   id: WeaponId;
+  def: WeaponDef;
   level: number;
   timer: number;
+  /** stats finais (nível + tags + atributos globais), recalculados quando algo muda */
+  stats: WeaponStats;
+  /** dano total causado na partida (estatísticas) */
+  dealt: number;
 }
 
-/** Executa os ataques automáticos de todas as armas do jogador. */
+/** Executa os ataques automáticos de todas as armas. Cada padrão é implementado uma única vez. */
 export class WeaponSystem {
   private list: WeaponRuntime[] = [];
   private orbs: Phaser.GameObjects.Image[] = [];
@@ -19,189 +27,211 @@ export class WeaponSystem {
 
   constructor(private scene: GameScene) {}
 
+  /** Sincroniza com o loadout e recalcula os stats finais de todas as armas. */
   sync(weapons: Partial<Record<WeaponId, number>>) {
     for (const [id, level] of Object.entries(weapons) as [WeaponId, number][]) {
       const existing = this.list.find((w) => w.id === id);
       if (existing) existing.level = level;
-      else this.list.push({ id, level, timer: 0.3 });
+      else this.list.push({ id, def: WEAPONS[id], level, timer: 0.3, stats: WEAPONS[id].base, dealt: 0 });
+    }
+    this.refresh();
+  }
+
+  refresh() {
+    const g = this.scene.stats;
+    const counts = countTags(this.list.map((w) => w.def.tags));
+    for (const w of this.list) {
+      const s = { ...weaponStatsAt(w.def, w.level) };
+      applyTagBonuses(s, w.def.tags, counts);
+      s.damage *= damageMult(g);
+      s.cooldown *= cooldownMult(g);
+      s.area *= areaMult(g);
+      s.speed *= w.def.pattern === 'orbit' ? 1 : projectileSpeedMult(g);
+      s.duration *= durationMult(g);
+      s.amount += Math.floor(g.amount);
+      s.pierce += Math.floor(g.pierce);
+      w.stats = capAmount(s);
     }
   }
 
-  private stats(w: WeaponRuntime): WeaponStats {
-    return WEAPONS[w.id].levels[w.level - 1];
+  get tagCounts() {
+    return countTags(this.list.map((w) => w.def.tags));
   }
 
-  private dmg(base: number) {
-    return Math.max(1, Math.round(base * this.scene.stats.might * (0.9 + Math.random() * 0.2)));
+  private dmg(w: WeaponRuntime) {
+    return w.stats.damage * (0.9 + Math.random() * 0.2);
+  }
+
+  private hit(w: WeaponRuntime, e: Enemy, knock: number) {
+    w.dealt += this.scene.hitEnemy(e, this.dmg(w), knock, w.def.element);
   }
 
   update(dt: number) {
-    const cdMult = this.scene.stats.cooldown;
     for (const w of this.list) {
-      const s = this.stats(w);
-      if (w.id === 'orb') {
-        this.updateOrbs(dt, s);
+      if (w.def.pattern === 'orbit') {
+        this.updateOrbs(w, dt);
         continue;
       }
-      if (w.id === 'aura') this.updateAuraVisual(s);
+      if (w.def.pattern === 'aura') this.updateAuraVisual(w);
       w.timer -= dt;
       if (w.timer > 0) continue;
-      const fired = this.fire(w.id, s);
-      w.timer = fired ? s.cooldown * cdMult : 0.1;
+      const fired = this.fire(w);
+      w.timer = fired ? w.stats.cooldown : 0.1;
     }
   }
 
-  private fire(id: WeaponId, s: WeaponStats): boolean {
-    switch (id) {
-      case 'wand':
-        return this.fireWand(s);
-      case 'knives':
-        return this.fireKnives(s);
-      case 'axe':
-        return this.fireAxe(s);
-      case 'sword':
-        return this.fireSword(s);
+  private fire(w: WeaponRuntime): boolean {
+    switch (w.def.pattern) {
+      case 'nearest':
+        return this.fireNearest(w);
+      case 'volley':
+        return this.fireVolley(w);
+      case 'lob':
+        return this.fireLob(w);
+      case 'arc':
+        return this.fireArc(w);
       case 'aura':
-        return this.tickAura(s);
-      case 'lightning':
-        return this.fireLightning(s);
+        return this.tickAura(w);
+      case 'strike':
+        return this.fireStrike(w);
       default:
         return false;
     }
   }
 
-  private spawnProjectile(): Projectile | null {
-    return this.scene.projectiles.get() as Projectile | null;
+  private shoot(w: WeaponRuntime, kind: ProjectileKind, texture: string, x: number, y: number, vx: number, vy: number) {
+    const p = this.scene.projectiles.get();
+    if (!p) return;
+    p.fire(kind, texture, x, y, vx, vy, this.dmg(w), w.stats.pierce, w.stats.duration, w.stats.area, w.def.element);
+    p.owner = w.id;
+    if (w.level >= AWAKEN_EVERY) p.setTint(0xffe9a8);
+    else p.clearTint();
   }
 
-  private fireWand(s: WeaponStats): boolean {
+  private fireNearest(w: WeaponRuntime): boolean {
     const p = this.scene.player;
+    const s = w.stats;
     const targets = this.scene.nearestEnemies(p.x, p.y, s.amount, 260);
     if (targets.length === 0) return false;
     for (let i = 0; i < s.amount; i++) {
       const t = targets[i % targets.length];
       const a = Math.atan2(t.y - p.y, t.x - p.x) + (i >= targets.length ? (i - targets.length + 1) * 0.15 : 0);
-      const proj = this.spawnProjectile();
-      proj?.fire('bolt', 'bolt', p.x, p.y - 4, Math.cos(a) * s.speed, Math.sin(a) * s.speed, this.dmg(s.damage), s.pierce, 1.6, s.area);
+      this.shoot(w, 'bolt', 'bolt', p.x, p.y - 4, Math.cos(a) * s.speed, Math.sin(a) * s.speed);
     }
     return true;
   }
 
-  private fireKnives(s: WeaponStats): boolean {
+  private fireVolley(w: WeaponRuntime): boolean {
     const p = this.scene.player;
     const f = this.scene.facing;
+    const s = w.stats;
     for (let i = 0; i < s.amount; i++) {
-      this.scene.time.delayedCall(i * 70, () => {
+      this.scene.time.delayedCall(i * 60, () => {
         const off = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 5;
-        const proj = this.spawnProjectile();
-        proj?.fire('knife', 'knife', p.x - f.y * off, p.y - 3 + f.x * off, f.x * s.speed, f.y * s.speed, this.dmg(s.damage), s.pierce, 1, s.area);
+        this.shoot(w, 'knife', 'knife', p.x - f.y * off, p.y - 3 + f.x * off, f.x * s.speed, f.y * s.speed);
       });
     }
     return true;
   }
 
-  private fireAxe(s: WeaponStats): boolean {
+  private fireLob(w: WeaponRuntime): boolean {
     const p = this.scene.player;
+    const s = w.stats;
     for (let i = 0; i < s.amount; i++) {
-      this.scene.time.delayedCall(i * 120, () => {
-        const proj = this.spawnProjectile();
+      this.scene.time.delayedCall(i * 110, () => {
         const vx = (Math.random() * 2 - 1) * 70 + this.scene.facing.x * 40;
-        proj?.fire('axe', 'axe', p.x, p.y - 6, vx, -s.speed, this.dmg(s.damage), s.pierce, 2.2, s.area);
+        this.shoot(w, 'axe', 'axe', p.x, p.y - 6, vx, -s.speed);
       });
     }
     return true;
   }
 
-  private fireSword(s: WeaponStats): boolean {
+  private fireArc(w: WeaponRuntime): boolean {
     const dir = this.scene.player.flipX ? -1 : 1;
-    for (let i = 0; i < s.amount; i++) {
-      const side = i === 0 ? dir : -dir;
-      this.scene.time.delayedCall(i * 140, () => this.slash(side, s));
+    for (let i = 0; i < w.stats.amount; i++) {
+      // 1º golpe para frente, 2º para trás, os seguintes alternam com leve atraso
+      const side = i % 2 === 0 ? dir : -dir;
+      this.scene.time.delayedCall(i * 140, () => this.slash(w, side));
     }
     return true;
   }
 
-  private slash(side: number, s: WeaponStats) {
+  private slash(w: WeaponRuntime, side: number) {
     const p = this.scene.player;
-    const w = 46 * s.area;
-    const h = 30 * s.area;
-    const cx = p.x + side * (w / 2 + 2);
+    const width = 46 * w.stats.area;
+    const height = 30 * w.stats.area;
+    const cx = p.x + side * (width / 2 + 2);
     const cy = p.y - 2;
-    const img = this.scene.add.image(cx, cy, 'slash').setScale((w / 40), h / 24).setFlipX(side < 0).setDepth(100001).setAlpha(0.95);
-    this.scene.tweens.add({ targets: img, alpha: 0, scaleY: (h / 24) * 0.6, duration: 180, onComplete: () => img.destroy() });
-    const dmg = this.dmg(s.damage);
-    for (const e of this.scene.activeEnemies()) {
-      if (Math.abs(e.x - cx) < w / 2 + e.worldRadius && Math.abs(e.y - cy) < h / 2 + e.worldRadius) {
-        this.scene.damageEnemy(e, dmg, 1);
-      }
-    }
+    const img = this.scene.add.image(cx, cy, 'atlas', frameName('slash')).setScale(width / 40, height / 24).setFlipX(side < 0).setDepth(100001);
+    if (w.level >= AWAKEN_EVERY) img.setTint(0xffe9a8);
+    this.scene.tweens.add({ targets: img, alpha: 0, scaleY: (height / 24) * 0.6, duration: 180, onComplete: () => img.destroy() });
+    this.scene.queryEnemies(cx, cy, Math.max(width, height), (e) => {
+      if (Math.abs(e.x - cx) < width / 2 + e.radius && Math.abs(e.y - cy) < height / 2 + e.radius) this.hit(w, e, 1);
+    });
   }
 
-  private updateAuraVisual(s: WeaponStats) {
+  private updateAuraVisual(w: WeaponRuntime) {
     const p = this.scene.player;
     if (!this.aura) {
-      this.aura = this.scene.add.image(p.x, p.y, 'aura').setDepth(-1);
+      this.aura = this.scene.add.image(p.x, p.y, 'atlas', frameName('aura')).setDepth(-1);
       this.scene.tweens.add({ targets: this.aura, alpha: { from: 0.75, to: 1 }, duration: 400, yoyo: true, repeat: -1 });
     }
-    const radius = 34 * s.area;
+    const radius = 34 * w.stats.area;
     this.aura.setPosition(p.x, p.y + 2).setScale((radius * 2) / 96);
   }
 
-  private tickAura(s: WeaponStats): boolean {
+  private tickAura(w: WeaponRuntime): boolean {
     const p = this.scene.player;
-    const radius = 34 * s.area;
-    const dmg = this.dmg(s.damage);
-    for (const e of this.scene.activeEnemies()) {
-      const r = radius + e.worldRadius;
-      if (Phaser.Math.Distance.Squared(p.x, p.y, e.x, e.y) < r * r) this.scene.damageEnemy(e, dmg, 0.3);
-    }
+    const radius = 34 * w.stats.area;
+    this.scene.queryEnemies(p.x, p.y, radius + 16, (e) => {
+      const r = radius + e.radius;
+      if (Phaser.Math.Distance.Squared(p.x, p.y, e.x, e.y) < r * r) this.hit(w, e, 0.3);
+    });
     return true;
   }
 
-  private updateOrbs(dt: number, s: WeaponStats) {
-    while (this.orbs.length < s.amount) this.orbs.push(this.scene.add.image(0, 0, 'orb').setDepth(100000));
+  private updateOrbs(w: WeaponRuntime, dt: number) {
+    const s = w.stats;
+    while (this.orbs.length < s.amount) this.orbs.push(this.scene.add.image(0, 0, 'atlas', frameName('orb')).setDepth(100000));
     const p = this.scene.player;
     const radius = 42 * s.area;
     this.orbAngle += s.speed * dt;
     const now = this.scene.elapsed;
-    const cd = s.cooldown * this.scene.stats.cooldown;
-    const enemies = this.scene.activeEnemies();
     this.orbs.forEach((orb, i) => {
       const a = this.orbAngle + (i / this.orbs.length) * Math.PI * 2;
       orb.setPosition(p.x + Math.cos(a) * radius, p.y - 2 + Math.sin(a) * radius);
-      for (const e of enemies) {
-        if (now - e.orbHitAt < cd) continue;
-        const r = 5 + e.worldRadius;
+      if (w.level >= AWAKEN_EVERY) orb.setTint(0xffe9a8);
+      this.scene.queryEnemies(orb.x, orb.y, 24, (e) => {
+        if (now - e.orbHitAt < s.cooldown) return;
+        const r = 5 + e.radius;
         if (Phaser.Math.Distance.Squared(orb.x, orb.y, e.x, e.y) < r * r) {
           e.orbHitAt = now;
-          this.scene.damageEnemy(e, this.dmg(s.damage), 0.6);
+          this.hit(w, e, 0.6);
         }
-      }
+      });
     });
   }
 
-  private fireLightning(s: WeaponStats): boolean {
+  private fireStrike(w: WeaponRuntime): boolean {
     const view = this.scene.cameras.main.worldView;
     const visible = this.scene.activeEnemies().filter((e) => view.contains(e.x, e.y));
     if (visible.length === 0) return false;
     Phaser.Utils.Array.Shuffle(visible);
-    const radius = 22 * s.area;
-    for (let i = 0; i < Math.min(s.amount, visible.length); i++) {
-      const target = visible[i];
-      const tx = target.x;
-      const ty = target.y;
-      this.drawBolt(tx, ty, view.y - 10);
-      const dmg = this.dmg(s.damage);
-      for (const e of this.scene.activeEnemies()) {
-        const r = radius + e.worldRadius;
-        if (Phaser.Math.Distance.Squared(tx, ty, e.x, e.y) < r * r) this.scene.damageEnemy(e, dmg, 0.5);
-      }
+    const radius = 22 * w.stats.area;
+    for (let i = 0; i < Math.min(w.stats.amount, visible.length); i++) {
+      const tx = visible[i].x;
+      const ty = visible[i].y;
+      this.drawBolt(tx, ty, view.y - 10, w.level >= AWAKEN_EVERY);
+      this.scene.queryEnemies(tx, ty, radius + 16, (e) => {
+        const r = radius + e.radius;
+        if (Phaser.Math.Distance.Squared(tx, ty, e.x, e.y) < r * r) this.hit(w, e, 0.5);
+      });
     }
     sfx('zap');
     return true;
   }
 
-  private drawBolt(x: number, y: number, top: number) {
+  private drawBolt(x: number, y: number, top: number, awakened: boolean) {
     const g = this.scene.add.graphics().setDepth(100002);
     const pts: Phaser.Math.Vector2[] = [];
     const segments = 8;
@@ -210,27 +240,25 @@ export class WeaponSystem {
       const jitter = i === 0 || i === segments ? 0 : (Math.random() * 2 - 1) * 8;
       pts.push(new Phaser.Math.Vector2(x + jitter, top + (y - top) * t));
     }
-    g.lineStyle(3, 0x73eff7, 1).strokePoints(pts);
+    g.lineStyle(3, awakened ? 0xffcd75 : 0x73eff7, 1).strokePoints(pts);
     g.lineStyle(1, 0xf4f4f4, 1).strokePoints(pts);
     g.fillStyle(0xf4f4f4, 0.8).fillCircle(x, y, 6);
     this.scene.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
   }
 
-  /** Lista para a HUD. */
-  get owned() {
-    return this.list.map((w) => ({ id: w.id, level: w.level }));
+  /** Registra dano de projéteis na estatística da arma dona. */
+  credit(id: WeaponId, amount: number) {
+    const w = this.list.find((x) => x.id === id);
+    if (w) w.dealt += amount;
   }
 
-  /** Para o fim da partida. */
+  /** Lista para HUD e estatísticas. */
+  get owned() {
+    return this.list.map((w) => ({ id: w.id, level: w.level, dealt: w.dealt }));
+  }
+
   destroy() {
     this.orbs.forEach((o) => o.destroy());
     this.aura?.destroy();
-  }
-
-  static projectileHit(p: Projectile, e: Enemy): boolean {
-    if (p.hits.has(e.uid)) return false;
-    p.hits.add(e.uid);
-    p.pierce--;
-    return true;
   }
 }

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { RUN_DURATION } from '../data/waves';
 import { WEAPONS } from '../data/weapons';
-import { PASSIVES, type PassiveId } from '../data/passives';
+import { formatNumber } from '../core/format';
 import { COLORS, button, text } from '../ui/theme';
 import type { GameScene } from './GameScene';
 
@@ -134,7 +134,8 @@ export class HudScene extends Phaser.Scene {
     const sec = Math.floor(g.elapsed);
     if (sec !== this.last.time) {
       this.last.time = sec;
-      this.timeText.setText(formatTime(sec)).setColor(sec >= RUN_DURATION ? '#ef7d57' : '#f4f4f4');
+      const label = g.endless ? `${formatTime(sec)} C${g.cycle}` : formatTime(sec);
+      this.timeText.setText(label).setColor(g.endless ? '#c56cf0' : sec >= RUN_DURATION ? '#ef7d57' : '#f4f4f4');
     }
     if (g.kills !== this.last.kills) this.killText.setText(String((this.last.kills = g.kills)));
     const gold = Math.floor(g.gold);
@@ -155,14 +156,13 @@ export class HudScene extends Phaser.Scene {
   }
 
   private updateIcons() {
-    const weapons = this.game$.ownedWeapons;
-    const passives = Object.entries(this.game$.loadout.passives) as [PassiveId, number][];
-    const sig = JSON.stringify([weapons, passives]);
+    const weapons = this.game$.ownedWeapons.map((w) => [w.id, w.level] as const);
+    const sig = JSON.stringify(weapons);
     if (sig === this.iconSig) return;
     this.iconSig = sig;
     this.icons.removeAll(true);
-    weapons.forEach((w, i) => this.addIcon(WEAPONS[w.id].icon, w.level, i * 14, 0));
-    passives.forEach(([id, lvl], i) => this.addIcon(PASSIVES[id].icon, lvl, i * 14, 15));
+    // sem limite de armas: quebra em linhas de 10 ícones
+    weapons.forEach(([id, lvl], i) => this.addIcon(WEAPONS[id].icon, lvl, (i % 10) * 14, Math.floor(i / 10) * 15));
   }
 
   private addIcon(key: string, level: number, x: number, y: number) {
@@ -170,7 +170,7 @@ export class HudScene extends Phaser.Scene {
     const img = this.add.image(x + 6, y + 6, key);
     const max = Math.max(img.width, img.height);
     img.setScale(max > 10 ? 10 / max : 1);
-    const pip = this.add.text(x + 12, y + 12, String(level), { fontFamily: '"Press Start 2P"', fontSize: '8px', color: '#ffcd75', stroke: '#1a1c2c', strokeThickness: 2 }).setOrigin(1, 1).setScale(0.75);
+    const pip = this.add.text(x + 12, y + 12, formatNumber(level), { fontFamily: '"Press Start 2P"', fontSize: '8px', color: '#ffcd75', stroke: '#1a1c2c', strokeThickness: 2 }).setOrigin(1, 1).setScale(0.75);
     this.icons.add([bg, img, pip]);
   }
 }

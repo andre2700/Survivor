@@ -1,42 +1,62 @@
 import Phaser from 'phaser';
+import { frameName } from '../art/textures';
+import { formatNumber } from '../core/format';
+import { SpatialGrid } from '../core/grid';
+import {
+  BASE_STATS, combine, critMultiplier, damageTaken, dodgeChance, goldMult, moveSpeed, rollCritTier, xpMult,
+  type Modifier, type Stats,
+} from '../core/stats';
 import { getCharacter, type CharacterDef } from '../data/characters';
 import { ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies';
-import { MAX_ENEMIES, RUN_DURATION, hpMultiplier, isEliteTime, waveAt, xpToNext } from '../data/waves';
-import { Enemy, Pickup, Projectile, type PickupKind } from '../entities';
+import { metaModifiers } from '../data/meta';
+import { ELEMENT_COLORS, type Element } from '../data/weapons';
+import {
+  ENDLESS_CYCLE, MAX_ENEMIES, RUN_DURATION, WAVES, endlessScaling, hpMultiplier, isEliteTime, waveAt, xpToNext,
+} from '../data/waves';
+import { Enemy, Pickup, Pool, Projectile, type PickupKind } from '../entities';
 import { loadSave } from '../systems/save';
 import { sfx } from '../systems/sfx';
-import { computeStats, damageAfterArmor, type PlayerStats } from '../systems/stats';
-import { applyOption, rollOptions, type Loadout, type UpgradeOption } from '../systems/upgrades';
+import {
+  applyOption, loadoutModifiers, optionKey, rollOptions, type Loadout, type UpgradeOption,
+} from '../systems/upgrades';
 import { WeaponSystem } from '../systems/weapons';
 import { FONT } from '../ui/theme';
 
 export interface RunResult {
   victory: boolean;
+  endless: boolean;
+  cycle: number;
   time: number;
   kills: number;
   level: number;
   gold: number;
   character: string;
+  weapons: { id: string; level: number; dealt: number }[];
+}
+
+export interface LevelUpData {
+  options: UpgradeOption[];
 }
 
 export class GameScene extends Phaser.Scene {
-  player!: Phaser.Physics.Arcade.Sprite;
+  player!: Phaser.GameObjects.Sprite;
   private shadow!: Phaser.GameObjects.Image;
   private hpBar!: Phaser.GameObjects.Graphics;
   private ground!: Phaser.GameObjects.TileSprite;
   private keys!: Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
 
-  enemies!: Phaser.Physics.Arcade.Group;
-  projectiles!: Phaser.Physics.Arcade.Group;
-  pickups!: Phaser.GameObjects.Group;
+  enemies!: Pool<Enemy>;
+  projectiles!: Pool<Projectile>;
+  private pickups!: Pool<Pickup>;
+  private grid = new SpatialGrid<Enemy>(32);
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dmgTexts: Phaser.GameObjects.Text[] = [];
   private weapons!: WeaponSystem;
 
   char!: CharacterDef;
-  stats!: PlayerStats;
-  loadout: Loadout = { weapons: {}, passives: {} };
-  private meta = loadSave().meta;
+  stats: Stats = { ...BASE_STATS };
+  private baseMods: Modifier[] = [];
+  loadout: Loadout = { weapons: {}, stats: {} };
 
   hp = 100;
   xp = 0;
@@ -45,21 +65,30 @@ export class GameScene extends Phaser.Scene {
   gold = 0;
   elapsed = 0;
   rerolls = 0;
-  private revives = 0;
+  banishes = 0;
+  locks = 0;
+  numOptions = 3;
+  banned = new Set<string>();
+  lockedNext: UpgradeOption[] = [];
+  currentOptions: UpgradeOption[] = [];
+  private revivesLeft = 0;
   private pendingLevels = 0;
   private invulnUntil = 0;
   private spawnAcc = 0;
   private eventsDone = new Set<number>();
   boss: Enemy | null = null;
   private bossSpawned = false;
-  state: 'playing' | 'levelup' | 'paused' | 'over' = 'playing';
+  endless = false;
+  private endlessStart = 0;
+  private bossesSpawned = 0;
+  state: 'playing' | 'levelup' | 'paused' | 'victory' | 'over' = 'playing';
 
   facing = new Phaser.Math.Vector2(1, 0);
   /** Vetor do joystick virtual (preenchido pela HUD). */
   joy = { x: 0, y: 0 };
+  private active: Enemy[] = [];
+  private frame = 0;
   private decor = new Map<string, Phaser.GameObjects.Image[]>();
-  private activeCache: Enemy[] = [];
-  private activeCacheFrame = -1;
 
   constructor() {
     super('Game');
@@ -67,10 +96,10 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const save = loadSave();
-    this.meta = save.meta;
     this.char = getCharacter(save.selected);
-    this.loadout = { weapons: { [this.char.weapon]: 1 }, passives: {} };
-    this.stats = computeStats(this.char, this.meta, this.loadout.passives);
+    this.baseMods = [...this.char.mods, ...metaModifiers(save.meta)];
+    this.loadout = { weapons: { [this.char.weapon]: 1 }, stats: {} };
+    this.recomputeStats();
     this.hp = this.stats.maxHp;
     this.xp = 0;
     this.level = 1;
@@ -83,28 +112,37 @@ export class GameScene extends Phaser.Scene {
     this.eventsDone.clear();
     this.boss = null;
     this.bossSpawned = false;
+    this.endless = false;
+    this.endlessStart = 0;
+    this.bossesSpawned = 0;
     this.state = 'playing';
-    this.revives = this.meta.revival ?? 0;
-    this.rerolls = this.meta.reroll ?? 0;
+    this.revivesLeft = Math.floor(this.stats.revives);
+    this.rerolls = save.meta.reroll ?? 0;
+    this.banishes = save.meta.banish ?? 0;
+    this.locks = save.meta.lock ?? 0;
+    this.numOptions = 3 + (save.meta.choices ?? 0);
+    this.banned = new Set();
+    this.lockedNext = [];
+    this.currentOptions = [];
     this.joy = { x: 0, y: 0 };
     this.facing.set(1, 0);
     this.dmgTexts = [];
+    this.active = [];
+    this.decor.clear();
 
     const { width, height } = this.scale;
     this.ground = this.add.tileSprite(0, 0, width, height, 'ground').setOrigin(0).setScrollFactor(0).setDepth(-10);
-
-    this.decor.clear();
-    this.shadow = this.add.image(0, 0, 'shadow').setDepth(-2);
-    this.player = this.physics.add.sprite(0, 0, this.char.texture, 0);
+    this.shadow = this.add.image(0, 0, 'atlas', frameName('shadow')).setDepth(-2);
+    this.player = this.add.sprite(0, 0, this.char.texture, 0);
     this.player.play(`${this.char.texture}_walk`);
-    (this.player.body as Phaser.Physics.Arcade.Body).setCircle(5, 3, 5);
     this.hpBar = this.add.graphics().setDepth(100003);
 
-    this.enemies = this.physics.add.group({ classType: Enemy, maxSize: MAX_ENEMIES + 20, runChildUpdate: false });
-    this.projectiles = this.physics.add.group({ classType: Projectile, maxSize: 200, runChildUpdate: false });
-    this.pickups = this.add.group({ classType: Pickup, maxSize: 400 });
+    this.enemies = new Pool(this, (s) => new Enemy(s), MAX_ENEMIES + 1500);
+    this.projectiles = new Pool(this, (s) => new Projectile(s), 3000);
+    this.pickups = new Pool(this, (s) => new Pickup(s), 500);
 
-    this.particles = this.add.particles(0, 0, 'px', {
+    this.particles = this.add.particles(0, 0, 'atlas', {
+      frame: frameName('px'),
       speed: { min: 30, max: 90 },
       lifespan: 350,
       scale: { start: 1, end: 0 },
@@ -116,13 +154,9 @@ export class GameScene extends Phaser.Scene {
     this.weapons.sync(this.loadout.weapons);
 
     this.cameras.main.startFollow(this.player, true, 1, 1);
-    this.updateDecor();
-    // primeiros inimigos já perto da borda, para a ação começar logo
-    for (let i = 0; i < 6; i++) this.spawnEnemy(ENEMIES.slime);
     this.cameras.main.setRoundPixels(true);
-
-    this.physics.add.overlap(this.player, this.enemies, (_p, e) => this.onPlayerTouched(e as Enemy));
-    this.physics.add.overlap(this.projectiles, this.enemies, (p, e) => this.onProjectileHit(p as Projectile, e as Enemy));
+    this.updateDecor();
+    for (let i = 0; i < 6; i++) this.spawnEnemy(ENEMIES.slime);
 
     const kb = this.input.keyboard!;
     this.keys = kb.addKeys({
@@ -151,16 +185,26 @@ export class GameScene extends Phaser.Scene {
     if (this.state === 'playing') this.openPause();
   }
 
+  /** Atributos atuais = base + personagem + progressão permanente + cartas da partida. */
+  recomputeStats() {
+    this.stats = combine(BASE_STATS, [...this.baseMods, ...loadoutModifiers(this.loadout)]);
+  }
+
+  /** Atributos se `extra` fosse somado (para mostrar "antes → depois" nas cartas). */
+  statsWith = (extra: Modifier[]): Stats => combine(BASE_STATS, [...this.baseMods, ...loadoutModifiers(this.loadout), ...extra]);
+
   update(_time: number, deltaMs: number) {
     if (this.state !== 'playing') return;
     const dt = Math.min(deltaMs, 50) / 1000;
     const prev = this.elapsed;
     this.elapsed += dt;
+    this.frame++;
 
     this.updatePlayer();
     this.updateEnemies(dt);
     this.weapons.update(dt);
     this.updateProjectiles(dt);
+    this.checkContact();
     this.updatePickups(dt);
     this.updateSpawns(prev, dt);
     this.updateDamageTexts(dt);
@@ -171,46 +215,7 @@ export class GameScene extends Phaser.Scene {
     this.ground.tilePositionX = cam.scrollX;
     this.ground.tilePositionY = cam.scrollY;
     this.drawPlayerHp();
-    if (this.game.getFrame() % 15 === 0) this.updateDecor();
-  }
-
-  /** Decoração gerada por blocos (determinística) ao redor do jogador. */
-  private updateDecor() {
-    const CHUNK = 192;
-    const cx = Math.floor(this.player.x / CHUNK);
-    const cy = Math.floor(this.player.y / CHUNK);
-    const needed = new Set<string>();
-    for (let x = cx - 2; x <= cx + 2; x++) {
-      for (let y = cy - 3; y <= cy + 3; y++) {
-        const key = `${x},${y}`;
-        needed.add(key);
-        if (this.decor.has(key)) continue;
-        let seed = (x * 374761393 + y * 668265263) ^ 0x5bd1e995;
-        const rnd = () => {
-          seed = (seed ^ (seed >>> 13)) * 1274126177;
-          seed ^= seed >>> 16;
-          return (seed >>> 0) / 4294967296;
-        };
-        const imgs: Phaser.GameObjects.Image[] = [];
-        const n = 2 + Math.floor(rnd() * 4);
-        for (let i = 0; i < n; i++) {
-          const r = rnd();
-          const tex = r < 0.3 ? 'tree' : r < 0.55 ? 'rock' : r < 0.85 ? 'bush' : 'mushroom';
-          const px = x * CHUNK + rnd() * CHUNK;
-          const py = y * CHUNK + rnd() * CHUNK;
-          if (Math.hypot(px, py) < 60) continue;
-          const img = this.add.image(Math.round(px), Math.round(py), tex).setOrigin(0.5, 1);
-          img.setDepth(tex === 'tree' ? py : -3);
-          imgs.push(img);
-        }
-        this.decor.set(key, imgs);
-      }
-    }
-    for (const [key, imgs] of this.decor) {
-      if (needed.has(key)) continue;
-      imgs.forEach((i) => i.destroy());
-      this.decor.delete(key);
-    }
+    if (this.frame % 15 === 0) this.updateDecor();
   }
 
   // ---------- Jogador ----------
@@ -228,7 +233,10 @@ export class GameScene extends Phaser.Scene {
       x /= len;
       y /= len;
     }
-    this.player.setVelocity(x * this.stats.speed, y * this.stats.speed);
+    const speed = moveSpeed(this.stats);
+    const dt = Math.min(this.game.loop.delta, 50) / 1000;
+    this.player.x += x * speed * dt;
+    this.player.y += y * speed * dt;
     if (len > 0.1) {
       this.facing.set(x, y).normalize();
       if (Math.abs(x) > 0.1) this.player.setFlipX(x < 0);
@@ -253,11 +261,32 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0xb13e53, 1).fillRect(x, y, Math.round(w * Phaser.Math.Clamp(this.hp / this.stats.maxHp, 0, 1)), 2);
   }
 
+  private checkContact() {
+    if (this.elapsed < this.invulnUntil) return;
+    const px = this.player.x;
+    const py = this.player.y;
+    let touched: Enemy | null = null;
+    this.grid.query(px, py, 40, (e) => {
+      if (!e.active) return;
+      const r = e.radius + 5;
+      if ((e.x - px) ** 2 + (e.y - py) ** 2 < r * r) {
+        touched = e;
+        return true;
+      }
+    });
+    if (touched) this.onPlayerTouched(touched);
+  }
+
   private onPlayerTouched(e: Enemy) {
     if (this.state !== 'playing' || !e.active || this.elapsed < this.invulnUntil) return;
-    const dmg = damageAfterArmor(e.damage, this.stats.armor);
-    this.hp -= dmg;
     this.invulnUntil = this.elapsed + 0.5;
+    if (Math.random() < dodgeChance(this.stats)) {
+      this.floatText(this.player.x, this.player.y - 16, 'ESQUIVA', '#a7f070');
+      return;
+    }
+    const dmg = damageTaken(e.damage, this.stats);
+    this.hp -= dmg;
+    if (this.stats.thorns > 0) this.hitEnemy(e, this.stats.thorns, 0.5, 'physical', false);
     this.cameras.main.shake(80, 0.004);
     this.player.setTintFill(0xffffff);
     this.time.delayedCall(80, () => this.player.clearTint());
@@ -266,57 +295,77 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPlayerDeath() {
-    if (this.revives > 0) {
-      this.revives--;
+    if (this.revivesLeft > 0) {
+      this.revivesLeft--;
       this.hp = this.stats.maxHp * 0.5;
       this.invulnUntil = this.elapsed + 3;
       this.cameras.main.flash(400, 255, 255, 255);
-      for (const e of this.activeEnemies()) {
-        if (!e.boss && Phaser.Math.Distance.Between(e.x, e.y, this.player.x, this.player.y) < 120) this.killEnemy(e, false);
-      }
+      this.queryEnemies(this.player.x, this.player.y, 120, (e) => {
+        if (!e.boss) this.killEnemy(e, false);
+      });
       this.floatText(this.player.x, this.player.y - 20, 'RENASCEU!', '#ffcd75');
       return;
     }
     this.hp = 0;
-    this.endRun(false);
+    this.endRun(this.endless);
   }
 
   // ---------- Inimigos ----------
 
-  /** Inimigos ativos (cache por frame). */
   activeEnemies(): Enemy[] {
-    const frame = this.game.getFrame();
-    if (frame !== this.activeCacheFrame) {
-      this.activeCache = (this.enemies.getChildren() as Enemy[]).filter((e) => e.active);
-      this.activeCacheFrame = frame;
-    }
-    return this.activeCache;
+    return this.active;
+  }
+
+  /** Chama `fn` para inimigos ativos perto de (x, y) — consulta a grade espacial. */
+  queryEnemies(x: number, y: number, r: number, fn: (e: Enemy) => void) {
+    this.grid.query(x, y, r, (e) => {
+      if (e.active) fn(e);
+    });
   }
 
   nearestEnemies(x: number, y: number, count: number, maxDist: number): Enemy[] {
-    const max2 = maxDist * maxDist;
     const list: { e: Enemy; d: number }[] = [];
-    for (const e of this.activeEnemies()) {
-      const d = Phaser.Math.Distance.Squared(x, y, e.x, e.y);
-      if (d < max2) list.push({ e, d });
+    // começa perto e expande o raio até achar o suficiente
+    for (let r = 64; r <= maxDist * 2 && list.length < count; r *= 2) {
+      list.length = 0;
+      const lim = Math.min(r, maxDist);
+      this.queryEnemies(x, y, lim, (e) => {
+        const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+        if (d < lim * lim) list.push({ e, d });
+      });
+      if (lim >= maxDist) break;
     }
     list.sort((a, b) => a.d - b.d);
     return list.slice(0, count).map((l) => l.e);
   }
 
-  private spawnEnemy(def: EnemyDef, x?: number, y?: number, elite = false): Enemy | null {
+  private difficulty() {
+    if (!this.endless) return { hp: hpMultiplier(this.elapsed), damage: 1, reward: 1 };
+    const s = endlessScaling(this.cycle);
+    return { hp: hpMultiplier(RUN_DURATION) * s.hp, damage: s.damage, reward: s.reward };
+  }
+
+  /** Ciclo atual do modo infinito (1 = primeiros 5 min após a vitória). */
+  get cycle() {
+    return this.endless ? 1 + Math.floor((this.elapsed - this.endlessStart) / ENDLESS_CYCLE) : 0;
+  }
+
+  spawnEnemy(def: EnemyDef, x?: number, y?: number, elite = false): Enemy | null {
     if (x === undefined || y === undefined) {
       const p = this.spawnPoint();
       x = p.x;
       y = p.y;
     }
-    const e = this.enemies.get(x, y, def.texture) as Enemy | null;
+    const e = this.enemies.get();
     if (!e) return null;
-    e.spawn(def, x, y, hpMultiplier(this.elapsed), elite);
+    const d = this.difficulty();
+    const curse = 1 + this.stats.curse;
+    e.spawn(def, x, y, d.hp * (def.id === 'demon' ? 1 : curse), d.damage, elite);
+    this.active.push(e);
     return e;
   }
 
-  /** Ponto logo fora da borda visível da tela, na direção `angle`. */
+  /** Ponto logo fora da borda visível, na direção `angle`. */
   private spawnPoint(angle = Math.random() * Math.PI * 2) {
     const hw = this.scale.width / 2 + 16;
     const hh = this.scale.height / 2 + 16;
@@ -329,20 +378,23 @@ export class GameScene extends Phaser.Scene {
   private updateEnemies(dt: number) {
     const px = this.player.x;
     const py = this.player.y;
-    const { width, height } = this.scale;
-    const farX = width * 0.75 + 40;
-    const farY = height * 0.75 + 40;
+    const farX = this.scale.width * 0.75 + 40;
+    const farY = this.scale.height * 0.75 + 40;
     const decay = Math.exp(-8 * dt);
     const t = this.elapsed;
-    const list = this.activeEnemies();
-    for (const e of list) {
+    this.grid.clear();
+    const list = this.active;
+    let w = 0;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      if (!e.active) continue;
+      list[w++] = e;
       let dx = px - e.x;
       let dy = py - e.y;
-      // Inimigos muito longe reaparecem à frente do jogador
       if (!e.boss && (Math.abs(dx) > farX || Math.abs(dy) > farY)) {
-        const ang = Math.atan2(this.facing.y, this.facing.x) + (Math.random() - 0.5) * 1.6;
-        const p = this.spawnPoint(ang);
-        e.setPosition(p.x, p.y);
+        const p = this.spawnPoint(Math.atan2(this.facing.y, this.facing.x) + (Math.random() - 0.5) * 1.6);
+        e.x = p.x;
+        e.y = p.y;
         dx = px - e.x;
         dy = py - e.y;
       }
@@ -354,57 +406,55 @@ export class GameScene extends Phaser.Scene {
         vx += (-dy / d) * wob;
         vy += (dx / d) * wob;
       }
-      e.setVelocity(vx + e.kbX, vy + e.kbY);
+      e.x += (vx + e.kbX) * dt;
+      e.y += (vy + e.kbY) * dt;
       e.kbX *= decay;
       e.kbY *= decay;
-      e.setFlipX(dx < 0);
-      e.setDepth(e.y);
+      e.flipX = dx < 0;
+      e.depth = e.y;
+      const f = Math.floor(t * (e.def.id === 'bat' ? 8 : 5) + e.phase) & 1;
+      if (f !== e.frameIdx) {
+        e.frameIdx = f;
+        e.setFrame(frameName(e.def.texture, f));
+      }
       if (e.flashUntil && t > e.flashUntil) {
         e.flashUntil = 0;
         if (e.elite) e.setTint(0xffcd75);
         else e.clearTint();
       }
+      this.grid.insert(e);
     }
-    if (this.game.getFrame() % 2 === 0) this.separate(list);
+    list.length = w;
+    this.separate(list);
   }
 
-  /** Empurra inimigos sobrepostos para que não virem um único bloco (hash espacial). */
+  /** Empurra inimigos sobrepostos (um terço por frame, para escalar). */
   private separate(list: Enemy[]) {
-    const cell = 14;
-    const grid = new Map<number, Enemy[]>();
-    const key = (cx: number, cy: number) => cx * 73856093 ^ cy * 19349663;
-    for (const e of list) {
-      const k = key(Math.floor(e.x / cell), Math.floor(e.y / cell));
-      const arr = grid.get(k);
-      if (arr) arr.push(e);
-      else grid.set(k, [e]);
-    }
-    for (const e of list) {
-      const cx = Math.floor(e.x / cell);
-      const cy = Math.floor(e.y / cell);
-      for (let ox = -1; ox <= 1; ox++) {
-        for (let oy = -1; oy <= 1; oy++) {
-          const arr = grid.get(key(cx + ox, cy + oy));
-          if (!arr) continue;
-          for (const o of arr) {
-            if (o === e) continue;
-            const dx = e.x - o.x;
-            const dy = e.y - o.y;
-            const min = e.worldRadius + o.worldRadius;
-            const d2 = dx * dx + dy * dy;
-            if (d2 >= min * min || d2 === 0) continue;
-            const d = Math.sqrt(d2);
-            const push = ((min - d) / d) * 0.25;
-            if (!e.boss) e.setPosition(e.x + dx * push, e.y + dy * push);
-          }
-        }
-      }
+    const part = this.frame % 3;
+    for (let i = part; i < list.length; i += 3) {
+      const e = list[i];
+      if (e.boss) continue;
+      this.grid.query(e.x, e.y, e.radius * 2, (o) => {
+        if (o === e) return;
+        const dx = e.x - o.x;
+        const dy = e.y - o.y;
+        const min = e.radius + o.radius;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= min * min || d2 === 0) return;
+        const d = Math.sqrt(d2);
+        const push = ((min - d) / d) * 0.35;
+        e.x += dx * push;
+        e.y += dy * push;
+      });
     }
   }
 
-  damageEnemy(e: Enemy, amount: number, knock = 1) {
-    if (!e.active) return;
-    e.hp -= amount;
+  /** Aplica dano (com crítico); retorna o dano causado. */
+  hitEnemy(e: Enemy, amount: number, knock = 1, element: Element = 'physical', canCrit = true): number {
+    if (!e.active) return 0;
+    const tier = canCrit ? rollCritTier(this.stats.critChance) : 0;
+    const dmg = amount * critMultiplier(this.stats, tier);
+    e.hp -= dmg;
     e.setTintFill(0xffffff);
     e.flashUntil = this.elapsed + 0.06;
     if (knock > 0 && e.def.knockback > 0) {
@@ -415,34 +465,42 @@ export class GameScene extends Phaser.Scene {
       e.kbX += (dx / d) * f;
       e.kbY += (dy / d) * f;
     }
-    this.floatText(e.x, e.y - 8 * e.scaleY, String(amount), '#f4f4f4');
+    if (this.stats.lifesteal > 0) this.hp = Math.min(this.stats.maxHp, this.hp + dmg * this.stats.lifesteal * 0.1);
+    const color = tier >= 2 ? '#ef7d57' : tier === 1 ? '#ffcd75' : ELEMENT_COLORS[element];
+    this.floatText(e.x, e.y - 8 * e.scaleY, formatNumber(dmg) + (tier >= 2 ? '!!' : tier === 1 ? '!' : ''), color, tier > 0);
     sfx('hit');
     if (e.hp <= 0) this.killEnemy(e, true);
+    return dmg;
   }
 
   private killEnemy(e: Enemy, drops: boolean) {
     const { x, y } = e;
     const tint = e.def.id === 'slime' ? 0x38b764 : e.def.id === 'bat' ? 0x5d275d : e.def.id === 'skeleton' ? 0xf4f4f4 : 0xb13e53;
     this.particles.setParticleTint(tint);
-    this.particles.explode(e.boss ? 40 : 6, x, y);
-    e.disableBody(true, true);
-    this.activeCacheFrame = -1;
+    this.particles.explode(e.boss ? 40 : 5, x, y);
+    e.kill();
     this.kills++;
     sfx('kill');
+    const reward = this.difficulty().reward;
     if (e === this.boss) {
       this.boss = null;
       this.cameras.main.flash(600, 255, 205, 117);
-      for (let i = 0; i < 30; i++) this.dropPickup('coin', x + Phaser.Math.Between(-30, 30), y + Phaser.Math.Between(-30, 30), 3);
-      this.time.delayedCall(2000, () => this.endRun(true));
+      for (let i = 0; i < 30; i++) this.dropPickup('coin', x + Phaser.Math.Between(-30, 30), y + Phaser.Math.Between(-30, 30), 3 * reward);
+      this.dropPickup('gem', x, y, e.xp * reward);
+      if (!this.endless) {
+        this.time.delayedCall(1500, () => this.openVictory());
+      } else {
+        this.events.emit('announce', 'CHEFE DERROTADO!');
+      }
       return;
     }
     if (!drops) return;
     this.dropPickup('gem', x, y, e.xp);
     if (e.elite) {
-      for (let i = 0; i < 8; i++) this.dropPickup('coin', x + Phaser.Math.Between(-16, 16), y + Phaser.Math.Between(-16, 16), 2);
+      for (let i = 0; i < 8; i++) this.dropPickup('coin', x + Phaser.Math.Between(-16, 16), y + Phaser.Math.Between(-16, 16), 2 * reward);
       this.dropPickup('heart', x + 10, y, 30);
     } else if (Math.random() < 0.05) {
-      this.dropPickup('coin', x + 4, y + 2, 1);
+      this.dropPickup('coin', x + 4, y + 2, reward);
     } else if (Math.random() < 0.006) {
       this.dropPickup('heart', x + 4, y + 2, 20);
     }
@@ -450,33 +508,66 @@ export class GameScene extends Phaser.Scene {
 
   private updateSpawns(prev: number, dt: number) {
     const t = this.elapsed;
-    if (t >= RUN_DURATION && !this.bossSpawned) {
+    // chefe da partida padrão
+    if (!this.endless && t >= RUN_DURATION && !this.bossSpawned) {
       this.bossSpawned = true;
-      this.boss = this.spawnEnemy(ENEMIES.demon);
-      this.cameras.main.shake(500, 0.01);
-      sfx('boss');
-      this.events.emit('announce', 'O CHEFE CHEGOU!');
+      this.spawnBoss();
     }
-    const wave = waveAt(Math.min(t, RUN_DURATION - 1));
-    const rate = this.bossSpawned ? 2 : wave.rate;
+    // chefes do modo infinito: um no fim de cada ciclo
+    if (this.endless) {
+      const due = Math.floor((t - this.endlessStart) / ENDLESS_CYCLE);
+      if (due > this.bossesSpawned) {
+        this.bossesSpawned = due;
+        this.spawnBoss();
+        this.events.emit('announce', `CICLO ${this.cycle}: INIMIGOS MAIS FORTES!`);
+      }
+    }
+
+    let rate: number;
+    let max: number;
+    let wave = waveAt(Math.min(t, RUN_DURATION - 1));
+    if (this.endless) {
+      const s = endlessScaling(this.cycle);
+      wave = WAVES[WAVES.length - 1];
+      rate = wave.rate * s.rate;
+      max = s.max;
+    } else {
+      rate = this.bossSpawned ? 2 : wave.rate;
+      max = this.bossSpawned ? 120 : wave.max;
+    }
+    rate *= 1 + this.stats.curse;
+    max = Math.min(MAX_ENEMIES, Math.round(max * (1 + this.stats.curse)));
     this.spawnAcc += rate * dt;
-    const alive = this.activeEnemies().length;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
-      if (alive >= Math.min(MAX_ENEMIES, this.bossSpawned ? 120 : wave.max)) continue;
+      if (this.active.length >= max) continue;
       const id = wave.pool[Math.floor(Math.random() * wave.pool.length)];
       this.spawnEnemy(ENEMIES[id]);
     }
-    if (isEliteTime(prev, t)) {
+    if (isEliteTime(prev, t) && (this.endless || t < RUN_DURATION)) {
       const id = wave.pool[wave.pool.length - 1];
       this.spawnEnemy(ENEMIES[id], undefined, undefined, true);
       this.events.emit('announce', 'UM INIMIGO ELITE SURGIU!');
     }
     const minute = Math.floor(t / 60);
-    if (wave.event && wave.minute === minute && !this.eventsDone.has(minute) && t - minute * 60 > 5) {
+    const event = this.endless ? (minute % 2 === 0 ? 'swarm' : 'ring') : wave.minute === minute ? wave.event : undefined;
+    if (event && !this.eventsDone.has(minute) && t - minute * 60 > 5) {
       this.eventsDone.add(minute);
-      this.runEvent(wave.event);
+      this.runEvent(event);
     }
+  }
+
+  private spawnBoss() {
+    const scale = this.endless ? endlessScaling(this.cycle).hp : 1;
+    const e = this.spawnEnemy(ENEMIES.demon);
+    if (e) {
+      e.maxHp = Math.round(ENEMIES.demon.hp * scale);
+      e.hp = e.maxHp;
+      this.boss = e;
+    }
+    this.cameras.main.shake(500, 0.01);
+    sfx('boss');
+    this.events.emit('announce', 'O CHEFE CHEGOU!');
   }
 
   private runEvent(kind: 'swarm' | 'ring') {
@@ -504,29 +595,40 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- Projéteis ----------
 
-  private onProjectileHit(p: Projectile, e: Enemy) {
-    if (!p.active || !e.active) return;
-    if (!WeaponSystem.projectileHit(p, e)) return;
-    this.damageEnemy(e, p.damage, p.kind === 'axe' ? 0.5 : 0.8);
-    if (p.pierce <= 0) p.disableBody(true, true);
-  }
-
   private updateProjectiles(dt: number) {
-    for (const p of this.projectiles.getChildren() as Projectile[]) {
+    for (const p of this.projectiles.items) {
       if (!p.active) continue;
       p.life -= dt;
+      if (p.life <= 0) {
+        p.kill();
+        continue;
+      }
+      p.vy += p.gravity * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
       if (p.spin) p.rotation += p.spin * dt;
-      if (p.life <= 0) p.disableBody(true, true);
+      this.grid.query(p.x, p.y, p.radius + 16, (e) => {
+        if (!e.active || p.hits.has(e.uid)) return;
+        const r = p.radius + e.radius;
+        if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 >= r * r) return;
+        p.hits.add(e.uid);
+        const dealt = this.hitEnemy(e, p.damage, p.kind === 'axe' ? 0.5 : 0.8, p.element);
+        if (p.owner) this.weapons.credit(p.owner, dealt);
+        p.pierce--;
+        if (p.pierce <= 0) {
+          p.kill();
+          return true;
+        }
+      });
     }
   }
 
   // ---------- Coletáveis ----------
 
   private dropPickup(kind: PickupKind, x: number, y: number, value: number) {
-    const active = this.pickups.countActive(true);
-    if (kind === 'gem' && active > 300) {
+    if (kind === 'gem' && this.pickups.countActive() > 300) {
       // muitas gemas: soma o valor numa gema existente
-      const gems = (this.pickups.getChildren() as Pickup[]).filter((p) => p.active && p.kind === 'gem');
+      const gems = this.pickups.items.filter((p) => p.active && p.kind === 'gem');
       const g = gems[Math.floor(Math.random() * gems.length)];
       if (g) {
         g.value += value;
@@ -534,27 +636,26 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     }
-    const p = this.pickups.get(x, y) as Pickup | null;
+    const p = this.pickups.get();
     if (!p) return;
-    p.setActive(true).setVisible(true).setPosition(x, y);
+    p.setActive(true).setVisible(true).setPosition(x, y).setDepth(-1);
     p.kind = kind;
     p.value = value;
     p.magnet = false;
     p.vel = 0;
-    p.setDepth(-1);
     if (kind === 'gem') this.setGemTexture(p);
-    else p.setTexture(kind);
+    else p.setFrame(frameName(kind));
   }
 
   private setGemTexture(p: Pickup) {
-    p.setTexture(p.value >= 10 ? 'gem_red' : p.value >= 3 ? 'gem_green' : 'gem');
+    p.setFrame(frameName(p.value >= 10 ? 'gem_red' : p.value >= 3 ? 'gem_green' : 'gem'));
   }
 
   private updatePickups(dt: number) {
     const px = this.player.x;
     const py = this.player.y;
     const mag2 = this.stats.magnet * this.stats.magnet;
-    for (const p of this.pickups.getChildren() as Pickup[]) {
+    for (const p of this.pickups.items) {
       if (!p.active) continue;
       const dx = px - p.x;
       const dy = py - p.y;
@@ -576,10 +677,10 @@ export class GameScene extends Phaser.Scene {
   private collect(p: Pickup) {
     p.setActive(false).setVisible(false);
     if (p.kind === 'gem') {
-      this.addXp(p.value * this.stats.xpGain);
+      this.addXp(p.value * xpMult(this.stats));
       sfx('pickup');
     } else if (p.kind === 'coin') {
-      this.gold += p.value * this.stats.goldGain;
+      this.gold += p.value * goldMult(this.stats);
       sfx('pickup');
     } else {
       this.hp = Math.min(this.stats.maxHp, this.hp + p.value);
@@ -588,12 +689,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Atrai todas as gemas (usado ao subir de nível com muitos itens ou por debug). */
-  vacuum() {
-    for (const p of this.pickups.getChildren() as Pickup[]) if (p.active) p.magnet = true;
-  }
-
-  // ---------- Experiência e nível ----------
+  // ---------- Experiência, nível e cartas ----------
 
   get xpNext() {
     return xpToNext(this.level);
@@ -609,33 +705,67 @@ export class GameScene extends Phaser.Scene {
     if (this.pendingLevels > 0 && this.state === 'playing') this.openLevelUp();
   }
 
+  private rollCurrent() {
+    this.currentOptions = rollOptions(this.loadout, this.numOptions, this.stats.luck, this.banned, this.lockedNext);
+  }
+
   private openLevelUp() {
     this.state = 'levelup';
     this.joy.x = this.joy.y = 0;
-    this.player.setVelocity(0, 0);
     sfx('levelup');
+    this.rollCurrent();
     this.scene.pause();
     this.scene.pause('Hud');
-    this.scene.launch('LevelUp', { options: rollOptions(this.loadout, 3), rerolls: this.rerolls });
+    this.scene.launch('LevelUp');
   }
 
-  rerollOptions(): UpgradeOption[] | null {
-    if (this.rerolls <= 0) return null;
+  reroll(): boolean {
+    if (this.rerolls <= 0) return false;
     this.rerolls--;
-    return rollOptions(this.loadout, 3);
+    this.rollCurrent();
+    return true;
+  }
+
+  /** Remove a opção do sorteio desta partida e troca a carta por outra. */
+  banish(index: number): boolean {
+    const opt = this.currentOptions[index];
+    if (!opt || this.banishes <= 0 || opt.kind === 'gold' || opt.kind === 'heal') return false;
+    this.banishes--;
+    const key = optionKey(opt);
+    this.banned.add(key);
+    this.lockedNext = this.lockedNext.filter((o) => optionKey(o) !== key);
+    const others = this.currentOptions.filter((_, i) => i !== index);
+    const [replacement] = rollOptions(this.loadout, 1, this.stats.luck, new Set([...this.banned, ...others.map(optionKey)]));
+    this.currentOptions[index] = replacement;
+    return true;
+  }
+
+  /** Fixa a carta: ela volta na próxima tela de nível. */
+  lock(index: number): boolean {
+    const opt = this.currentOptions[index];
+    if (!opt || this.locks <= 0 || this.isLocked(opt)) return false;
+    this.locks--;
+    this.lockedNext.push(opt);
+    return true;
+  }
+
+  isLocked(opt: UpgradeOption) {
+    return this.lockedNext.some((o) => optionKey(o) === optionKey(opt));
   }
 
   chooseUpgrade(opt: UpgradeOption) {
     if (opt.kind === 'gold') this.gold += 25;
     else if (opt.kind === 'heal') this.hp = Math.min(this.stats.maxHp, this.hp + 40);
     else applyOption(this.loadout, opt);
+    this.lockedNext = this.lockedNext.filter((o) => optionKey(o) !== optionKey(opt));
     const oldMax = this.stats.maxHp;
-    this.stats = computeStats(this.char, this.meta, this.loadout.passives);
+    this.recomputeStats();
     if (this.stats.maxHp > oldMax) this.hp += this.stats.maxHp - oldMax;
     this.weapons.sync(this.loadout.weapons);
     this.pendingLevels--;
     if (this.pendingLevels > 0) {
-      this.scene.get('LevelUp').scene.restart({ options: rollOptions(this.loadout, 3), rerolls: this.rerolls });
+      this.rollCurrent();
+      this.scene.get('LevelUp').scene.restart();
       return;
     }
     this.scene.stop('LevelUp');
@@ -644,7 +774,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.resume('Hud');
   }
 
-  // ---------- Pausa e fim ----------
+  // ---------- Pausa, vitória e fim ----------
 
   openPause() {
     if (this.state !== 'playing') return;
@@ -662,25 +792,55 @@ export class GameScene extends Phaser.Scene {
     this.scene.resume('Hud');
   }
 
-  endRun(victory: boolean) {
-    if (this.state === 'over') return;
-    this.state = 'over';
-    this.physics.pause();
-    this.player.setVelocity(0, 0);
-    const result: RunResult = {
+  private openVictory() {
+    if (this.state !== 'playing') {
+      // se uma tela de nível estiver aberta, tenta de novo logo depois
+      this.time.delayedCall(500, () => this.openVictory());
+      return;
+    }
+    this.state = 'victory';
+    this.joy.x = this.joy.y = 0;
+    this.scene.pause();
+    this.scene.pause('Hud');
+    this.scene.launch('Victory', this.result(true));
+  }
+
+  /** Escolha na tela de vitória: seguir no modo infinito. */
+  continueEndless() {
+    this.scene.stop('Victory');
+    this.endless = true;
+    this.endlessStart = this.elapsed;
+    this.bossesSpawned = 0;
+    this.state = 'playing';
+    this.scene.resume();
+    this.scene.resume('Hud');
+    this.events.emit('announce', 'MODO INFINITO: CICLO 1');
+  }
+
+  result(victory: boolean): RunResult {
+    return {
       victory,
+      endless: this.endless,
+      cycle: this.cycle,
       time: this.elapsed,
       kills: this.kills,
       level: this.level,
       gold: Math.floor(this.gold),
       character: this.char.id,
+      weapons: this.weapons.owned,
     };
+  }
+
+  endRun(victory: boolean) {
+    if (this.state === 'over') return;
+    this.state = 'over';
+    const result = this.result(victory);
     this.time.delayedCall(victory ? 0 : 600, () => {
       this.scene.pause();
       this.scene.stop('Hud');
       this.scene.launch('GameOver', result);
     });
-    if (!victory) {
+    if (!victory || this.endless) {
       this.player.setTint(0xb13e53);
       this.tweens.add({ targets: this.player, angle: 90, alpha: 0.5, duration: 500 });
     }
@@ -688,14 +848,15 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- Textos flutuantes ----------
 
-  floatText(x: number, y: number, str: string, color: string) {
+  floatText(x: number, y: number, str: string, color: string, big = false) {
     let t = this.dmgTexts.find((d) => !d.active);
     if (!t) {
-      if (this.dmgTexts.length >= 30) return;
+      if (this.dmgTexts.length >= 40) return;
       t = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '8px', color: '#ffffff', stroke: '#1a1c2c', strokeThickness: 2 }).setOrigin(0.5);
       this.dmgTexts.push(t);
     }
     t.setActive(true).setVisible(true).setPosition(Math.round(x), Math.round(y)).setText(str).setColor(color).setAlpha(1).setDepth(100005);
+    t.setScale(big ? 1.5 : 1);
     t.setData('life', 0.6);
   }
 
@@ -710,8 +871,67 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Itens possuídos, para a HUD. */
+  // ---------- Cenário ----------
+
+  /** Decoração gerada por blocos (determinística) ao redor do jogador. */
+  private updateDecor() {
+    const CHUNK = 192;
+    const cx = Math.floor(this.player.x / CHUNK);
+    const cy = Math.floor(this.player.y / CHUNK);
+    const needed = new Set<string>();
+    for (let x = cx - 2; x <= cx + 2; x++) {
+      for (let y = cy - 3; y <= cy + 3; y++) {
+        const key = `${x},${y}`;
+        needed.add(key);
+        if (this.decor.has(key)) continue;
+        let seed = (x * 374761393 + y * 668265263) ^ 0x5bd1e995;
+        const rnd = () => {
+          seed = (seed ^ (seed >>> 13)) * 1274126177;
+          seed ^= seed >>> 16;
+          return (seed >>> 0) / 4294967296;
+        };
+        const imgs: Phaser.GameObjects.Image[] = [];
+        const n = 2 + Math.floor(rnd() * 4);
+        for (let i = 0; i < n; i++) {
+          const r = rnd();
+          const tex = r < 0.3 ? 'tree' : r < 0.55 ? 'rock' : r < 0.85 ? 'bush' : 'mushroom';
+          const px = x * CHUNK + rnd() * CHUNK;
+          const py = y * CHUNK + rnd() * CHUNK;
+          if (Math.hypot(px, py) < 60) continue;
+          const img = this.add.image(Math.round(px), Math.round(py), 'atlas', frameName(tex)).setOrigin(0.5, 1);
+          img.setDepth(tex === 'tree' ? py : -3);
+          imgs.push(img);
+        }
+        this.decor.set(key, imgs);
+      }
+    }
+    for (const [key, imgs] of this.decor) {
+      if (needed.has(key)) continue;
+      imgs.forEach((i) => i.destroy());
+      this.decor.delete(key);
+    }
+  }
+
+  // ---------- Depuração e testes ----------
+
+  /** Gera `n` inimigos de uma vez (teste de estresse). */
+  debugSpawn(n: number, id: EnemyId = 'skeleton') {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 60 + Math.random() * 400;
+      this.spawnEnemy(ENEMIES[id], this.player.x + Math.cos(a) * r, this.player.y + Math.sin(a) * r);
+    }
+  }
+
   get ownedWeapons() {
     return this.weapons.owned;
+  }
+
+  get tagCounts() {
+    return this.weapons.tagCounts;
+  }
+
+  refreshWeapons() {
+    this.weapons.sync(this.loadout.weapons);
   }
 }

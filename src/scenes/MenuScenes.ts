@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CHARACTERS } from '../data/characters';
 import { META_UPGRADES, metaCost } from '../data/meta';
 import { WEAPONS } from '../data/weapons';
+import { formatNumber } from '../core/format';
 import { createAnimations, generateTextures } from '../art/textures';
 import { loadSave, writeSave } from '../systems/save';
 import { setSoundEnabled, sfx, unlockAudio } from '../systems/sfx';
@@ -124,7 +125,7 @@ export class MenuScene extends Phaser.Scene {
     if (save.bestTime > 0) {
       text(this, width / 2, height - 30, `Recorde: ${formatTime(save.bestTime)}  |  ${save.bestKills} abates`, 8, '#566c86');
     }
-    text(this, width / 2, height - 14, 'Arraste para mover. Ataques são automáticos.', 8, '#566c86').setScale(0.75);
+    text(this, width / 2, height - 14, 'Arraste o dedo para mover', 8, '#566c86');
 
     this.input.keyboard?.once('keydown-ENTER', () => this.startGame());
   }
@@ -141,6 +142,9 @@ export class MenuScene extends Phaser.Scene {
 }
 
 export class ShopScene extends Phaser.Scene {
+  private scrollY = 0;
+  private dragged = false;
+
   constructor() {
     super('Shop');
   }
@@ -151,35 +155,67 @@ export class ShopScene extends Phaser.Scene {
     menuBackground(this);
     goldLabel(this, save.gold);
     text(this, width / 2, 40, 'MELHORIAS', 16, '#ffcd75').setStroke('#1a1c2c', 4);
-    text(this, width / 2, 58, 'Permanentes para todas as partidas', 8, '#94b0c2').setScale(0.75);
+    text(this, width / 2, 58, 'Permanentes, sem limite', 8, '#94b0c2');
 
-    const rowH = Math.min(46, (height - 140) / META_UPGRADES.length);
+    const top = 72;
+    const bottom = height - 56;
+    const rowH = 48;
+    const list = this.add.container(0, top);
     META_UPGRADES.forEach((def, i) => {
       const lvl = save.meta[def.id] ?? 0;
-      const maxed = lvl >= def.maxLevel;
+      const maxed = def.maxLevel !== undefined && lvl >= def.maxLevel;
       const cost = metaCost(def, lvl);
-      const y = 72 + i * rowH + rowH / 2;
-      panel(this, width / 2, y, width - 20, rowH - 4, COLORS.panelDark);
-      const icon = this.add.image(26, y, def.icon);
-      icon.setScale(Math.floor(20 / Math.max(icon.width, icon.height)) || 1);
-      this.add.text(44, y - 9, def.name, { fontFamily: FONT, fontSize: '8px', color: '#f4f4f4' }).setOrigin(0, 0.5);
-      this.add.text(44, y + 3, def.description, { fontFamily: FONT, fontSize: '8px', color: '#94b0c2' }).setOrigin(0, 0.5).setScale(0.75);
-      for (let p = 0; p < def.maxLevel; p++) {
-        this.add.rectangle(44 + p * 9, y + 13, 7, 4, p < lvl ? COLORS.accent : 0x566c86).setOrigin(0, 0.5);
-      }
+      const y = i * rowH + rowH / 2;
       const can = !maxed && save.gold >= cost;
-      button(this, width - 50, y, maxed ? 'MÁX' : String(cost), () => {
-        if (!can) return;
+      const row = this.add.container(0, y);
+      row.add(panel(this, width / 2, 0, width - 20, rowH - 4, COLORS.panelDark));
+      const icon = this.add.image(26, 0, def.icon);
+      icon.setScale(Math.floor(20 / Math.max(icon.width, icon.height)) || 1);
+      row.add(icon);
+      row.add(this.add.text(44, -10, def.name, { fontFamily: FONT, fontSize: '8px', color: '#f4f4f4' }).setOrigin(0, 0.5));
+      row.add(this.add.text(44, 2, def.description, { fontFamily: FONT, fontSize: '8px', color: '#94b0c2' }).setOrigin(0, 0.5));
+      const lvlText = def.maxLevel !== undefined ? `Nível ${lvl}/${def.maxLevel}` : `Nível ${lvl}`;
+      row.add(this.add.text(44, 13, lvlText, { fontFamily: FONT, fontSize: '8px', color: lvl > 0 ? '#ffcd75' : '#566c86' }).setOrigin(0, 0.5));
+      row.add(button(this, width - 50, 0, maxed ? 'MÁX' : formatNumber(cost), () => {
+        if (this.dragged || !can) return;
         save.gold -= cost;
         save.meta[def.id] = lvl + 1;
         writeSave(save);
         sfx('levelup');
         this.scene.restart();
-      }, { width: 64, height: Math.min(26, rowH - 12), color: maxed ? '#38b764' : can ? '#ffcd75' : '#566c86', disabled: !can && !maxed });
+      }, { width: 64, height: 26, color: maxed ? '#38b764' : can ? '#ffcd75' : '#566c86', disabled: !can && !maxed }));
+      list.add(row);
     });
 
-    button(this, width / 2, height - 30, 'VOLTAR', () => {
+    const maskShape = this.make.graphics({}, false).fillRect(0, top, width, bottom - top);
+    list.setMask(maskShape.createGeometryMask());
+    const contentH = META_UPGRADES.length * rowH;
+    const minY = Math.min(0, bottom - top - contentH);
+    this.scrollY = Phaser.Math.Clamp(this.scrollY, minY, 0);
+    list.y = top + this.scrollY;
+
+    let startY = 0;
+    let startScroll = 0;
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      startY = p.y;
+      startScroll = this.scrollY;
+      this.dragged = false;
+    });
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (!p.isDown) return;
+      const dy = p.y - startY;
+      if (Math.abs(dy) > 6) this.dragged = true;
+      this.scrollY = Phaser.Math.Clamp(startScroll + dy, minY, 0);
+      list.y = top + this.scrollY;
+    });
+    this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => {
+      this.scrollY = Phaser.Math.Clamp(this.scrollY - dy * 0.5, minY, 0);
+      list.y = top + this.scrollY;
+    });
+
+    button(this, width / 2, height - 28, 'VOLTAR', () => {
       sfx('select');
+      this.scrollY = 0;
       this.scene.start('Menu');
     }, { width: 160, height: 30 });
   }

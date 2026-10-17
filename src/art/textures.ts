@@ -14,6 +14,20 @@ function drawFrame(ctx: CanvasRenderingContext2D, rows: string[], ox: number, sw
   });
 }
 
+interface AtlasPart {
+  name: string;
+  canvas: HTMLCanvasElement;
+  sx: number;
+  w: number;
+  h: number;
+}
+
+/** Todas as imagens também vão para um atlas único ('atlas'), para o WebGL desenhar tudo num só lote. */
+let atlasParts: AtlasPart[] = [];
+
+/** Nome do quadro no atlas: `slime:0`, `coin:0`... */
+export const frameName = (key: string, i = 0) => `${key}:${i}`;
+
 function addPixelSprite(scene: Phaser.Scene, key: string, base: string, swap: Record<string, string> = {}) {
   const def = SPRITES[base];
   const frames = def.frames.map((f) => expandFrame(f, def.mirror));
@@ -25,7 +39,10 @@ function addPixelSprite(scene: Phaser.Scene, key: string, base: string, swap: Re
   const ctx = canvas.getContext('2d')!;
   frames.forEach((rows, i) => drawFrame(ctx, rows, i * w, swap));
   const tex = scene.textures.addCanvas(key, canvas)!;
-  frames.forEach((_, i) => tex.add(i, 0, i * w, 0, w, h));
+  frames.forEach((_, i) => {
+    tex.add(i, 0, i * w, 0, w, h);
+    atlasParts.push({ name: frameName(key, i), canvas, sx: i * w, w, h });
+  });
 }
 
 /** Gera um canvas com função de desenho e registra como textura. */
@@ -35,6 +52,36 @@ function addCanvasTexture(scene: Phaser.Scene, key: string, w: number, h: number
   canvas.height = h;
   draw(canvas.getContext('2d')!);
   scene.textures.addCanvas(key, canvas);
+  if (key !== 'ground') atlasParts.push({ name: frameName(key), canvas, sx: 0, w, h });
+}
+
+/** Empacota as partes em prateleiras numa textura única. */
+function buildAtlas(scene: Phaser.Scene) {
+  const width = 512;
+  const pad = 1;
+  let x = 0;
+  let y = 0;
+  let shelf = 0;
+  const placed: { part: AtlasPart; x: number; y: number }[] = [];
+  const parts = [...atlasParts].sort((a, b) => b.h - a.h);
+  for (const part of parts) {
+    if (x + part.w > width) {
+      x = 0;
+      y += shelf + pad;
+      shelf = 0;
+    }
+    placed.push({ part, x, y });
+    x += part.w + pad;
+    shelf = Math.max(shelf, part.h);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = y + shelf;
+  const ctx = canvas.getContext('2d')!;
+  for (const { part, x: px, y: py } of placed) ctx.drawImage(part.canvas, part.sx, 0, part.w, part.h, px, py, part.w, part.h);
+  const tex = scene.textures.addCanvas('atlas', canvas)!;
+  for (const { part, x: px, y: py } of placed) tex.add(part.name, 0, px, py, part.w, part.h);
+  atlasParts = [];
 }
 
 /** RNG determinístico simples (mulberry32) para texturas procedurais. */
@@ -49,6 +96,7 @@ function seeded(seed: number) {
 }
 
 export function generateTextures(scene: Phaser.Scene) {
+  atlasParts = [];
   for (const key of Object.keys(SPRITES)) addPixelSprite(scene, key, key);
   for (const [key, { base, swap }] of Object.entries(PALETTE_SWAPS)) addPixelSprite(scene, key, base, swap);
 
@@ -138,6 +186,7 @@ export function generateTextures(scene: Phaser.Scene) {
       }
     }
   });
+  buildAtlas(scene);
 }
 
 export function createAnimations(scene: Phaser.Scene) {

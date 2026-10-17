@@ -1,83 +1,182 @@
 import { describe, expect, it } from 'vitest';
-import { SPRITES, PALETTE, PALETTE_SWAPS, expandFrame } from '../src/art/sprites';
+import { PALETTE, PALETTE_SWAPS, SPRITES, expandFrame } from '../src/art/sprites';
+import { formatNumber } from '../src/core/format';
+import {
+  BASE_STATS, combine, cooldownMult, critMultiplier, damageTaken, defenseReduction, moveSpeed, rollCritTier,
+} from '../src/core/stats';
+import { STAT_CARDS } from '../src/data/cards';
 import { CHARACTERS } from '../src/data/characters';
-import { WAVES, hpMultiplier, isEliteTime, waveAt, xpToNext } from '../src/data/waves';
-import { WEAPONS, WEAPON_IDS, MAX_WEAPONS } from '../src/data/weapons';
-import { computeStats, damageAfterArmor } from '../src/systems/stats';
-import { allOptions, applyOption, rollOptions, type Loadout } from '../src/systems/upgrades';
+import { META_UPGRADES, metaCost, metaModifiers } from '../src/data/meta';
+import { applyTagBonuses, countTags } from '../src/data/tags';
+import { RUN_DURATION, WAVES, endlessScaling, isEliteTime, waveAt, xpToNext } from '../src/data/waves';
+import { MAX_PHYSICAL_AMOUNT, WEAPONS, WEAPON_IDS, capAmount, weaponStatsAt } from '../src/data/weapons';
+import { migrate } from '../src/systems/save';
+import { applyOption, describeOption, loadoutModifiers, optionKey, rollOptions, rollRarity, type Loadout } from '../src/systems/upgrades';
 
 describe('sprites', () => {
-  it('todas as linhas de cada quadro têm a mesma largura e só usam cores da paleta', () => {
+  it('todas as linhas têm a mesma largura e só usam cores da paleta', () => {
     for (const [key, def] of Object.entries(SPRITES)) {
       for (const frame of def.frames) {
         const rows = expandFrame(frame, def.mirror);
-        const w = rows[0].length;
         for (const r of rows) {
-          expect(r.length, `${key}: "${r}"`).toBe(w);
+          expect(r.length, `${key}: "${r}"`).toBe(rows[0].length);
           for (const ch of r) if (ch !== '.') expect(PALETTE[ch], `${key}: cor '${ch}'`).toBeDefined();
         }
       }
-      const sizes = def.frames.map((f) => `${f.length}x${f[0].length}`);
-      expect(new Set(sizes).size, key).toBe(1);
+      expect(new Set(def.frames.map((f) => `${f.length}x${f[0].length}`)).size, key).toBe(1);
     }
     for (const { base } of Object.values(PALETTE_SWAPS)) expect(SPRITES[base]).toBeDefined();
   });
 });
 
-describe('ondas', () => {
-  it('escolhe a onda pelo minuto', () => {
+describe('atributos', () => {
+  it('combina base, valores fixos e percentuais', () => {
+    const s = combine(BASE_STATS, [{ stat: 'maxHp', flat: 20 }, { stat: 'maxHp', pct: 0.5 }, { stat: 'power', flat: 0.25 }]);
+    expect(s.maxHp).toBe((100 + 20) * 1.5);
+    expect(s.power).toBeCloseTo(0.25);
+  });
+  it('recarga nunca chega a zero e sempre melhora', () => {
+    let prev = Infinity;
+    for (const as of [0, 1, 10, 100, 1e6]) {
+      const m = cooldownMult({ ...BASE_STATS, attackSpeed: as });
+      expect(m).toBeGreaterThan(0);
+      expect(m).toBeLessThan(prev);
+      prev = m;
+    }
+  });
+  it('crítico acima de 100% vira supercrítico', () => {
+    expect(rollCritTier(0.5, () => 0.4)).toBe(1);
+    expect(rollCritTier(0.5, () => 0.6)).toBe(0);
+    expect(rollCritTier(1.3, () => 0.2)).toBe(2);
+    expect(rollCritTier(2, () => 0.99)).toBe(2);
+    expect(critMultiplier({ ...BASE_STATS, critDamage: 2 }, 2)).toBe(4);
+  });
+  it('defesa tem retorno decrescente e nunca bloqueia tudo', () => {
+    expect(defenseReduction({ ...BASE_STATS, defense: 20 })).toBeCloseTo(0.5);
+    expect(defenseReduction({ ...BASE_STATS, defense: 1e9 })).toBeLessThan(1);
+    expect(damageTaken(10, { ...BASE_STATS, defense: 1e9 })).toBe(1);
+  });
+  it('velocidade cresce mais devagar acima do dobro', () => {
+    const fast = moveSpeed({ ...BASE_STATS, moveSpeed: 600 });
+    expect(fast).toBeGreaterThan(120);
+    expect(fast).toBeLessThan(600);
+  });
+});
+
+describe('armas', () => {
+  it('crescem sem teto e despertam a cada 10 níveis', () => {
+    for (const id of WEAPON_IDS) {
+      const def = WEAPONS[id];
+      const l9 = weaponStatsAt(def, 9);
+      const l10 = weaponStatsAt(def, 10);
+      const l200 = weaponStatsAt(def, 200);
+      expect(l10.damage).toBeGreaterThan(l9.damage * 1.4);
+      expect(l200.damage).toBeGreaterThan(l10.damage);
+      expect(l200.cooldown).toBeGreaterThan(0);
+    }
+  });
+  it('quantidade acima do limite vira dano', () => {
+    const s = capAmount({ ...WEAPONS.wand.base, amount: MAX_PHYSICAL_AMOUNT + 5, damage: 100 });
+    expect(s.amount).toBe(MAX_PHYSICAL_AMOUNT);
+    expect(s.damage).toBeCloseTo(160);
+  });
+  it('bônus de tag só ativa com armas suficientes', () => {
+    const counts = countTags([WEAPONS.wand.tags, WEAPONS.axe.tags, WEAPONS.knives.tags]);
+    const s = { ...WEAPONS.wand.base };
+    applyTagBonuses(s, WEAPONS.wand.tags, counts);
+    expect(s.amount).toBe(WEAPONS.wand.base.amount + 1); // 3 armas de projétil
+  });
+});
+
+describe('cartas', () => {
+  const empty = (): Loadout => ({ weapons: {}, stats: {} });
+  it('sorteia opções distintas, sem limite de armas', () => {
+    const loadout = empty();
+    for (const id of WEAPON_IDS) loadout.weapons[id] = 3;
+    const opts = rollOptions(loadout, 6, 0);
+    expect(opts).toHaveLength(6);
+    expect(new Set(opts.map(optionKey)).size).toBe(6);
+  });
+  it('banidas nunca aparecem e fixadas vêm primeiro', () => {
+    const banned = new Set(WEAPON_IDS.map((id) => `w:${id}`));
+    const locked = [{ kind: 'stat' as const, stat: 'luck' as const, rarity: 2 }];
+    for (let i = 0; i < 50; i++) {
+      const opts = rollOptions(empty(), 4, 0, banned, locked);
+      expect(opts[0]).toEqual(locked[0]);
+      expect(opts.every((o) => o.kind !== 'weapon')).toBe(true);
+    }
+  });
+  it('sorte aumenta a chance de cartas raras', () => {
+    let seed = 1;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const count = (luck: number) => {
+      let rare = 0;
+      for (let i = 0; i < 5000; i++) if (rollRarity(luck, rnd) >= 2) rare++;
+      return rare;
+    };
+    expect(count(200)).toBeGreaterThan(count(0) * 2);
+  });
+  it('raridade multiplica níveis e valores', () => {
+    const loadout = empty();
+    applyOption(loadout, { kind: 'weapon', id: 'axe', rarity: 3 });
+    expect(loadout.weapons.axe).toBe(5);
+    applyOption(loadout, { kind: 'stat', stat: 'power', rarity: 1 });
+    const mods = loadoutModifiers(loadout);
+    expect(mods[0].flat).toBeCloseTo(0.3);
+  });
+  it('toda carta de atributo tem descrição com antes → depois', () => {
+    const loadout = empty();
+    for (const c of STAT_CARDS) {
+      const info = describeOption({ kind: 'stat', stat: c.stat, rarity: 0 }, loadout, BASE_STATS, (m) => combine(BASE_STATS, m));
+      expect(info.change).toContain('>');
+    }
+  });
+});
+
+describe('ondas e progressão', () => {
+  it('partida padrão dura 15 minutos', () => {
+    expect(RUN_DURATION).toBe(900);
+    expect(waveAt(14 * 60 + 30).minute).toBe(14);
     expect(waveAt(0)).toBe(WAVES[0]);
-    expect(waveAt(61).minute).toBe(1);
-    expect(waveAt(599).minute).toBe(9);
   });
-  it('vida dos inimigos cresce com o tempo', () => {
-    expect(hpMultiplier(0)).toBe(1);
-    expect(hpMultiplier(300)).toBeGreaterThan(2);
+  it('modo infinito escala sem teto', () => {
+    expect(endlessScaling(5).hp).toBeGreaterThan(endlessScaling(4).hp);
+    expect(endlessScaling(5).reward).toBeGreaterThan(endlessScaling(1).reward);
   });
-  it('elite aparece uma vez no meio de cada minuto a partir de 1:30', () => {
+  it('elite surge uma vez por minuto a partir de 1:30', () => {
     let count = 0;
     for (let t = 0; t < 600; t += 0.016) if (isEliteTime(t, t + 0.016)) count++;
     expect(count).toBe(9);
   });
   it('xp necessária cresce', () => {
     expect(xpToNext(1)).toBe(5);
-    expect(xpToNext(10)).toBeGreaterThan(xpToNext(5));
+    expect(xpToNext(20)).toBeGreaterThan(xpToNext(10));
+  });
+  it('melhorias permanentes sem teto têm preço crescente', () => {
+    const def = META_UPGRADES.find((d) => d.id === 'power')!;
+    expect(def.maxLevel).toBeUndefined();
+    expect(metaCost(def, 50)).toBeGreaterThan(metaCost(def, 49));
+    const mods = metaModifiers({ power: 10 });
+    expect(mods[0].flat).toBeCloseTo(0.5);
+  });
+  it('heróis definem arma inicial válida', () => {
+    for (const c of CHARACTERS) expect(WEAPONS[c.weapon]).toBeDefined();
+  });
+  it('save antigo é migrado', () => {
+    const s = migrate({ gold: 50, meta: { might: 2, armor: 1, reroll: 1 } });
+    expect(s.meta.power).toBe(2);
+    expect(s.meta.defense).toBe(1);
+    expect(s.meta.reroll).toBe(1);
+    expect(s.gold).toBe(50);
   });
 });
 
-describe('melhorias', () => {
-  it('nunca oferece arma nova acima do limite de slots', () => {
-    const loadout: Loadout = { weapons: {}, passives: {} };
-    WEAPON_IDS.slice(0, MAX_WEAPONS).forEach((id) => (loadout.weapons[id] = 1));
-    const opts = allOptions(loadout);
-    for (const o of opts) if (o.kind === 'weapon') expect(loadout.weapons[o.id]).toBeDefined();
-  });
-  it('sorteia opções distintas e aplica nível', () => {
-    const loadout: Loadout = { weapons: { wand: 1 }, passives: {} };
-    const opts = rollOptions(loadout, 3, () => 0.5);
-    expect(opts).toHaveLength(3);
-    expect(new Set(opts.map((o) => JSON.stringify(o))).size).toBe(3);
-    applyOption(loadout, { kind: 'weapon', id: 'wand', nextLevel: 2 });
-    expect(loadout.weapons.wand).toBe(2);
-  });
-  it('com tudo no máximo oferece bônus', () => {
-    const loadout: Loadout = { weapons: {}, passives: {} };
-    WEAPON_IDS.slice(0, MAX_WEAPONS).forEach((id) => (loadout.weapons[id] = WEAPONS[id].levels.length));
-    for (const o of allOptions({ weapons: {}, passives: {} })) if (o.kind === 'passive') loadout.passives[o.id] = 5;
-    const opts = rollOptions(loadout, 3);
-    expect(opts.every((o) => o.kind === 'gold' || o.kind === 'heal')).toBe(true);
-  });
-  it('cada arma tem textos de melhoria para todos os níveis', () => {
-    for (const w of Object.values(WEAPONS)) expect(w.upgrades.length).toBe(w.levels.length - 1);
-  });
-});
-
-describe('atributos', () => {
-  it('combina personagem, meta e passivas', () => {
-    const knight = CHARACTERS[0];
-    const s = computeStats(knight, { maxHp: 2, might: 1 }, { vigor: 1, might: 2 });
-    expect(s.maxHp).toBe(knight.maxHp + 20 + 20);
-    expect(s.might).toBeCloseTo(1.25);
-    expect(damageAfterArmor(5, 10)).toBe(1);
+describe('formatação', () => {
+  it('números grandes', () => {
+    expect(formatNumber(950)).toBe('950');
+    expect(formatNumber(1200)).toBe('1,2K');
+    expect(formatNumber(3_400_000)).toBe('3,4M');
+    expect(formatNumber(15_000)).toBe('15K');
+    expect(formatNumber(1.5e30)).toContain('e');
   });
 });

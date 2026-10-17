@@ -9,18 +9,22 @@ RPG 2D de sobrevivência em pixel art para Android e iOS (e navegador). Escolha 
 - **Subir de nível:** colete as gemas que os inimigos deixam e escolha 1 de 3 melhorias.
 - **Pausar:** botão `II` (ou ESC/P no computador; botão voltar no Android).
 
-## Conteúdo
+## Conteúdo e sistemas (Marco 1)
 
-| Tipo | Itens |
-| --- | --- |
-| Heróis | Cavaleiro (Espada), Maga (Varinha), Caçadora (Adagas, 300 de ouro), Bárbaro (Machado, 600 de ouro) |
-| Armas (até 5, nível 6) | Varinha Mágica, Espada, Machado, Orbe Sagrado, Aura de Fogo, Raio, Adagas |
-| Passivas (até 6, nível 5) | Força, Vigor, Botas, Tomo Arcano, Ímã, Erva Curativa, Armadura, Sabedoria |
-| Inimigos | Slime, Morcego, Esqueleto, Orc, elites dourados a cada minuto e o Demônio Ancestral (chefe aos 10:00) |
-| Eventos | Revoadas de morcegos e cercos em anel |
-| Melhorias permanentes | Vitalidade, Poder, Couraça, Agilidade, Atração, Crescimento, Ganância, Sorte (trocar opções), Renascer |
+O design completo está em [docs/GDD.md](docs/GDD.md).
 
-Toda a arte é gerada por código a partir de matrizes de pixels (`src/art/sprites.ts`) e os sons são sintetizados com WebAudio (`src/systems/sfx.ts`), então não há arquivos de asset.
+- **Sem limite de armas:** qualquer arma pode aparecer a qualquer momento, e todas sobem de nível sem teto. A cada 10 níveis a arma **desperta** (dano ×1,5, +1 quantidade, visual dourado).
+- **Armas modulares** (`src/data/weapons.ts`): padrão de ataque + elemento + tags + ciclo de crescimento. Hoje: Varinha, Espada, Machado, Orbe, Aura de Fogo, Raio, Adagas.
+- **Bônus de tags** (`src/data/tags.ts`): várias armas com a mesma tag (Projétil, Corpo a corpo, Feitiço, Área...) fortalecem todas elas.
+- **Atributos globais sem teto** (`src/core/stats.ts`): dano, vel. de ataque, quantidade, área, crítico (acima de 100% vira supercrítico), defesa e esquiva com retorno decrescente, sorte, maldição etc.
+- **Cartas com raridade:** Comum (+1), Rara (+2), Épica (+3), Lendária (+5); a Sorte aumenta a chance das raras. Cada carta mostra o antes e depois.
+- **Rolar, Banir e Fixar** liberados na loja de melhorias.
+- **Partida de 15 min + chefe**; ao vencer, dá para continuar no **modo infinito** (ciclos de 5 min, cada um com chefe e inimigos mais fortes; morrer ali não é derrota).
+- **Melhorias permanentes sem teto** na loja (com rolagem).
+- **Estatísticas pós-partida:** dano causado por arma.
+- Heróis: Cavaleiro, Maga, Caçadora (300 de ouro), Bárbaro (600 de ouro).
+
+Toda a arte é gerada por código a partir de matrizes de pixels (`src/art/sprites.ts`) e empacotada num atlas único; os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
 
 ## Desenvolvimento
 
@@ -32,7 +36,8 @@ npm run dev          # servidor local (abre no celular pela mesma rede usando o 
 npm test             # testes de lógica (vitest)
 npm run build        # build web em dist/
 npm run build:single # um único dist-single/index.html com tudo embutido
-npm run smoke        # abre o jogo num Chromium headless, joga e salva screenshots em screenshots/
+npm run smoke        # abre o jogo num Chromium headless, passa por todas as telas e salva screenshots
+npm run stress       # 2.000 inimigos + build grande; mede FPS e tempo de lógica por frame
 ```
 
 ### Estrutura
@@ -41,10 +46,11 @@ npm run smoke        # abre o jogo num Chromium headless, joga e salva screensho
 src/
   main.ts              configuração do Phaser (resolução 360px de largura, retrato)
   art/                 pixel art (matrizes) e geração de texturas/animações
-  data/                armas, passivas, inimigos, ondas, heróis, melhorias permanentes
-  systems/             atributos, sorteio de melhorias, armas, save (localStorage), sons
-  scenes/              Boot/Menu/Loja, Jogo, HUD (joystick), Nível, Pausa, Fim de jogo
-  entities.ts          Inimigo, Projétil e Coletável (com pool de objetos)
+  core/                atributos globais, grade espacial, formatação de números grandes
+  data/                armas, tags, cartas, inimigos, ondas, heróis, melhorias permanentes
+  systems/             sorteio de cartas, armas (padrões de ataque), save (localStorage), sons
+  scenes/              Boot/Menu/Loja, Jogo, HUD (joystick), Nível, Pausa, Vitória, Fim de jogo
+  entities.ts          Inimigo, Projétil e Coletável (sem física; pool de objetos)
   native.ts            integração Capacitor (botão voltar, app em segundo plano)
 ```
 
