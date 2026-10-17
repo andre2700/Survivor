@@ -1,6 +1,6 @@
 # Plano de arte: teste de estilo com IA
 
-Status: aguardando o primeiro teste com a API do Gemini. O estilo final (pixel art ou 2D cartoon) ainda não foi decidido; o usuário decide depois de ver o teste.
+Status: bloqueado (17/10/2026). A chave funciona (`--list` responde), mas todos os modelos de imagem (`gemini-2.5-flash-image`, `gemini-3.1-flash-image`, `gemini-3.1-flash-lite-image`, `gemini-3-pro-image`) retornam 429 com cota gratuita = 0: geração de imagem exige faturamento ativo no projeto do Google AI Studio. O estilo final (pixel art ou 2D cartoon) ainda não foi decidido; o usuário decide depois de ver o teste.
 
 ## Contexto
 - A arte atual (gerada por código em `src/art/`) é provisória.
