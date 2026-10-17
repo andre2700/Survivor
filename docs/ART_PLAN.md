@@ -8,7 +8,7 @@ Status: aguardando o primeiro teste com a API do Gemini. O estilo final (pixel a
 - Decisões grandes de arte são sempre consultadas com o usuário antes.
 
 ## Ferramenta
-`scripts/gen-image.mjs` chama a API do Gemini com a chave em `GEMINI_API_KEY`.
+`scripts/gen-image.mjs` chama a API do Gemini. A chave é um segredo de rede do ambiente (host `generativelanguage.googleapis.com`, cabeçalho `x-goog-api-key`, sem prefixo), injetado pelo proxy; `GEMINI_API_KEY` também funciona.
 
 ```bash
 node scripts/gen-image.mjs --list                      # modelos de imagem disponíveis

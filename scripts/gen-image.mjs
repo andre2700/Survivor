@@ -1,4 +1,5 @@
-// Gera imagens com a API do Gemini (lê a chave de GEMINI_API_KEY).
+// Gera imagens com a API do Gemini. A chave vem de GEMINI_API_KEY ou é injetada pelo
+// proxy do ambiente (segredo de rede no cabeçalho x-goog-api-key).
 //
 //   node scripts/gen-image.mjs --list
 //   node scripts/gen-image.mjs --out art-tests/heroi.png --prompt "..." [--ref imagem.png ...] [--model nome]
@@ -26,10 +27,9 @@ function parseArgs(argv) {
 
 async function call(path, init) {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY não definida');
   const res = await fetch(`${API}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key, ...(init?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...(key ? { 'x-goog-api-key': key } : {}) },
   });
   const body = await res.json();
   if (!res.ok) throw new Error(`${res.status}: ${body.error?.message ?? JSON.stringify(body)}`);
