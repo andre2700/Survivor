@@ -31,8 +31,8 @@ describe('arte', () => {
     ];
     for (const key of keys) expect(has(key), key).toBe(true);
   });
-  it('caminhada do herói alterna os pés: passo, pernas juntas, outro passo', () => {
-    const seq = [0.01, 0.13, 0.26, 0.38, 0.51].map((t) => walkPose('hero', t).slot);
+  it('corrida do herói alterna os pés: passo, passagem, outro passo', () => {
+    const seq = [0.01, 0.11, 0.21, 0.31, 0.41].map((t) => walkPose('hero', t).slot);
     expect(seq).toEqual(['walk_a', 'walk_mid', 'walk_b', 'walk_mid', 'walk_a']);
     expect(walkPose('hero', 1, false).slot).toBe('idle');
   });

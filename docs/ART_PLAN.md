@@ -69,3 +69,9 @@ Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manife
 - Papel `vfx` no modelo de quadros: 4 quadros numa folha só (formato 21:9), descritos em `poses` e gerados com o cavaleiro como referência de estilo (`vfx_lava`, `vfx_ice`, `vfx_steam`, `vfx_mud`, `vfx_sand`, `vfx_explosion`).
 - No jogo, `ElementSystem.vfx()` toca a sequência de quadros com tempos próprios, no chão ou seguindo um inimigo.
 - Evitar brilho difuso em volta da arte gerada: mistura com o magenta e vira halo rosado (pedir "crisp outlines, no soft glow").
+
+## Recorte das folhas
+
+- Uma figura que passa só um pouco da sua coluna (ponta de espada, asa, cajado) vai inteira para o próprio quadro; só figuras encostadas de verdade são divididas, e o `process-art.py` avisa quando isso acontece.
+- Folhas com 4 quadros ou mais são geradas em formato largo (21:9): no formato quadrado a IA as desenhava em grade 2×2.
+- Heróis: o ciclo de movimento é de corrida (`RUN` em `art/manifest.mjs`).

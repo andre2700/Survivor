@@ -190,6 +190,17 @@ def slice_sheet(path, n):
         sample = pts[::max(1, len(pts) // 40)]
         nx, _ = min(edge, key=lambda e: min((e[0] - x) ** 2 + (e[1] - y) ** 2 for x, y in sample))
         owner[i] = column(nx)
+    # figura que só passa um pouco da coluna (a ponta de uma espada, uma asa) vai inteira para o
+    # quadro onde está quase toda; só figuras encostadas de verdade são divididas pelas colunas
+    for i in big:
+        per = [0] * n
+        for x, _ in regions[i - 1]:
+            per[column(x)] += 1
+        dom = max(range(n), key=lambda k: per[k])
+        if per[dom] >= len(regions[i - 1]) * 0.85:
+            owner[i] = dom
+        else:
+            print(f'  aviso: {path.name}: figuras encostadas divididas entre os quadros', [k for k in range(n) if per[k]])
     frames = []
     for k in range(n):
         m = Image.new('L', (w // q, h // q))

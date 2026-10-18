@@ -17,8 +17,8 @@ const STEP = ['walk_a', 'walk_mid', 'walk_b', 'walk_mid'];
 // chefe: o quadro parado faz o papel das pernas juntas
 const STRIDE = ['walk_a', 'idle', 'walk_b', 'idle'];
 const GAITS: Record<string, Gait> = {
-  // herói: passo com o pé de perto, pernas juntas, passo com o pé de longe, pernas juntas
-  hero: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.03 },
+  // herói correndo: passo com o pé de perto, passagem, passo com o pé de longe, passagem
+  hero: { fps: 10, cycle: STEP, squash: 0.035, tilt: 0.03 },
   slime: { fps: 6, cycle: ['walk_a', 'walk_mid', 'walk_b', 'walk_a'], squash: 0.05, tilt: 0 },
   bat: { fps: 12, cycle: STEP, squash: 0.03, tilt: 0.05 },
   goblin: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.05 },

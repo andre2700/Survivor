@@ -24,7 +24,7 @@ export const FRAME_TEMPLATES = {
   // monstro com ataque próprio, que precisa ser visto chegando
   special: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
-  // herói: ciclo de caminhada completo (pé de perto à frente, pernas juntas, pé de longe à frente)
+  // herói: ciclo de corrida completo (pé de perto à frente, passagem, pé de longe à frente)
   hero: { move: ['idle', 'walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death', 'victory'] },
   // efeito visual animado (reações, explosões): 4 quadros numa folha só, descritos em `poses`
   vfx: { move: ['f1', 'f2', 'f3', 'f4'], action: [] },
@@ -42,6 +42,13 @@ const BIPED = {
   death: 'defeated: collapsed lying flat on the ground, eyes closed, weapon dropped beside the body',
   victory: 'celebrating victory: weapon raised high in the air, big happy smile, jumping with joy',
 };
+// heróis correm (mais tempo de tela e mais energia): mesmo ciclo de pés, corpo em posição de corrida
+const RUN = {
+  walk_a: 'running fast, body leaning forward: the NEAR leg (closest to the viewer) reaching forward, the FAR leg pushing off behind, arms pumping opposite to the legs',
+  walk_mid: 'running fast, body leaning forward: passing pose, one foot under the body and the other knee lifted high',
+  walk_b: 'running fast, body leaning forward: the FAR leg reaching forward, the NEAR leg pushing off behind, the opposite legs of the other stride frame',
+};
+
 export const POSES = {
   biped: BIPED,
   quadruped: {
@@ -191,7 +198,7 @@ export const ART = {
 export function sheets(a) {
   const t = FRAME_TEMPLATES[a.role];
   const pose = (slot) => {
-    const text = a.poses?.[slot] ?? POSES[a.body]?.[slot];
+    const text = a.poses?.[slot] ?? (a.role === 'hero' ? RUN[slot] : undefined) ?? POSES[a.body]?.[slot];
     // na morte a arma cai: não repete o que ele segura
     return { slot, text: a.hold && slot !== 'death' ? `${text}, holding ${a.hold}` : text };
   };

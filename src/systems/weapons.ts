@@ -40,6 +40,8 @@ export class WeaponSystem {
   private tsunamiCount = 0;
   /** disparos da Bola de Fogo nv 20+: o Meteoro sai a cada 2 */
   private meteorCount = 0;
+  /** machadadas em andamento (limite de golpes simultâneos) */
+  private cleaving = 0;
   /** Passos Sísmicos: distância andada desde o último tremor */
   private walked = 0;
   private lastPos: { x: number; y: number } | null = null;
@@ -595,6 +597,8 @@ export class WeaponSystem {
    * nv 10: solta uma onda de choque; nv 20: o golpe vira um giro completo (redemoinho).
    */
   private fireCleave(w: WeaponRuntime): boolean {
+    // no máximo 4 golpes na tela ao mesmo tempo (velocidade de ataque altíssima): o próximo espera
+    if (this.cleaving >= 4) return false;
     const p = this.scene.player;
     const f = this.scene.facing;
     const reach = 62 * w.stats.area;
@@ -614,60 +618,92 @@ export class WeaponSystem {
     const g = grandeur(w.level);
     const spin = g >= 3;
     // arco largo: o machado desce de um lado ao outro (ou dá a volta toda no redemoinho)
-    const sweep = spin ? Math.PI * 2 : 2.2;
+    const sweep = spin ? Math.PI * 2 : 2.4;
+    const a0 = angle - sweep / 2;
     // mistura normal: luz aditiva sobre a grama puxa para o verde
     const gfx = scene.add.graphics().setDepth(LAYER.fx);
-    const color = w.level >= AWAKEN_EVERY ? 0xffd27a : 0xf6f1e4;
+    const awakened = w.level >= AWAKEN_EVERY;
+    const color = awakened ? 0xffcf6a : 0xe9eef5;
+    const edge = awakened ? 0xfff6d8 : 0xffffff;
+    // o próprio machado gira na ponta do golpe
+    const axe = scene.add.image(p.x, p.y, 'icon_greataxe').setDepth(LAYER.fx + 1).setScale(reach / 40);
+    const dur = spin ? 0.32 : 0.22;
+    const fade = 0.16;
     let t = 0;
-    const dur = spin ? 0.32 : 0.2;
     let struck = false;
     const hit = new Set<number>();
+    this.cleaving++;
+    const rx = reach * 0.85;
+    const ry = reach * 0.68;
+    const pt = (a: number, r: number) => ({ x: p.x + Math.cos(a) * rx * r, y: p.y - 4 + Math.sin(a) * ry * r });
     this.live.push((dt) => {
       t += dt;
       const k = Math.min(1, t / dur);
       const ease = 1 - (1 - k) ** 3;
-      const a0 = angle - sweep / 2;
       const a1 = a0 + sweep * ease;
+      const alpha = k < 1 ? 1 : Math.max(0, 1 - (t - dur) / fade);
+      // meia-lua: fina na cauda e grossa na lâmina, com borda clara de fio
       gfx.clear();
-      // rastro em meia-lua: mais grosso na ponta do machado
       const steps = 14;
-      for (let i = 0; i < steps; i++) {
-        const u = i / steps;
-        const aa = a0 + (a1 - a0) * u;
-        const ab = a0 + (a1 - a0) * (u + 1 / steps);
-        const alpha = (0.15 + 0.85 * u) * (k < 1 ? 1 : Math.max(0, 1 - (t - dur) / 0.15));
-        gfx.lineStyle(4 + 14 * u, color, alpha);
-        gfx.lineBetween(p.x + Math.cos(aa) * reach * 0.8, p.y - 4 + Math.sin(aa) * reach * 0.65, p.x + Math.cos(ab) * reach * 0.8, p.y - 4 + Math.sin(ab) * reach * 0.65);
+      const tail = Math.max(a0, a1 - 2.4);
+      for (const [thick, c, al] of [[0.5, color, 0.22], [0.32, color, 0.75], [0.12, edge, 0.95]] as [number, number, number][]) {
+        const outer: { x: number; y: number }[] = [];
+        const inner: { x: number; y: number }[] = [];
+        for (let i = 0; i <= steps; i++) {
+          const u = i / steps;
+          const a = tail + (a1 - tail) * u;
+          outer.push(pt(a, 1.05));
+          inner.push(pt(a, 1.05 - thick * u ** 1.4));
+        }
+        gfx.fillStyle(c, al * alpha).fillPoints([...outer, ...inner.reverse()], true);
       }
-      // dano em quem a lâmina já varreu
-      scene.queryEnemies(p.x, p.y, reach + 20, (e) => {
+      const tip = pt(a1, 0.9);
+      axe.setPosition(tip.x, tip.y).setRotation(a1 + Math.PI / 2).setAlpha(alpha);
+      // dano em quem a lâmina já varreu (só enquanto ela está descendo)
+      if (k < 1 || !struck) scene.queryEnemies(p.x, p.y, reach + 20, (e) => {
         if (hit.has(e.uid)) return;
         const dx = e.x - p.x;
         const dy = e.y - p.y;
-        const d = Math.hypot(dx, dy);
-        if (d > reach + e.radius) return;
-        const rel = Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - a0);
-        if (!spin && (rel < -0.3 || rel > (a1 - a0) + 0.3)) return;
-        if (spin && (rel + Math.PI * 2) % (Math.PI * 2) > a1 - a0 + 0.3) return;
+        if (Math.hypot(dx, dy) > reach + e.radius) return;
+        const rel = (Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - a0) + Math.PI * 2) % (Math.PI * 2);
+        const swept = a1 - a0;
+        if (rel > swept + 0.3 && rel < Math.PI * 2 - 0.3) return;
         hit.add(e.uid);
         this.hit(w, e, 1.8);
       });
       if (k >= 1 && !struck) {
         struck = true;
-        // impacto no chão onde o machado bate
+        // impacto no chão onde o machado bate: peso, mas sem sacudir demais a tela
         const ix = p.x + Math.cos(angle) * reach * 0.7;
         const iy = p.y + Math.sin(angle) * reach * 0.55;
-        scene.impact(ix, iy, 0xffe0a0, 1.4 + g * 0.3);
-        scene.cameras.main.shake(90, 0.004 + g * 0.002);
+        scene.impact(ix, iy, 0xffe0a0, 1.1 + g * 0.2);
+        // poeira só quando não há muitos efeitos na tela (desempenho)
+        if (this.live.length < 40) this.dust(ix, iy, 4 + g);
+        scene.cameras.main.shake(70, 0.0015);
         sfx('boom');
         if (g >= 1) this.quakeCracks(ix, iy, 3 + g, reach * 0.6);
         if (g >= 2) this.shockwave(w, ix, iy, reach * 1.3);
       }
-      if (t < dur + 0.15) return true;
+      if (t < dur + fade) return true;
       gfx.destroy();
+      axe.destroy();
+      this.cleaving--;
       return false;
     });
     sfx('whoosh');
+  }
+
+  /** Poeira subindo do chão (machadada). */
+  private dust(x: number, y: number, n: number) {
+    for (let i = 0; i < n; i++) {
+      const d = this.scene.add.image(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 8, 'atlas', frameName('glow'))
+        .setTint(0xc8a878).setAlpha(0.55).setScale(0.25 + Math.random() * 0.2).setDepth(LAYER.fx);
+      const a = Math.PI + Math.random() * Math.PI;
+      this.scene.tweens.add({
+        targets: d, x: d.x + Math.cos(a) * 22, y: d.y + Math.sin(a) * 14, scale: d.scale * 1.8, alpha: 0,
+        duration: 380 + Math.random() * 200, ease: 'Quad.Out', onComplete: () => d.destroy(),
+      });
+    }
   }
 
   /** Rachaduras curtas saindo de um ponto (só visual). */
@@ -1054,44 +1090,53 @@ export class WeaponSystem {
     if (this.walked < step) return;
     this.walked = Math.min(this.walked - step, step);
     const g = grandeur(w.level);
-    for (let i = 0; i < w.stats.amount; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = (30 + Math.random() * 50) * w.stats.area;
-      this.quakeAt(w, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.8, g, false);
-    }
+    // um tremor em círculo com o herói no centro; quantidade extra = anéis maiores logo depois
+    for (let i = 0; i < w.stats.amount; i++) this.scene.time.delayedCall(i * 160, () => this.quakeRing(w, g, 1 + i * 0.45, false));
   }
 
-  private quakeAt(w: WeaponRuntime, x: number, y: number, g: number, aftershock: boolean) {
+  /** Tremor circular em volta do herói: rachaduras saindo dele, anel de espinhos e dano no círculo todo. */
+  private quakeRing(w: WeaponRuntime, g: number, scale: number, aftershock: boolean) {
     const s = w.stats;
-    const radius = 28 * s.area * (g >= 1 ? 1.25 : 1) * (aftershock ? 0.8 : 1);
-    // rachaduras curtas saindo do centro + espinhos em volta
+    const p = this.scene.player;
+    const x = p.x;
+    const y = p.y + 4;
+    const radius = 46 * s.area * (g >= 1 ? 1.2 : 1) * scale * (aftershock ? 1.35 : 1);
+    // onda de terra correndo do herói até a borda do círculo
+    const ring = this.scene.add.image(x, y, 'atlas', frameName('aura')).setTint(0x8a6238).setAlpha(0.7).setDepth(LAYER.groundFx).setScale(0.1, 0.08);
+    this.scene.tweens.add({ targets: ring, scaleX: (radius * 2.1) / 96, scaleY: (radius * 1.6) / 96, alpha: 0, duration: 300, ease: 'Quad.Out', onComplete: () => ring.destroy() });
+    // rachaduras do herói para fora
     const gfx = this.scene.add.graphics().setDepth(LAYER.groundFx);
-    for (let k = 0; k < 6; k++) {
-      let a = (k / 6) * Math.PI * 2 + Math.random() * 0.4;
-      let cx = x;
-      let cy = y;
+    const n = 7;
+    for (let k = 0; k < n; k++) {
+      let a = (k / n) * Math.PI * 2 + Math.random() * 0.5;
+      let cx = x + Math.cos(a) * 10;
+      let cy = y + Math.sin(a) * 8;
       for (let j = 0; j < 3; j++) {
-        a += (Math.random() - 0.5) * 0.7;
-        const nx = cx + Math.cos(a) * radius * 0.35;
-        const ny = cy + Math.sin(a) * radius * 0.28;
-        gfx.lineStyle(4 * s.area, 0x2a180c, 0.85).lineBetween(cx, cy, nx, ny);
+        a += (Math.random() - 0.5) * 0.6;
+        const nx = cx + Math.cos(a) * radius * 0.3;
+        const ny = cy + Math.sin(a) * radius * 0.24;
+        gfx.lineStyle((3.5 - j) * s.area, 0x2a180c, 0.85).lineBetween(cx, cy, nx, ny);
         cx = nx;
         cy = ny;
       }
     }
     this.scene.tweens.add({ targets: gfx, alpha: 0, delay: 250, duration: 350, onComplete: () => gfx.destroy() });
-    this.spike(x, y + 2, s.area * 1.1);
-    for (let k = 0; k < 5; k++) {
-      const a = (k / 5) * Math.PI * 2;
-      this.spike(x + Math.cos(a) * radius * 0.75, y + Math.sin(a) * radius * 0.6, s.area * 0.7);
+    // espinhos brotando na borda do círculo, em sequência
+    const spikes = Math.round(8 * scale * (aftershock ? 1.3 : 1));
+    const start = Math.random() * Math.PI * 2;
+    for (let k = 0; k < spikes; k++) {
+      const a = start + (k / spikes) * Math.PI * 2;
+      this.scene.time.delayedCall(k * 12, () => this.spike(x + Math.cos(a) * radius * 0.85, y + Math.sin(a) * radius * 0.68, s.area * 0.75));
     }
-    this.burst(w, x, y, radius, aftershock ? 0.6 : 1, 60);
-    if (g >= 1) this.scene.cameras.main.shake(90, 0.003);
+    this.burst(w, x, y, radius, aftershock ? 0.6 : 1, 70);
     sfx('boom');
     if (aftershock) return;
-    // despertado: tremor secundário no mesmo lugar; nv 20: abre também uma fissura
-    if (g >= 2) this.scene.time.delayedCall(350, () => this.quakeAt(w, x, y, g, true));
-    if (g >= 3) this.crack(w, x, y, Math.random() * Math.PI * 2, 120 * s.area, g, 1);
+    // despertado: um segundo tremor, mais largo; nv 20: fissuras correm para fora em quatro direções
+    if (g >= 2) this.scene.time.delayedCall(350, () => this.quakeRing(w, g, scale, true));
+    if (g >= 3) {
+      const a0 = Math.random() * Math.PI * 2;
+      for (let k = 0; k < 4; k++) this.crack(w, x, y, a0 + (k * Math.PI) / 2, 120 * s.area, g, 1);
+    }
   }
 
   /** Registra dano de projéteis na estatística da arma dona. */
