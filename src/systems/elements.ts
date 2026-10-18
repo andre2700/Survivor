@@ -4,6 +4,7 @@ import {
   ORIGINS, PRIMARIES, REACTION_RULES, STATUS, STATUS_RULES, elementMultiplier, reactionFor, statusRoll,
   type Primary, type ReactionDef, type ReactionId,
 } from '../data/elements';
+import { controlScale } from '../data/enemies';
 import type { Element } from '../data/weapons';
 import type { Enemy } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
@@ -61,7 +62,9 @@ export class ElementSystem {
   speedFactor(e: Enemy, t: number) {
     if (t >= e.statusEnd) return 1;
     if (t < e.frozenUntil) return 0;
-    return (t < e.status.water ? 1 - STATUS_RULES.soakSlow : 1) * (t < e.mudUntil ? 1 - REACTION_RULES.mudSlow : 1);
+    // a Resistência diminui a força das lentidões
+    const k = controlScale(e.resist);
+    return (t < e.status.water ? 1 - STATUS_RULES.soakSlow * k : 1) * (t < e.mudUntil ? 1 - REACTION_RULES.mudSlow * k : 1);
   }
 
   /** Depois de um golpe: chance de aplicar o efeito de cada origem do elemento e, com dois ativos, reagir. */
@@ -94,12 +97,13 @@ export class ElementSystem {
     e.status[p] = until;
     e.statusEnd = Math.max(e.statusEnd, until);
     if (p === 'air' && !e.boss) {
-      // empurrão para longe do herói
+      // empurrão para longe do herói (a Resistência reduz ou anula)
       const dx = e.x - this.scene.player.x;
       const dy = e.y - this.scene.player.y;
       const d = Math.hypot(dx, dy) || 1;
-      e.kbX += (dx / d) * 90 * STATUS_RULES.unbalancedKnock * e.def.knockback;
-      e.kbY += (dy / d) * 90 * STATUS_RULES.unbalancedKnock * e.def.knockback;
+      const f = 90 * STATUS_RULES.unbalancedKnock * e.def.knockback * this.scene.control(e);
+      e.kbX += (dx / d) * f;
+      e.kbY += (dy / d) * f;
     }
     return true;
   }
@@ -127,23 +131,28 @@ export class ElementSystem {
         sc.flames.explode(30, x, y);
         this.area(r, x, y, dmg, (o) => this.apply(o, 'fire', dmg * 0.5, t));
         break;
-      case 'ice':
+      case 'ice': {
         this.hurt(r, e, dmg);
-        if (e.active && !e.boss) {
-          e.frozenUntil = t + REACTION_RULES.freeze;
+        // congela (o chefe também, mas a Resistência dele costuma ignorar e encurta o gelo)
+        const freeze = e.active ? REACTION_RULES.freeze * this.scene.control(e) : 0;
+        if (freeze > 0) {
+          e.frozenUntil = t + freeze;
           e.statusEnd = Math.max(e.statusEnd, e.frozenUntil);
           sc.restoreTint(e);
           // cristais crescem em volta dos pés e estilhaçam ao descongelar (ou se ele morrer)
-          this.vfx('vfx_ice', e.x, e.y + 6, Math.max(22, e.radius * 3.2), [[0, 0.06], [1, 0.08], [2, REACTION_RULES.freeze - 0.14], [3, 0.25]], { follow: e, alpha: 0.92 });
+          this.vfx('vfx_ice', e.x, e.y + 6, Math.max(22, e.radius * 3.2), [[0, 0.06], [1, 0.08], [2, Math.max(0.05, freeze - 0.14)], [3, 0.25]], { follow: e, alpha: 0.92 });
         }
         break;
+      }
       case 'lightning':
         this.chain(r, e, dmg);
         break;
       case 'mud':
         this.vfx('vfx_mud', x, y + 4, r.radius * 2.2, [[0, 0.07], [1, 0.1], [2, REACTION_RULES.mudDuration - 0.6], [3, 0.4]], { ground: true });
         this.area(r, x, y, dmg, (o) => {
-          o.mudUntil = t + REACTION_RULES.mudDuration;
+          const k = this.scene.control(o);
+          if (k === 0) return;
+          o.mudUntil = Math.max(o.mudUntil, t + REACTION_RULES.mudDuration * k);
           o.statusEnd = Math.max(o.statusEnd, o.mudUntil);
         });
         break;

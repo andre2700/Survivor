@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { frameHd, frameName, slotsOf, type Slots } from './art/textures';
-import type { EnemyDef } from './data/enemies';
+import { CONTROL_RULES, type EnemyDef } from './data/enemies';
 import type { Primary } from './data/elements';
 import type { Element, WeaponId } from './data/weapons';
 
@@ -18,6 +18,10 @@ export class Enemy extends Phaser.GameObjects.Image {
   radius = 5;
   elite = false;
   boss = false;
+  /** Resistência a controle (a da criatura, mais a dos elites) */
+  resist = 0;
+  /** último aviso de "RESISTIU" (s) */
+  resistShownAt = -99;
   kbX = 0;
   kbY = 0;
   flashUntil = 0;
@@ -56,6 +60,8 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.uid = nextUid++;
     this.elite = elite;
     this.boss = def.id === 'demon';
+    this.resist = Math.min(CONTROL_RULES.max, def.resist + (elite ? CONTROL_RULES.elite : 0));
+    this.resistShownAt = -99;
     const eliteMult = elite ? 10 : 1;
     this.maxHp = Math.round(def.hp * hpMult * eliteMult);
     this.hp = this.maxHp;

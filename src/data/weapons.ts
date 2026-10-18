@@ -126,7 +126,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
   tremor: {
     id: 'tremor', name: 'Passos Sísmicos', icon: 'icon_tremor', pattern: 'tremor', element: 'earth', tags: ['area', 'heavy'],
-    description: 'Enquanto você anda, o chão treme ao seu redor e fere os inimigos.',
+    description: 'Enquanto você anda, ondas de choque saem de você e empurram os inimigos.',
     // recarga = distância andada (÷ 100 px) entre tremores
     base: { damage: 14, cooldown: 0.9, amount: 1, pierce: 999, area: 1, speed: 0, duration: 0, effect: 1.4 },
     growth: [{ damage: 0.3 }, { area: 0.15 }, { cooldown: 0.1 }, { amount: 1 }, { damage: 0.3 }],

@@ -14,6 +14,12 @@ const FX_HD = 2;
 /** Nome do quadro no atlas: `slime:0`, `coin:0`... */
 export const frameName = (key: string, i = 0) => `${key}:${i}`;
 
+/** Quantos quadros uma textura tem (efeitos animados: no mínimo 2). */
+export const framesOf = (key: string) => SPRITE[key]?.frames ?? 1;
+
+/** Quadro de um efeito em ciclo no tempo `t` (s), a `fps` quadros por segundo. */
+export const loopFrame = (key: string, t: number, fps: number) => frameName(key, Math.floor(t * fps) % framesOf(key));
+
 /** Fator de resolução de uma textura (1 = tamanho lógico). */
 export const hdOf = (key: string) => SPRITE[key]?.hd ?? 1;
 

@@ -6,7 +6,7 @@ import {
   BASE_STATS, combine, cooldownMult, critMultiplier, damageTaken, defenseReduction, moveSpeed, rollCritTier,
 } from '../src/core/stats';
 import { STAT_CARDS } from '../src/data/cards';
-import { ENEMIES } from '../src/data/enemies';
+import { CONTROL_RULES, ENEMIES, controlRoll, controlScale } from '../src/data/enemies';
 import { PRIMARIES, REACTIONS, elementMultiplier, reactionFor, statusRoll } from '../src/data/elements';
 import { CHARACTERS } from '../src/data/characters';
 import { META_UPGRADES, metaCost, metaModifiers } from '../src/data/meta';
@@ -236,5 +236,21 @@ describe('formatação', () => {
     expect(formatNumber(3_400_000)).toBe('3,4M');
     expect(formatNumber(15_000)).toBe('15K');
     expect(formatNumber(1.5e30)).toContain('e');
+  });
+});
+
+describe('resistência a controle', () => {
+  it('monstro comum sofre o controle inteiro; resistente ignora às vezes e sofre menos', () => {
+    expect(controlRoll(0, () => 0)).toBe(1);
+    const boss = ENEMIES.demon.resist;
+    expect(controlRoll(boss, () => 0)).toBe(0);
+    const f = controlRoll(boss, () => 0.99);
+    expect(f).toBeGreaterThan(0);
+    expect(f).toBeLessThan(0.6);
+    expect(controlScale(boss)).toBeCloseTo(1 - boss * CONTROL_RULES.reduce);
+  });
+  it('chefe resiste mais que monstros comuns', () => {
+    for (const e of Object.values(ENEMIES)) if (e.id !== 'demon') expect(e.resist).toBeLessThan(ENEMIES.demon.resist);
+    expect(ENEMIES.slime.resist).toBe(0);
   });
 });

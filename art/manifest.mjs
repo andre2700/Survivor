@@ -10,6 +10,8 @@
 // hold: o que o personagem segura, repetido em todas as poses (a IA às vezes larga a arma).
 // variant: cópia de outra criatura com a cor trocada (hue: graus somados à matiz dentro de range; sat/val: multiplicadores).
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
+// ground: efeito apoiado no chão (quadros alinhados pela base, não pelo centro).
+// frames: quantos quadros o efeito tem (padrão 4; mínimo 2).
 const CHAR = 'full body, side view facing RIGHT';
 const FX = 'game VFX sprite, single effect centered, bold readable shape, vivid colors: ';
 const ICON = 'game UI item icon, single object centered, bold readable silhouette, no circle or badge behind it';
@@ -20,13 +22,15 @@ const ICON = 'game UI item icon, single object centered, bold readable silhouett
 // Cada folha de ação começa com a pose do 1º quadro de movimento, só para acertar a escala (é descartada).
 export const FRAME_TEMPLATES = {
   // monstro comum: só causa dano encostando
-  monster: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['hurt', 'death'] },
+  // todo monstro tem ao menos um quadro de ataque (mostrado quando ele acerta o herói)
+  monster: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death'] },
   // monstro com ataque próprio, que precisa ser visto chegando
   special: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   // herói: ciclo de corrida completo (pé de perto à frente, passagem, pé de longe à frente)
   hero: { move: ['idle', 'walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death', 'victory'] },
-  // efeito visual animado (reações, explosões): 4 quadros numa folha só, descritos em `poses`
+  // efeito visual animado (reações, explosões, ondas): até 4 quadros numa folha só, descritos em
+  // `poses`; `frames` limita a quantidade (todo efeito tem ao menos 2 quadros)
   vfx: { move: ['f1', 'f2', 'f3', 'f4'], action: [] },
 };
 
@@ -56,6 +60,7 @@ export const POSES = {
     walk_a: 'running, all four legs gathered under the body',
     walk_mid: 'running, legs fully stretched front and back',
     walk_b: 'running, front paws touching the ground, back legs lifted',
+    attack: 'biting forward: lunging with jaws wide open, fangs bared',
     windup: 'crouching low, ready to pounce, snarling',
     attack: 'pouncing forward with jaws wide open',
     hurt: 'recoiling from a hit: yelping, flinching backwards, eyes squeezed shut',
@@ -66,6 +71,7 @@ export const POSES = {
     walk_a: 'wings raised high',
     walk_mid: 'wings level, spread wide',
     walk_b: 'wings swept down low',
+    attack: 'diving forward to bite: body tilted forward, fangs bared, wings swept back',
     hurt: 'knocked back in the air by a hit, wings crumpled, eyes squeezed shut',
     death: 'defeated: falling, upside down with limp wings, eyes closed (X eyes)',
   },
@@ -74,6 +80,7 @@ export const POSES = {
     walk_a: 'normal resting shape',
     walk_mid: 'squashed flat and wide, about to hop',
     walk_b: 'stretched tall and narrow, mid-hop',
+    attack: 'lunging forward with its mouth wide open, body stretched toward the RIGHT',
     hurt: 'dented and wobbling from a hit, eyes squeezed shut',
     death: 'defeated: melted into a flat puddle, eyes closed (X eyes)',
   },
@@ -130,9 +137,14 @@ export const ART = {
   proj_orb: { h: 16 },
   // efeitos de ataques e reações (VFX: o jogo anima escala, giro e transparência)
   // fade: a base se dissolve (a onda se apoia numa lâmina d'água desenhada pelo jogo)
-  fx_wave: { w: 64, fade: 0.22, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
-  fx_spike: { h: 28, prompt: `${FX}a sharp brown rock spike erupting from the ground with small flying debris chunks` },
-  fx_tornado: { h: 64, prompt: `${FX}a cartoon tornado whirlwind funnel of pale green and white swirling wind with a few small leaves` },
+  fx_wave: { w: 64, fade: 0.22, ground: true, role: 'vfx', effect: 'this same ocean wave (same shape, size and colors as the reference)', poses: {
+    f1: 'the wave with foam on the crest and a few droplets', f2: 'the same wave, the crest curled a bit further, foam rolling forward',
+    f3: 'the same wave, foam spraying forward with more droplets', f4: 'the same wave, foam churning, crest slightly lower' }, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
+  fx_spike: { h: 28, frames: 2, ground: true, role: 'vfx', effect: 'this same rock spike (same style as the reference)', poses: {
+    f1: 'the rock spike just bursting out of the ground: short, with dust and flying debris', f2: 'the rock spike fully emerged, tall and sharp, a few debris chunks falling' }, prompt: `${FX}a sharp brown rock spike erupting from the ground with small flying debris chunks` },
+  fx_tornado: { h: 64, ground: true, role: 'vfx', effect: 'this same tornado funnel (same shape, size and colors as the reference), spinning', poses: {
+    f1: 'the funnel with swirl stripes and leaves in one position', f2: 'the same funnel, swirl stripes rotated a quarter turn, leaves moved around it',
+    f3: 'the same funnel, swirl stripes rotated half a turn, leaves on the other side', f4: 'the same funnel, swirl stripes rotated three quarters, leaves moved again' }, prompt: `${FX}a cartoon tornado whirlwind funnel of pale green and white swirling wind with a few small leaves` },
   // efeitos animados (4 quadros): effect descreve o efeito; poses, cada quadro
   vfx_lava: { h: 40, role: 'vfx', wide: true, effect: 'a lava eruption bursting from cracked ground', poses: {
     f1: 'glowing orange cracks opening on the ground', f2: 'lava bursting upward in a short fountain with molten droplets',
@@ -148,9 +160,12 @@ export const ART = {
     f1: 'a low swirl of sand starting on the ground', f2: 'a growing sand whirlwind', f3: 'a tall sand whirlwind with flying pebbles', f4: 'the whirlwind collapsing into falling sand' } },
   vfx_explosion: { h: 40, role: 'vfx', wide: true, effect: 'a cartoon fire explosion with crisp outlines and NO soft glow or halo around it', poses: {
     f1: 'a small bright yellow flash', f2: 'a round orange fireball blast expanding', f3: 'a big fiery explosion with flames and sparks', f4: 'dark smoke puffs with a few embers' } },
-  fx_hammer: { w: 26, hd: 3, prompt: `a magic war hammer like a legendary thunder god hammer: short leather-wrapped handle with a wrist strap, big rectangular engraved steel head with crackling blue lightning, side view, handle pointing down` },
-  fx_fireball: { w: 20, flip: true, prompt: `${FX}a cartoon fireball projectile with a flaming tail, flying horizontally to the RIGHT` },
-  fx_firering: { w: 96, prompt: `${FX}a flat ring of orange and yellow flames seen from a top-down angle, empty in the middle, flames licking upward around the circle` },
+  fx_hammer: { w: 26, hd: 3, frames: 2, role: 'vfx', effect: 'this same war hammer (same shape and style as the reference)', poses: {
+    f1: 'the hammer with blue lightning crackling around the head', f2: 'the same hammer, the lightning bolts in different positions' }, prompt: `a magic war hammer like a legendary thunder god hammer: short leather-wrapped handle with a wrist strap, big rectangular engraved steel head with crackling blue lightning, side view, handle pointing down` },
+  fx_fireball: { w: 20, flip: true, frames: 2, role: 'vfx', effect: 'this same fireball (same style as the reference)', poses: {
+    f1: 'the fireball with its flaming tail', f2: 'the same fireball, the tail flames flickering in a different shape' }, prompt: `${FX}a cartoon fireball projectile with a flaming tail, flying horizontally to the RIGHT` },
+  fx_firering: { w: 96, frames: 2, role: 'vfx', effect: 'this same ring of flames (same style as the reference)', poses: {
+    f1: 'the ring of flames', f2: 'the same ring, every flame at a different height and shape (flickering)' }, prompt: `${FX}a flat ring of orange and yellow flames seen from a top-down angle, empty in the middle, flames licking upward around the circle` },
   // cenário (visto de cima, estilo mapa de RPG)
   tree: { h: 72, shadow: true },
   tree2: { h: 78, shadow: true, prompt: `a single tall green pine tree with brown trunk, front view, like a top-down RPG map object` },
@@ -197,7 +212,7 @@ export const ART = {
  * Figuras grandes (`wide`) levam no máximo 2 poses por folha de ação, para não se amontoarem.
  */
 export function sheets(a) {
-  const t = FRAME_TEMPLATES[a.role];
+  const t = a.frames ? { ...FRAME_TEMPLATES[a.role], move: FRAME_TEMPLATES[a.role].move.slice(0, a.frames) } : FRAME_TEMPLATES[a.role];
   const pose = (slot) => {
     const text = a.poses?.[slot] ?? (a.role === 'hero' ? RUN[slot] : undefined) ?? POSES[a.body]?.[slot];
     // na morte a arma cai: não repete o que ele segura

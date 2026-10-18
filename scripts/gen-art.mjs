@@ -22,11 +22,13 @@ for (const [name, a] of Object.entries(ART)) {
   }
   if (a.prompt) jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
   if (a.role === 'vfx') {
-    const list = sheets(a).move.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
+    const poses = sheets(a).move;
+    const list = poses.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
+    // efeito com imagem base própria (onda, tornado...): os quadros seguem a imagem base
     jobs.push({
-      out: `${name}_sheet`, ref: 'hero_knight', aspect: '21:9', prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
-        'Match the art style, outline weight, shading and palette of the reference image (do not draw the character). ' +
-        `Create a sprite sheet of an animated game visual effect: one single horizontal row of 4 frames of ${a.effect}, all at the same scale, ` +
+      out: `${name}_sheet`, ref: a.prompt ? name : 'hero_knight', aspect: '21:9', prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
+        `Match the art style, outline weight, shading and palette of the reference image${a.prompt ? '' : ' (do not draw the character)'}. ` +
+        `Create a sprite sheet of an animated game visual effect: one single horizontal row of ${poses.length} frames of ${a.effect}, all at the same scale, ` +
         `evenly spaced with wide magenta gaps between frames, no frame touching or overlapping another. Frames from left to right: ${list}. ${BG}`,
     });
   } else if (a.role) {

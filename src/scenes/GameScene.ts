@@ -12,7 +12,7 @@ import {
   type Modifier, type Stats,
 } from '../core/stats';
 import { getCharacter, type CharacterDef } from '../data/characters';
-import { DEATH_TINT, ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies';
+import { DEATH_TINT, ENEMIES, controlRoll, type EnemyDef, type EnemyId } from '../data/enemies';
 import { metaModifiers } from '../data/meta';
 import { ELEMENT_COLORS, WEAPON_IDS, type Element, type WeaponId } from '../data/weapons';
 import {
@@ -546,7 +546,8 @@ export class GameScene extends Phaser.Scene {
         dy = py - e.y;
       }
       const d = Math.hypot(dx, dy) || 1;
-      const still = e.boss && this.updateBossAttack(e, d, dx, dy, dt);
+      // congelado, o chefe também não ataca
+      const still = e.boss && t >= e.frozenUntil && this.updateBossAttack(e, d, dx, dy, dt);
       this.elements.update(e, t, dt);
       if (!e.active) continue;
       const slow = still ? 0 : this.elements.speedFactor(e, t);
@@ -565,7 +566,8 @@ export class GameScene extends Phaser.Scene {
       e.depth = e.y;
       if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
       const pose = walkPose(e.def.kind, t + e.phase, slow > 0);
-      const slot = e.attackPhase !== 'walk' ? e.attackPhase : t < e.hurtUntil ? 'hurt' : pose.slot;
+      // colado no herói, mostra o quadro de ataque (mordida, golpe); quem não tem, segue andando
+      const slot = e.attackPhase !== 'walk' ? e.attackPhase : t < e.hurtUntil ? 'hurt' : slow > 0 && d < e.radius + 14 ? 'attack' : pose.slot;
       const f = e.slots[slot] ?? e.slots[pose.slot] ?? 0;
       if (f !== e.animFrame) {
         e.animFrame = f;
@@ -664,17 +666,30 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Aplica dano (com crítico); retorna o dano causado. */
+  /**
+   * Teste de Resistência a controle de um inimigo: 0 = ignorou (mostra "RESISTIU" nos elites e no
+   * chefe, sem repetir demais); senão, o fator de força/duração do controle.
+   */
+  control(e: Enemy): number {
+    const f = controlRoll(e.resist);
+    if (f === 0 && (e.boss || e.elite) && this.elapsed - e.resistShownAt > 1.2) {
+      e.resistShownAt = this.elapsed;
+      this.floatText(e.x, e.y - 24 * e.baseScale, 'RESISTIU', '#c8b8ff', false);
+    }
+    return f;
+  }
+
   /** Golpe de arma: crítico, vantagem elemental, empurrão e chance de aplicar o efeito do elemento. */
   hitEnemy(e: Enemy, amount: number, knock = 1, element: Element = 'physical', canCrit = true, effect = 0): number {
     if (!e.active) return 0;
     const tier = canCrit ? rollCritTier(this.stats.critChance + this.elements.critBonus(e, this.elapsed)) : 0;
     const dmg = amount * critMultiplier(this.stats, tier) * this.elements.damageMultiplier(e, element, this.elapsed);
-    if (knock > 0 && e.def.knockback > 0) {
+    const resisted = knock > 0 && e.def.knockback > 0 ? this.control(e) : 0;
+    if (resisted > 0) {
       const dx = e.x - this.player.x;
       const dy = e.y - this.player.y;
       const d = Math.hypot(dx, dy) || 1;
-      const f = 90 * knock * e.def.knockback * (e.elite ? 0.3 : 1);
+      const f = 90 * knock * e.def.knockback * (e.elite ? 0.3 : 1) * resisted;
       e.kbX += (dx / d) * f;
       e.kbY += (dy / d) * f;
     }

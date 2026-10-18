@@ -100,6 +100,18 @@ def body_center(im):
     return sorted(xs)[len(xs) // 2] if xs else w / 2
 
 
+def fade_bottom(im, frac):
+    """Base que some aos poucos (efeitos que encostam no chão, como a onda)."""
+    ramp = Image.new('L', im.size, 255)
+    start = int(im.height * (1 - frac))
+    draw = ImageDraw.Draw(ramp)
+    for y in range(start, im.height):
+        draw.line((0, y, im.width, y), fill=round(255 * (1 - (y - start) / max(1, im.height - start)) ** 1.5))
+    out = im.copy()
+    out.putalpha(ImageChops.multiply(im.getchannel('A'), ramp))
+    return out
+
+
 def with_shadow(im, size=None, cx=None):
     """Sombra oval sob os pés: centrada na largura dos pés, metade para baixo da sola.
     `size`/`cx` fixam a sombra (igual em todos os quadros de uma animação)."""
@@ -259,7 +271,7 @@ def strip(frames, a, res, n_ref):
     heights = sorted(f.height for f in frames[:n_ref])
     k = a['h'] * res / heights[len(heights) // 2]
     frames = [premul_resize(f, (max(1, round(f.width * k)), max(1, round(f.height * k)))) for f in frames]
-    fly = not a.get('shadow')
+    fly = not a.get('shadow') and not a.get('ground')
     # bípedes: alinhados pela cabeça e tronco (os pés abrem e fecham na corrida e o corpo pularia
     # de lado); os outros, pelo centro dos pés
     biped = a.get('body') == 'biped'
@@ -319,11 +331,16 @@ def main():
             if not sheet.exists():
                 print('falta', sheet)
                 continue
-            frames = slice_sheet(sheet, 4)
-            img = strip(frames, a, a.get('hd', 2), 4)
+            n = len(a['sheets']['move'])
+            frames = slice_sheet(sheet, n)
+            if a.get('flip'):
+                frames = [ImageOps.mirror(f) for f in frames]
+            if a.get('fade'):
+                frames = [fade_bottom(f, a['fade']) for f in frames]
+            img = strip(frames, a, a.get('hd', 2), n)
             img.save(OUT / f'{name}.png', optimize=True)
-            index[name] = {'hd': a.get('hd', 2), 'frames': 4}
-            print(name, img.size, 'efeito 4 quadros')
+            index[name] = {'hd': a.get('hd', 2), 'frames': n}
+            print(name, img.size, f'efeito {n} quadros')
             continue
         src = SRC / f'{name}.png'
         if not src.exists():
@@ -363,14 +380,7 @@ def main():
         if a.get('flip'):
             cut = ImageOps.mirror(cut)
         if a.get('fade'):
-            # base que some aos poucos (efeitos que encostam no chão, como a onda)
-            alpha = cut.getchannel('A')
-            ramp = Image.new('L', cut.size, 255)
-            start = int(cut.height * (1 - a['fade']))
-            ImageDraw.Draw(ramp).rectangle((0, start, cut.width, cut.height), fill=0)
-            for y in range(start, cut.height):
-                ImageDraw.Draw(ramp).line((0, y, cut.width, y), fill=round(255 * (1 - (y - start) / (cut.height - start)) ** 1.5))
-            cut.putalpha(ImageChops.multiply(alpha, ramp))
+            cut = fade_bottom(cut, a['fade'])
         if hd == 4 and not name.startswith('hero_'):
             # ícones: caixa quadrada para alinhar nas molduras
             side = max(cut.size)

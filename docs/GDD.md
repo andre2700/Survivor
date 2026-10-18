@@ -30,7 +30,7 @@ Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
 - Armas elementais com padrões próprios: Onda (Água, varre e empurra), Fissura (Terra, rachaduras com espinhos), Tornado (Ar, puxa e fere). Carta Catalisador (potência elemental).
 - Grandeza: todo ataque cresce em faixas de nível (5, 10 = despertar, 20) até formas grandiosas (Tsunami, Terremoto, tornado gigante).
 - Reações marcantes: título grande, onda de choque, clarão, véu de cor na tela, som e uma animação própria de 4 quadros no chão ou em volta do alvo, sem tampar os inimigos (erupção de lava, cristais de gelo nos pés, raios em ziguezague, colunas de vapor, poça de lama, redemoinho de areia).
-- Pode haver mais de um ataque por elemento, desde que diferentes: Raio de Luz (laser que rebate nas bordas; o início acompanha o herói, a direção fica fixa), Bola de Fogo (explosão; nv 10 se divide; nv 20 Meteoro), Passos Sísmicos (ao andar, tremores em círculo com o herói no centro; nv 10 segundo tremor mais largo; nv 20 abre fissuras em quatro direções), Martelo do Trovão (Raio; arremessado em linha no inimigo mais próximo, carrega os atingidos e volta para a mão; nv 5 maior, nv 10 trovão no ponto de volta, nv 20 descarga ao pegar de volta).
+- Pode haver mais de um ataque por elemento, desde que diferentes: Raio de Luz (laser que rebate nas bordas; o início acompanha o herói, a direção fica fixa), Bola de Fogo (explosão; nv 10 se divide; nv 20 Meteoro), Passos Sísmicos (ao andar, ondas de choque saem do herói em círculo e empurram os inimigos; nv 10 uma segunda onda mais larga; nv 20 uma terceira, que empurra mais), Martelo do Trovão (Raio; arremessado em linha no inimigo mais próximo, carrega os atingidos e volta para a mão; nv 5 maior, nv 10 trovão no ponto de volta, nv 20 descarga ao pegar de volta).
 - Armas de corpo a corpo miram sozinhas: a Espada golpeia o inimigo mais próximo ao alcance (senão, a direção do joystick); o Machado do Bárbaro é uma machadada de duas mãos (nv 5 racha o chão, nv 10 onda de choque, nv 20 redemoinho de 360°). As Adagas vão no inimigo mais próximo.
 - Heróis: o Cavaleiro tem espada e escudo; os heróis correm, com 4 tempos (pé de perto à frente, passagem, pé de longe à frente, passagem).
 - Tremor de tela: leve nos golpes comuns (peso da machadada); forte só em coisas raras e poderosas (chefe, Terremoto da Fissura).
@@ -46,3 +46,17 @@ Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
 ## Marcos
 1. Fundação de sistemas ✅ · 2. Elementos ✅ · 3. Arte e primeiro conteúdo (arte cartoon já feita) ·
 4. Progressão e heróis · 5. Pets e montarias · 6. Lançamento.
+
+## Resistência a controle
+
+Todo inimigo tem **Resistência** (0 a 1) contra controles: empurrão, congelamento, lentidão, puxão (tornado) e ser carregado (martelo).
+- Chance de ignorar o controle = Resistência × 0,6 (aparece "RESISTIU" em elites e chefe).
+- Quando pega, força e duração caem para 1 − Resistência × 0,7 (lentidões contínuas usam só essa redução).
+- Valores: slime e morcego 0; goblin 0,05; lobo 0,1; esqueleto 0,15; orc 0,35; Demônio Ancestral 0,75. Elites +0,25 (máx. 0,9).
+- O chefe agora pode ser congelado (raramente e por pouco tempo) e, congelado, não ataca.
+- Peso (`knockback`) continua separado: diz quanto um empurrão move a criatura.
+
+## Padrões de arte
+
+- Todo monstro tem ao menos um quadro de ataque (mostrado quando encosta no herói).
+- Todo efeito animado tem ao menos 2 quadros (onda e tornado: 4).

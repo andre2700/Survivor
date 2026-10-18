@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
-import { frameName } from '../art/textures';
+import { Crack } from '../art/cracks';
+import { frameName, framesOf, loopFrame } from '../art/textures';
 import { areaMult, cooldownMult, damageMult, durationMult, projectileSpeedMult } from '../core/stats';
 import { applyTagBonuses, countTags } from '../data/tags';
 import { AWAKEN_EVERY, WEAPONS, capAmount, grandeur, weaponStatsAt, weaponTags, type WeaponDef, type WeaponId, type WeaponStats } from '../data/weapons';
+import { controlScale } from '../data/enemies';
 import type { Enemy, ProjectileKind } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
@@ -25,6 +27,26 @@ function distToSegment(px: number, py: number, a: { x: number; y: number }, b: {
   const len2 = dx * dx + dy * dy || 1;
   const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len2));
   return Math.hypot(px - (a.x + dx * t), py - (a.y + dy * t));
+}
+
+/**
+ * Meia-lua de golpe (espada, machado): fina na cauda e grossa na lâmina, em camadas (halo, cor, fio),
+ * de `tail` até `head` (rad) numa elipse de raios rx × ry em volta de (cx, cy).
+ */
+function drawCrescent(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, tail: number, head: number, rx: number, ry: number,
+  layers: [thick: number, color: number, alpha: number][], alpha: number, steps = 14) {
+  const pt = (a: number, r: number) => ({ x: cx + Math.cos(a) * rx * r, y: cy + Math.sin(a) * ry * r });
+  for (const [thick, c, al] of layers) {
+    const outer: { x: number; y: number }[] = [];
+    const inner: { x: number; y: number }[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const u = i / steps;
+      const a = tail + (head - tail) * u;
+      outer.push(pt(a, 1.05));
+      inner.push(pt(a, 1.05 - thick * u ** 1.4));
+    }
+    gfx.fillStyle(c, al * alpha).fillPoints([...outer, ...inner.reverse()], true);
+  }
 }
 
 /** Efeito em andamento (onda, rachadura, tornado): chamado a cada quadro até devolver false. */
@@ -90,11 +112,12 @@ export class WeaponSystem {
     w.dealt += this.scene.hitEnemy(e, this.dmg(w) * mult, knock, w.def.element, true, w.stats.effect);
   }
 
-  /** Empurrão numa direção (onda, explosões); chefes não são empurrados. */
+  /** Empurrão numa direção (onda, explosões); chefes não são empurrados; a Resistência reduz ou anula. */
   private push(e: Enemy, dx: number, dy: number, force: number) {
     if (e.boss || !e.active) return;
-    e.kbX += dx * force * e.def.knockback;
-    e.kbY += dy * force * e.def.knockback;
+    const f = force * e.def.knockback * this.scene.control(e);
+    e.kbX += dx * f;
+    e.kbY += dy * f;
   }
 
   /** Dano em área a partir de um ponto, com empurrão para fora. */
@@ -221,11 +244,43 @@ export class WeaponSystem {
     const sin = Math.sin(angle);
     const cx = p.x + cos * (width / 2 + 2);
     const cy = p.y - 2 + sin * (width / 2 + 2);
-    const img = this.scene.add.image(cx, cy - 6, 'atlas', frameName('slash')).setScale(width / 48, height / 30).setRotation(angle).setDepth(LAYER.fx);
-    img.setBlendMode(Phaser.BlendModes.ADD);
-    if (w.level >= AWAKEN_EVERY) img.setTint(0xffe9a8);
-    this.scene.tweens.add({
-      targets: img, alpha: 0, x: img.x + cos * 6, y: img.y + sin * 6, scaleY: (height / 30) * 0.5, duration: 200, ease: 'Quad.Out', onComplete: () => img.destroy(),
+    // traço em meia-lua em volta do herói: corta de um lado ao outro em 0,1 s e some
+    const awakened = w.level >= AWAKEN_EVERY;
+    const steel = awakened ? 0xffd27a : 0xdfe9f5;
+    const edge = awakened ? 0xfff6d8 : 0xffffff;
+    const gfx = this.scene.add.graphics().setDepth(LAYER.fx);
+    const rx = width * 0.95;
+    const ry = width * 0.75;
+    const sweep = 2.1;
+    const from = angle - sweep / 2;
+    let t = 0;
+    let sparked = false;
+    this.live.push((dt) => {
+      t += dt;
+      const k = Math.min(1, t / 0.1);
+      const head = from + sweep * (1 - (1 - k) ** 2);
+      const fade = t < 0.1 ? 1 : Math.max(0, 1 - (t - 0.1) / 0.14);
+      gfx.clear();
+      drawCrescent(gfx, p.x, p.y - 6, Math.max(from, head - 1.8), head, rx, ry, [[0.42, steel, 0.25], [0.24, steel, 0.8], [0.08, edge, 1]], fade, 12);
+      // linhas de velocidade por fora do arco
+      gfx.lineStyle(1, edge, 0.6 * fade);
+      for (let i = 0; i < 3; i++) {
+        const a = head - 0.35 - i * 0.3;
+        const r = 1.12 + i * 0.05;
+        gfx.lineBetween(p.x + Math.cos(a) * rx * r, p.y - 6 + Math.sin(a) * ry * r, p.x + Math.cos(a + 0.22) * rx * r, p.y - 6 + Math.sin(a + 0.22) * ry * r);
+      }
+      if (k >= 1 && !sparked) {
+        sparked = true;
+        // brilho na ponta, onde o golpe termina
+        const tx = p.x + Math.cos(head) * rx;
+        const ty = p.y - 6 + Math.sin(head) * ry;
+        const star = this.scene.add.image(tx, ty, 'atlas', frameName('glow')).setTint(edge).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5).setDepth(LAYER.fx + 1);
+        this.scene.tweens.add({ targets: star, scale: 0.1, alpha: 0, duration: 180, onComplete: () => star.destroy() });
+        this.scene.sparks.explode(4, tx, ty);
+      }
+      if (t < 0.24) return true;
+      gfx.destroy();
+      return false;
     });
     // despertada: a lâmina se solta e voa à frente
     if (grandeur(w.level) >= 2) {
@@ -255,7 +310,8 @@ export class WeaponSystem {
     }
     const radius = 40 * w.stats.area;
     const flicker = 1 + Math.sin(this.scene.elapsed * 18) * 0.03;
-    this.aura.setPosition(p.x, p.y + 6).setScale(((radius * 2.3) / 96) * flicker).setFlipX(Math.floor(this.scene.elapsed * 7) % 2 === 0);
+    this.aura.setPosition(p.x, p.y + 6).setScale(((radius * 2.3) / 96) * flicker).setFlipX(Math.floor(this.scene.elapsed * 7) % 2 === 0)
+      .setFrame(loopFrame('fx_firering', this.scene.elapsed, 9));
     // labaredas subindo da borda do anel
     for (let i = 0; i < 2; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -425,7 +481,7 @@ export class WeaponSystem {
       // de lado, a largura da faixa é a altura da onda; na vertical, é a largura dela
       const sc = (width / 54) * (1 - vertical) + (width / 64) * vertical;
       const fade = (o.alpha ?? 1) * (k > 0.8 ? (1 - k) * 5 : 1);
-      img.setPosition(cx, cy).setScale(sc).setDepth(cy).setAlpha(fade);
+      img.setPosition(cx, cy).setScale(sc).setDepth(cy).setAlpha(fade).setFrame(loopFrame('fx_wave', traveled / speed, 8));
       // lâmina d'água: larga no sentido da crista, achatada no chão
       const along = width * (1 - vertical) * 0.5 + width * vertical * 1.1;
       const across = width * (1 - vertical) * 1.1 + width * vertical * 0.5;
@@ -490,6 +546,7 @@ export class WeaponSystem {
     const interval = s.duration / segs;
     const hit = new Set<number>();
     const gfx = this.scene.add.graphics().setDepth(LAYER.groundFx);
+    const line = new Crack(x, y, 5 * s.area * (depth ? 0.7 : 1));
     let cx = x;
     let cy = y;
     let i = 0;
@@ -502,8 +559,9 @@ export class WeaponSystem {
         const a = angle + (Math.random() - 0.5) * 0.8;
         const nx = cx + Math.cos(a) * step;
         const ny = cy + Math.sin(a) * step;
-        gfx.lineStyle(6 * s.area, 0x2a180c, 0.85).lineBetween(cx, cy, nx, ny);
-        gfx.lineStyle(2, 0xd8b07a, 0.9).lineBetween(cx, cy - 2, nx, ny - 2);
+        line.extend(nx, ny);
+        gfx.clear();
+        line.draw(gfx);
         this.spike(nx, ny, s.area * (depth ? 0.7 : 0.9) * (0.8 + Math.random() * 0.4));
         this.scene.queryEnemies(nx, ny, 20 * s.area + 16, (e) => {
           if (hit.has(e.uid)) return;
@@ -535,6 +593,8 @@ export class WeaponSystem {
   private spike(x: number, y: number, scale: number) {
     const img = this.scene.add.image(x, y, 'atlas', frameName('fx_spike')).setOrigin(0.5, 0.9).setDepth(y).setScale(scale * 0.3, 0);
     this.scene.tweens.add({ targets: img, scaleX: scale, scaleY: scale, duration: 90, ease: 'Back.Out' });
+    // brota (quadro 1) e fica de pé (quadro 2)
+    if (framesOf('fx_spike') > 1) this.scene.time.delayedCall(110, () => img.active && img.setFrame(frameName('fx_spike', 1)));
     this.scene.tweens.add({ targets: img, scaleY: 0, alpha: 0, delay: 420, duration: 260, ease: 'Quad.In', onComplete: () => img.destroy() });
   }
 
@@ -589,6 +649,7 @@ export class WeaponSystem {
         hx += Math.cos(dir) * s.speed * dt;
         hy += Math.sin(dir) * s.speed * dt;
       }
+      img.setFrame(loopFrame('fx_tornado', t, 12));
       img.setPosition(hx, hy).setScale((r * 2.4) / 60).setRotation(Math.sin(t * 14) * 0.1).setDepth(hy).setAlpha(k > 0.85 ? (1 - k) / 0.15 : 1);
       const pull = r * 2.4;
       this.scene.queryEnemies(hx, hy, pull, (e) => {
@@ -597,8 +658,8 @@ export class WeaponSystem {
         const d = Math.hypot(dx, dy) || 1;
         if (d > pull) return;
         if (!e.boss) {
-          // puxa para o centro do redemoinho
-          const m = Math.min(d, 70 * dt);
+          // puxa para o centro do redemoinho (menos forte em quem tem Resistência)
+          const m = Math.min(d, 70 * dt * controlScale(e.resist));
           e.x += (dx / d) * m;
           e.y += (dy / d) * m;
         }
@@ -674,19 +735,7 @@ export class WeaponSystem {
       const alpha = k < 1 ? 1 : Math.max(0, 1 - (t - dur) / fade);
       // meia-lua: fina na cauda e grossa na lâmina, com borda clara de fio
       gfx.clear();
-      const steps = 14;
-      const tail = Math.max(a0, a1 - 2.4);
-      for (const [thick, c, al] of [[0.5, color, 0.22], [0.32, color, 0.75], [0.12, edge, 0.95]] as [number, number, number][]) {
-        const outer: { x: number; y: number }[] = [];
-        const inner: { x: number; y: number }[] = [];
-        for (let i = 0; i <= steps; i++) {
-          const u = i / steps;
-          const a = tail + (a1 - tail) * u;
-          outer.push(pt(a, 1.05));
-          inner.push(pt(a, 1.05 - thick * u ** 1.4));
-        }
-        gfx.fillStyle(c, al * alpha).fillPoints([...outer, ...inner.reverse()], true);
-      }
+      drawCrescent(gfx, p.x, p.y - 4, Math.max(a0, a1 - 2.4), a1, rx, ry, [[0.5, color, 0.22], [0.32, color, 0.75], [0.12, edge, 0.95]], alpha);
       // a arte tem a lâmina à esquerda e o cabo à direita: girada para o cabo apontar para o herói
       const at = pt(a1, 0.72);
       axe.setPosition(at.x, at.y).setRotation(a1 + Math.PI).setAlpha(alpha);
@@ -740,21 +789,8 @@ export class WeaponSystem {
   /** Rachaduras curtas saindo de um ponto (só visual). */
   private quakeCracks(x: number, y: number, n: number, len: number) {
     const g = this.scene.add.graphics().setDepth(LAYER.groundFx);
-    for (let i = 0; i < n; i++) {
-      let a = Math.random() * Math.PI * 2;
-      let cx = x;
-      let cy = y;
-      g.lineStyle(3, 0x3a2a1a, 0.85);
-      g.beginPath().moveTo(cx, cy);
-      for (let j = 0; j < 4; j++) {
-        a += (Math.random() - 0.5) * 0.8;
-        cx += Math.cos(a) * (len / 4);
-        cy += Math.sin(a) * (len / 4) * 0.7;
-        g.lineTo(cx, cy);
-      }
-      g.strokePath();
-    }
-    this.scene.tweens.add({ targets: g, alpha: 0, delay: 300, duration: 400, onComplete: () => g.destroy() });
+    Crack.burst(g, x, y, n, len, 4);
+    this.scene.tweens.add({ targets: g, alpha: 0, delay: 350, duration: 400, onComplete: () => g.destroy() });
   }
 
   /** Onda de choque: anel que se expande e fere e empurra quem estiver dentro. */
@@ -847,7 +883,7 @@ export class WeaponSystem {
       }
       x += mx;
       y += my;
-      img.setPosition(x, y).setRotation(img.rotation + dt * 16 * (vx >= 0 ? 1 : -1));
+      img.setPosition(x, y).setRotation(img.rotation + dt * 16 * (vx >= 0 ? 1 : -1)).setFrame(loopFrame('fx_hammer', scene.elapsed, 10));
       if (Math.random() < 0.7) scene.sparks.explode(1, x, y);
       // na ida, carrega os inimigos atingidos junto (chefes só levam dano)
       for (const e of carried) {
@@ -862,7 +898,8 @@ export class WeaponSystem {
         if ((e.x - x) ** 2 + (e.y - 8 - y) ** 2 > (radius + e.radius) ** 2) return;
         hit.add(e.uid);
         this.hit(w, e, back ? 0.8 : 0);
-        if (!back && !e.boss && e.active) carried.add(e);
+        // a Resistência pode impedir que ele seja carregado
+        if (!back && !e.boss && e.active && this.scene.control(e) > 0) carried.add(e);
       });
       return true;
     });
@@ -1067,7 +1104,7 @@ export class WeaponSystem {
       life += dt;
       x += vx * dt;
       y += vy * dt;
-      img.setPosition(x, y);
+      img.setPosition(x, y).setFrame(loopFrame('fx_fireball', life, 12));
       if (Math.random() < 0.5) this.scene.emitFlame(x - vx * 0.03, y - vy * 0.03);
       let hit = false;
       this.scene.queryEnemies(x, y, 24, (e) => {
@@ -1101,6 +1138,7 @@ export class WeaponSystem {
       .setRotation(Math.atan2(ty - (view.y - 40), tx - (tx + 80)));
     this.scene.tweens.add({
       targets: img, x: tx, y: ty, duration: 520, ease: 'Quad.In',
+      onUpdate: (tw) => img.setFrame(loopFrame('fx_fireball', tw.elapsed / 1000, 12)),
       onComplete: () => {
         img.destroy();
         this.explode(w, tx, ty, 70 * w.stats.area, 3, 0.014);
@@ -1121,53 +1159,64 @@ export class WeaponSystem {
     if (this.walked < step) return;
     this.walked = Math.min(this.walked - step, step);
     const g = grandeur(w.level);
-    // um tremor em círculo com o herói no centro; quantidade extra = anéis maiores logo depois
-    for (let i = 0; i < w.stats.amount; i++) this.scene.time.delayedCall(i * 160, () => this.quakeRing(w, g, 1 + i * 0.45, false));
+    // onda de choque com o herói no centro; quantidade extra = ondas seguidas
+    for (let i = 0; i < w.stats.amount; i++) this.scene.time.delayedCall(i * 180, () => this.shockRing(w, g, 1));
+    // despertado: uma segunda onda, mais larga; nv 20: uma terceira, que empurra ainda mais
+    if (g >= 2) this.scene.time.delayedCall(320, () => this.shockRing(w, g, 1.35));
+    if (g >= 3) this.scene.time.delayedCall(640, () => this.shockRing(w, g, 1.7));
   }
 
-  /** Tremor circular em volta do herói: rachaduras saindo dele, anel de espinhos e dano no círculo todo. */
-  private quakeRing(w: WeaponRuntime, g: number, scale: number, aftershock: boolean) {
+  /**
+   * Onda de choque: um anel de poeira e pressão sai do herói e se expande em círculo; quem ele
+   * alcança leva dano e é empurrado para fora.
+   */
+  private shockRing(w: WeaponRuntime, g: number, scale: number) {
     const s = w.stats;
-    const p = this.scene.player;
+    const scene = this.scene;
+    const p = scene.player;
     const x = p.x;
     const y = p.y + 4;
-    const radius = 46 * s.area * (g >= 1 ? 1.2 : 1) * scale * (aftershock ? 1.35 : 1);
-    // onda de terra correndo do herói até a borda do círculo
-    const ring = this.scene.add.image(x, y, 'atlas', frameName('aura')).setTint(0x8a6238).setAlpha(0.7).setDepth(LAYER.groundFx).setScale(0.1, 0.08);
-    this.scene.tweens.add({ targets: ring, scaleX: (radius * 2.1) / 96, scaleY: (radius * 1.6) / 96, alpha: 0, duration: 300, ease: 'Quad.Out', onComplete: () => ring.destroy() });
-    // rachaduras do herói para fora
-    const gfx = this.scene.add.graphics().setDepth(LAYER.groundFx);
-    const n = 7;
-    for (let k = 0; k < n; k++) {
-      let a = (k / n) * Math.PI * 2 + Math.random() * 0.5;
-      let cx = x + Math.cos(a) * 10;
-      let cy = y + Math.sin(a) * 8;
-      for (let j = 0; j < 3; j++) {
-        a += (Math.random() - 0.5) * 0.6;
-        const nx = cx + Math.cos(a) * radius * 0.3;
-        const ny = cy + Math.sin(a) * radius * 0.24;
-        gfx.lineStyle((3.5 - j) * s.area, 0x2a180c, 0.85).lineBetween(cx, cy, nx, ny);
-        cx = nx;
-        cy = ny;
+    const radius = 60 * s.area * (g >= 1 ? 1.2 : 1) * scale;
+    const force = 230 * (g >= 3 ? 1.4 : 1);
+    const gfx = scene.add.graphics().setDepth(LAYER.groundFx);
+    const hit = new Set<number>();
+    const dur = 0.38;
+    let t = 0;
+    // pisada: o chão afunda um instante no centro
+    const stomp = scene.add.image(x, y, 'atlas', frameName('glow')).setTint(0x3a2a18).setAlpha(0.45).setScale(0.6, 0.35).setDepth(LAYER.groundFx);
+    scene.tweens.add({ targets: stomp, alpha: 0, scaleX: 1.2, scaleY: 0.7, duration: 300, onComplete: () => stomp.destroy() });
+    this.live.push((dt) => {
+      t += dt;
+      const k = Math.min(1, t / dur);
+      const r = 8 + (radius - 8) * (1 - (1 - k) ** 2);
+      const fade = 1 - k;
+      gfx.clear();
+      // frente da onda: faixa de poeira grossa, com uma linha clara de pressão logo atrás
+      gfx.lineStyle(12 * (0.4 + fade * 0.6) * s.area, 0x7a5a34, 0.7 * fade).strokeEllipse(x, y, r * 2, r * 1.5);
+      gfx.lineStyle(4 * s.area, 0xf4e2bc, 0.95 * fade).strokeEllipse(x, y, r * 1.82, r * 1.36);
+      gfx.lineStyle(1.5, 0xffffff, 0.6 * fade).strokeEllipse(x, y, r * 1.6, r * 1.2);
+      // poeira levantando na frente da onda
+      if (k < 0.9) {
+        for (let i = 0; i < 2; i++) {
+          const a = Math.random() * Math.PI * 2;
+          this.dust(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.75, 1);
+        }
       }
-    }
-    this.scene.tweens.add({ targets: gfx, alpha: 0, delay: 250, duration: 350, onComplete: () => gfx.destroy() });
-    // espinhos brotando na borda do círculo, em sequência
-    const spikes = Math.round(8 * scale * (aftershock ? 1.3 : 1));
-    const start = Math.random() * Math.PI * 2;
-    for (let k = 0; k < spikes; k++) {
-      const a = start + (k / spikes) * Math.PI * 2;
-      this.scene.time.delayedCall(k * 12, () => this.spike(x + Math.cos(a) * radius * 0.85, y + Math.sin(a) * radius * 0.68, s.area * 0.75));
-    }
-    this.burst(w, x, y, radius, aftershock ? 0.6 : 1, 70);
+      scene.queryEnemies(x, y, r + 24, (e) => {
+        if (hit.has(e.uid)) return;
+        const dx = e.x - x;
+        const dy = (e.y - y) / 0.75;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d > r + e.radius) return;
+        hit.add(e.uid);
+        this.hit(w, e, 0);
+        this.push(e, dx / d, dy / d, force);
+      });
+      if (k < 1) return true;
+      gfx.destroy();
+      return false;
+    });
     sfx('boom');
-    if (aftershock) return;
-    // despertado: um segundo tremor, mais largo; nv 20: fissuras correm para fora em quatro direções
-    if (g >= 2) this.scene.time.delayedCall(350, () => this.quakeRing(w, g, scale, true));
-    if (g >= 3) {
-      const a0 = Math.random() * Math.PI * 2;
-      for (let k = 0; k < 4; k++) this.crack(w, x, y, a0 + (k * Math.PI) / 2, 120 * s.area, g, 1);
-    }
   }
 
   /** Registra dano de projéteis na estatística da arma dona. */
