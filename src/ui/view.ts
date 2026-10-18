@@ -29,3 +29,17 @@ export function setupCamera(scene: Phaser.Scene) {
 export function pointerPos(scene: Phaser.Scene, pointer: Phaser.Input.Pointer) {
   return scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
 }
+
+/**
+ * Tela deitada e baixa (celular na horizontal): as telas trocam a coluna única por duas colunas
+ * lado a lado, usando a sobra lateral. `col(-1)` e `col(1)` dão o centro de cada coluna.
+ */
+export function isWide() {
+  return VIEW.height < 600 && VIEW.bleed >= 140;
+}
+
+export const WIDE_COL = 300;
+
+export function col(side: -1 | 1) {
+  return VIEW.width / 2 + side * (WIDE_COL / 2 + 10);
+}

@@ -4,7 +4,7 @@ import { INFINITE_GOLD, RUN_OPTIONS, SPEED_OPTIONS, cycle, dev, setDev } from '.
 import { loadSave, writeSave } from '../systems/save';
 import { sfx } from '../systems/sfx';
 import { button, goldTitle, panel, text } from '../ui/theme';
-import { VIEW, setupCamera } from '../ui/view';
+import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
 import type { GameScene } from './GameScene';
 
 /** Ouro real do jogador, guardado enquanto as moedas infinitas estão ligadas. */
@@ -31,7 +31,11 @@ export class DevScene extends Phaser.Scene {
     const inRun = this.from === 'Pause';
     const game = this.scene.get('Game') as GameScene;
     this.add.rectangle(-VIEW.bleed, 0, VIEW.screenWidth, height, 0x0b0a14, 0.92).setOrigin(0).setInteractive();
-    goldTitle(this, width / 2, 34, 'DEV', 30);
+    // deitado: configurações à esquerda, ações da partida à direita
+    const wide = isWide();
+    const lx = wide ? col(-1) : width / 2;
+    const lw = wide ? WIDE_COL : width;
+    goldTitle(this, lx, 34, 'DEV', 30);
     const refresh = () => this.scene.restart({ from: this.from });
     const yes = (on: boolean) => (on ? 'SIM' : 'NÃO');
 
@@ -58,19 +62,21 @@ export class DevScene extends Phaser.Scene {
       }],
     ];
     let y = 78;
-    panel(this, width / 2, y + (settings.length * 40) / 2 + 4, width - 24, settings.length * 40 + 20, 'ui_panel_dark');
+    panel(this, lx, y + (settings.length * 40) / 2 + 4, lw - 24, settings.length * 40 + 20, 'ui_panel_dark');
     settings.forEach(([label, fn], i) => {
-      button(this, width / 2, y + 24 + i * 40, label, () => {
+      button(this, lx, y + 24 + i * 40, label, () => {
         sfx('select');
         fn();
         refresh();
-      }, { width: width - 60, height: 34, size: 13 });
+      }, { width: lw - 60, height: 34, size: 13 });
     });
-    y += settings.length * 40 + 30;
+    y = wide ? 40 : y + settings.length * 40 + 30;
+    const rx = wide ? col(1) : width / 2;
+    const rw = wide ? WIDE_COL : width;
 
     // ---------- Ações na partida ----------
     if (inRun) {
-      text(this, width / 2, y, 'NA PARTIDA', 13, '#ffd86a', { bold: true });
+      text(this, rx, y, 'NA PARTIDA', 13, '#ffd86a', { bold: true });
       const actions: [string, () => void][] = [
         ['+1 nível', () => game.devLevelUp(1)],
         ['+5 níveis', () => game.devLevelUp(5)],
@@ -80,9 +86,9 @@ export class DevScene extends Phaser.Scene {
         ['Avançar 1 min', () => game.devSkip(60)],
         ['Curar', () => game.devHeal()],
       ];
-      const bw = (width - 44) / 2;
+      const bw = (rw - 44) / 2;
       actions.forEach(([label, fn], i) => {
-        const x = width / 2 + (i % 2 === 0 ? -1 : 1) * (bw / 2 + 4);
+        const x = rx + (i % 2 === 0 ? -1 : 1) * (bw / 2 + 4);
         button(this, x, y + 26 + Math.floor(i / 2) * 40, label, () => {
           sfx('select');
           fn();
@@ -92,15 +98,16 @@ export class DevScene extends Phaser.Scene {
       y += 26 + Math.ceil(actions.length / 2) * 40;
 
       // uma arma por ícone: toque = +1 nível
-      text(this, width / 2, y, 'ARMAS (toque = +1 nível)', 11, '#b8bdd8');
-      const cols = 5;
-      const cell = (width - 40) / cols;
+      text(this, rx, y, 'ARMAS (toque = +1 nível)', 11, '#b8bdd8');
+      const cols = wide ? 7 : 5;
+      const cell = (rw - 40) / cols;
       WEAPON_IDS.forEach((id, i) => {
-        const cx = 20 + cell * (i % cols) + cell / 2;
+        const cx = rx - rw / 2 + 20 + cell * (i % cols) + cell / 2;
         const cy = y + 34 + Math.floor(i / cols) * 54;
         const level = game.loadout.weapons[id] ?? 0;
-        panel(this, cx, cy, 40, 40, level ? 'ui_card_1' : 'ui_slot');
-        const icon = this.add.image(cx, cy, WEAPONS[id].icon).setScale(1.5).setAlpha(level ? 1 : 0.5);
+        const slot = Math.min(40, cell - 3);
+        panel(this, cx, cy, slot, slot, level ? 'ui_card_1' : 'ui_slot');
+        const icon = this.add.image(cx, cy, WEAPONS[id].icon).setScale(slot / 27).setAlpha(level ? 1 : 0.5);
         text(this, cx, cy + 26, level ? `nv ${level}` : '—', 10, level ? '#ffffff' : '#6a6e88', { bold: true });
         icon.setInteractive({ useHandCursor: true }).on('pointerup', () => {
           sfx('select');
@@ -110,7 +117,7 @@ export class DevScene extends Phaser.Scene {
       });
     }
 
-    button(this, width / 2, height - 34, 'VOLTAR', () => {
+    button(this, lx, height - 34, 'VOLTAR', () => {
       sfx('select');
       if (this.from === 'Menu') {
         this.scene.start('Menu');

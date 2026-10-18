@@ -34,6 +34,18 @@ import { FONT, px } from '../ui/theme';
  */
 /** Aproximação extra da câmera do jogo: personagens maiores na tela do celular. */
 export const WORLD_ZOOM = 1.2;
+/** Limites do zoom do jogador: afastar mostra mais da tela (e pesa mais), aproximar mostra o herói maior. */
+export const ZOOM_RANGE = [0.7, 1.8];
+const ZOOM_KEY = 'survivor-zoom';
+
+function loadZoom() {
+  try {
+    const z = Number(localStorage.getItem(ZOOM_KEY));
+    return z ? Phaser.Math.Clamp(z, ZOOM_RANGE[0], ZOOM_RANGE[1]) : 1;
+  } catch {
+    return 1;
+  }
+}
 
 export const LAYER = {
   ground: -3e9,
@@ -134,13 +146,28 @@ export class GameScene extends Phaser.Scene {
     super('Game');
   }
 
+  /** Zoom escolhido pelo jogador (pinça ou roda do mouse), multiplicando o zoom padrão. */
+  userZoom = loadZoom();
+
   /** Área visível do mundo (unidades do jogo). */
   get viewW() {
-    return VIEW.screenWidth / WORLD_ZOOM;
+    return VIEW.screenWidth / (WORLD_ZOOM * this.userZoom);
   }
 
   get viewH() {
-    return VIEW.height / WORLD_ZOOM;
+    return VIEW.height / (WORLD_ZOOM * this.userZoom);
+  }
+
+  /** Aproxima ou afasta a câmera (limitado a ZOOM_RANGE); fica salvo para as próximas partidas. */
+  setUserZoom(z: number) {
+    this.userZoom = Phaser.Math.Clamp(z, ZOOM_RANGE[0], ZOOM_RANGE[1]);
+    this.cameras.main.setZoom(VIEW.zoom * WORLD_ZOOM * this.userZoom);
+    this.onResize();
+    try {
+      localStorage.setItem(ZOOM_KEY, String(this.userZoom));
+    } catch {
+      // sem armazenamento: vale só nesta sessão
+    }
   }
 
   create() {
@@ -247,7 +274,7 @@ export class GameScene extends Phaser.Scene {
     this.weapons.sync(this.loadout.weapons);
     this.applyDevSpeed();
 
-    this.cameras.main.setZoom(VIEW.zoom * WORLD_ZOOM);
+    this.cameras.main.setZoom(VIEW.zoom * WORLD_ZOOM * this.userZoom);
     this.cameras.main.startFollow(this.player, true, 0.18, 0.18);
     this.cameras.main.setBackgroundColor('#2f6a3a');
     this.cameras.main.setRoundPixels(true);

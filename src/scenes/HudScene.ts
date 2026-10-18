@@ -29,6 +29,9 @@ export class HudScene extends Phaser.Scene {
   private joyKnob!: Phaser.GameObjects.Image;
   private joyPointer: number | null = null;
   private joyOrigin = new Phaser.Math.Vector2();
+  /** Dedos na tela (fora dos botões) e a pinça em andamento: distância e zoom iniciais. */
+  private touches = new Map<number, Phaser.Math.Vector2>();
+  private pinch: { d0: number; z0: number } | null = null;
   private last = { level: -1, time: -1, kills: -1, gold: -1 };
 
   constructor() {
@@ -36,9 +39,11 @@ export class HudScene extends Phaser.Scene {
   }
 
   create() {
+    // a HUD ocupa a tela inteira (na horizontal, vai até as bordas, não só a coluna central)
     setupCamera(this);
+    this.cameras.main.centerOn(VIEW.screenWidth / 2, VIEW.height / 2);
     this.game$ = this.scene.get('Game') as GameScene;
-    const { width } = VIEW;
+    const width = VIEW.screenWidth;
     this.last = { level: -1, time: -1, kills: -1, gold: -1 };
     this.iconSig = '';
 
@@ -59,7 +64,7 @@ export class HudScene extends Phaser.Scene {
 
     button(this, width - 24, 48, 'II', () => this.game$.openPause(), { width: 34, height: 30, size: 14 });
 
-    this.bossPanel = panel(this, width / 2, 128, width - 40, 34, 'ui_panel_dark').setVisible(false).setDepth(-1);
+    this.bossPanel = panel(this, width / 2, 128, Math.min(width, 400) - 40, 34, 'ui_panel_dark').setVisible(false).setDepth(-1);
     this.bossText = text(this, width / 2, 120, '', 11, '#ff9a7a', { bold: true, strokeThickness: 3 }).setVisible(false);
     this.announceText = text(this, width / 2, 170, '', 16, '#ffd86a', { bold: true, strokeThickness: 5 }).setAlpha(0);
 
@@ -71,25 +76,52 @@ export class HudScene extends Phaser.Scene {
     this.input.on('pointermove', this.onMove, this);
     this.input.on('pointerup', this.onUp, this);
     this.input.on('pointerupoutside', this.onUp, this);
+    // zoom: pinça com dois dedos ou roda do mouse
+    this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => this.game$.setUserZoom(this.game$.userZoom * (dy > 0 ? 0.9 : 1.1)));
+    this.touches.clear();
+    this.pinch = null;
 
-    this.events.on(Phaser.Scenes.Events.PAUSE, this.releaseJoystick, this);
+    this.events.on(Phaser.Scenes.Events.PAUSE, () => {
+      this.touches.clear();
+      this.pinch = null;
+      this.releaseJoystick();
+    });
     const onAnnounce = (msg: string) => this.announce(msg);
     this.game$.events.on('announce', onAnnounce);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game$.events.off('announce', onAnnounce));
   }
 
   private onDown(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) {
-    if (over.length > 0 || this.joyPointer !== null) return;
-    this.joyPointer = pointer.id;
+    if (over.length > 0) return;
     const p = pointerPos(this, pointer);
+    this.touches.set(pointer.id, new Phaser.Math.Vector2(p.x, p.y));
+    if (this.touches.size >= 2) {
+      // segundo dedo: vira pinça (o joystick solta)
+      this.releaseJoystick();
+      this.pinch = { d0: Math.max(10, this.touchSpread()), z0: this.game$.userZoom };
+      return;
+    }
+    if (this.joyPointer !== null || this.pinch) return;
+    this.joyPointer = pointer.id;
     this.joyOrigin.set(p.x, p.y);
     this.joyBase.setPosition(p.x, p.y).setVisible(true);
     this.joyKnob.setPosition(p.x, p.y).setVisible(true);
   }
 
+  /** Distância entre os dois primeiros dedos. */
+  private touchSpread() {
+    const [a, b] = [...this.touches.values()];
+    return a && b ? a.distance(b) : 0;
+  }
+
   private onMove(pointer: Phaser.Input.Pointer) {
-    if (pointer.id !== this.joyPointer) return;
     const p = pointerPos(this, pointer);
+    this.touches.get(pointer.id)?.set(p.x, p.y);
+    if (this.pinch) {
+      if (this.touches.size >= 2) this.game$.setUserZoom(this.pinch.z0 * (this.touchSpread() / this.pinch.d0));
+      return;
+    }
+    if (pointer.id !== this.joyPointer) return;
     const v = new Phaser.Math.Vector2(p.x - this.joyOrigin.x, p.y - this.joyOrigin.y);
     const len = v.length();
     if (len > JOY_RADIUS) {
@@ -112,6 +144,8 @@ export class HudScene extends Phaser.Scene {
   }
 
   private onUp(pointer: Phaser.Input.Pointer) {
+    this.touches.delete(pointer.id);
+    if (this.touches.size < 2) this.pinch = null;
     if (pointer.id === this.joyPointer) this.releaseJoystick();
   }
 
@@ -131,7 +165,7 @@ export class HudScene extends Phaser.Scene {
 
   update() {
     const g = this.game$;
-    const { width } = VIEW;
+    const width = VIEW.screenWidth;
 
     this.bars.clear();
     drawBar(this.bars, 48, 9, width - 62, 10, g.xp / g.xpNext, COLORS.xp, 0x141a3a);
@@ -158,7 +192,8 @@ export class HudScene extends Phaser.Scene {
     this.bossText.setVisible(showBoss);
     if (showBoss && boss) {
       this.bossText.setText('DEMÔNIO ANCESTRAL');
-      drawBar(this.bars, 30, 130, width - 60, 8, boss.hp / boss.maxHp, COLORS.hp, COLORS.hpBack);
+      const bw = Math.min(width, 400) - 60;
+      drawBar(this.bars, (width - bw) / 2, 130, bw, 8, boss.hp / boss.maxHp, COLORS.hp, COLORS.hpBack);
     }
   }
 

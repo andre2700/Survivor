@@ -597,15 +597,10 @@ export class WeaponSystem {
     const g = grandeur(w.level);
     const target = this.scene.nearestEnemies(p.x, p.y, 1, 320)[0];
     const f = this.scene.facing;
-    const base = target ? Math.atan2(target.y - p.y, target.x - p.x) : Math.atan2(f.y, f.x);
-    const view = this.scene.cameras.main.worldView;
-    this.laser(w, base, view, g);
+    const aim = target ? Math.atan2(target.y - p.y, target.x - p.x) : Math.atan2(f.y, f.x);
     // despertado: um segundo feixe para trás; nv 20: mais dois em leque
-    if (g >= 2) this.laser(w, base + Math.PI, view, g);
-    if (g >= 3) {
-      this.laser(w, base + 0.6, view, g);
-      this.laser(w, base - 0.6, view, g);
-    }
+    const offsets = g >= 3 ? [0, Math.PI, 0.6, -0.6] : g >= 2 ? [0, Math.PI] : [0];
+    this.laser(w, aim, offsets, g);
     sfx('zap');
     return true;
   }
@@ -628,50 +623,96 @@ export class WeaponSystem {
     return pts;
   }
 
-  private laser(w: WeaponRuntime, angle: number, view: Phaser.Geom.Rectangle, g: number) {
+  /**
+   * Feixes de luz que saem do herói e o acompanham: a cada quadro o caminho é refeito a partir da
+   * posição dele (e da tela), e a mira gira devagar para onde ele anda — dá para varrer a tela.
+   */
+  private laser(w: WeaponRuntime, aim: number, offsets: number[], g: number) {
     const s = w.stats;
-    const p = this.scene.player;
-    const pts = this.laserPath(p.x, p.y - 6, angle, view, Math.floor(s.amount));
-    const lens: number[] = [];
-    let total = 0;
-    for (let i = 1; i < pts.length; i++) lens.push((total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)));
-    const width = 6 * s.area * (g >= 1 ? 1.3 : 1);
-    const color = w.level >= AWAKEN_EVERY ? 0xffd86a : 0xfff4b0;
-    const gfx = this.scene.add.graphics().setDepth(LAYER.fx + 1).setBlendMode(Phaser.BlendModes.ADD);
+    const scene = this.scene;
+    const p = scene.player;
+    const baseWidth = 6 * s.area * (g >= 1 ? 1.3 : 1);
+    const color = w.level >= AWAKEN_EVERY ? 0xffc23a : 0xffe680;
+    // mistura normal (não aditiva): sobre a grama verde, a luz aditiva puxava para o verde-limão
+    const gfx = scene.add.graphics().setDepth(LAYER.fx + 1);
+    // brilhos: na mão do herói, na ponta e em cada rebote
+    const flares: Phaser.GameObjects.Image[] = [];
+    const flare = (i: number) => (flares[i] ??= scene.add.image(0, 0, 'glow').setDepth(LAYER.fx + 2).setBlendMode(Phaser.BlendModes.ADD));
     let drawn = 0;
     let on = 0;
     let tick = 0;
+    let t = 0;
+    let lastX = p.x;
+    let lastY = p.y;
     this.live.push((dt) => {
-      // o feixe corre até o último rebote e depois fica ligado por `duration`
-      if (drawn < total) drawn = Math.min(total, drawn + s.speed * dt);
-      else on += dt;
-      const k = on / s.duration;
-      const path: Phaser.Math.Vector2[] = [new Phaser.Math.Vector2(pts[0].x, pts[0].y)];
-      for (let i = 1; i < pts.length; i++) {
-        const start = lens[i - 2] ?? 0;
-        if (drawn >= lens[i - 1]) {
-          path.push(new Phaser.Math.Vector2(pts[i].x, pts[i].y));
-          continue;
-        }
-        const f = (drawn - start) / (lens[i - 1] - start);
-        path.push(new Phaser.Math.Vector2(pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f));
-        break;
+      t += dt;
+      // a mira segue o movimento do herói, girando no máximo 1,8 rad/s
+      const mx = p.x - lastX;
+      const my = p.y - lastY;
+      lastX = p.x;
+      lastY = p.y;
+      if (mx * mx + my * my > 0.01) {
+        const diff = Phaser.Math.Angle.Wrap(Math.atan2(my, mx) - aim);
+        aim += Phaser.Math.Clamp(diff, -1.8 * dt, 1.8 * dt);
       }
-      const fade = k > 0.8 ? (1 - k) / 0.2 : 1;
-      const flick = 0.85 + Math.random() * 0.15;
+      const view = scene.cameras.main.worldView;
+      const k = on / s.duration;
+      // acende grosso, pulsa enquanto ligado e afina até sumir
+      const life = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+      const width = baseWidth * (1 + Math.max(0, 0.6 - t * 3)) * (0.9 + Math.sin(t * 38) * 0.1) * Math.max(0.05, life);
       gfx.clear();
-      gfx.lineStyle(width * 2.6, color, 0.22 * fade).strokePoints(path);
-      gfx.lineStyle(width, color, 0.9 * fade * flick).strokePoints(path);
-      gfx.lineStyle(Math.max(1.5, width * 0.35), 0xffffff, fade).strokePoints(path);
-      // brilho nos pontos de rebote e na ponta
-      for (let i = 1; i < path.length; i++) gfx.fillStyle(0xffffff, 0.8 * fade).fillCircle(path[i].x, path[i].y, width * (i === path.length - 1 && drawn < total ? 1.4 : 0.9));
-      // dano a cada 0,2 s em quem está sobre o feixe
+      let fi = 0;
+      let extending = false;
+      const paths: { x: number; y: number }[][] = [];
+      for (const off of offsets) {
+        // sai um pouco à frente do herói, para não cobri-lo
+        const a = aim + off;
+        const pts = this.laserPath(p.x + Math.cos(a) * 12, p.y - 8 + Math.sin(a) * 12, a, view, Math.floor(s.amount));
+        // corta o caminho no quanto o feixe já percorreu
+        const path = [pts[0]];
+        let acc = 0;
+        for (let i = 1; i < pts.length; i++) {
+          const seg = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+          if (acc + seg <= drawn) {
+            path.push(pts[i]);
+            acc += seg;
+            continue;
+          }
+          const f = (drawn - acc) / (seg || 1);
+          path.push({ x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f });
+          extending = true;
+          break;
+        }
+        paths.push(path);
+        this.drawBeam(gfx, path, width, color, t);
+        for (let i = 1; i < path.length; i++) {
+          const tip = i === path.length - 1;
+          const img = flare(fi++).setVisible(true).setPosition(path[i].x, path[i].y).setTint(tip ? 0xffffff : color);
+          img.setScale((width / 11) * (tip && extending ? 1.6 : 1.1) * (0.85 + Math.random() * 0.3)).setAlpha(0.8 * life);
+          // estrela de quatro pontas girando nos rebotes
+          if (!tip || !extending) this.drawStar(gfx, path[i].x, path[i].y, width * 3.2, t * 3 + i, life);
+        }
+        // faíscas soltando do feixe
+        if (Math.random() < 0.6 && path.length > 1) {
+          const i = 1 + Math.floor(Math.random() * (path.length - 1));
+          const r = Math.random();
+          scene.sparks.explode(1, path[i - 1].x + (path[i].x - path[i - 1].x) * r, path[i - 1].y + (path[i].y - path[i - 1].y) * r);
+        }
+      }
+      flare(fi++).setVisible(true).setPosition(p.x + Math.cos(aim) * 12, p.y - 8 + Math.sin(aim) * 12).setTint(0xfff4c0).setScale((width / 14) * (0.9 + Math.random() * 0.2)).setAlpha(0.7 * life);
+      for (let i = fi; i < flares.length; i++) flares[i].setVisible(false);
+      if (extending) drawn += s.speed * dt;
+      else on += dt;
+
+      // dano a cada 0,2 s em quem está sobre um feixe
       tick -= dt;
       if (tick <= 0) {
         tick = 0.2;
-        for (const e of this.scene.activeEnemies()) {
-          for (let i = 1; i < path.length; i++) {
-            if (distToSegment(e.x, e.y - 4, path[i - 1], path[i]) < width / 2 + e.radius) {
+        for (const e of scene.activeEnemies()) {
+          for (const path of paths) {
+            let hit = false;
+            for (let i = 1; i < path.length && !hit; i++) hit = distToSegment(e.x, e.y - 4, path[i - 1], path[i]) < width / 2 + e.radius;
+            if (hit) {
               this.hit(w, e, 0);
               break;
             }
@@ -680,8 +721,54 @@ export class WeaponSystem {
       }
       if (k < 1) return true;
       gfx.destroy();
+      for (const img of flares) img.destroy();
       return false;
     });
+  }
+
+  /** Feixe em camadas (halo, cor, núcleo branco) com pulsos de energia correndo por ele. */
+  private drawBeam(gfx: Phaser.GameObjects.Graphics, path: { x: number; y: number }[], width: number, color: number, t: number) {
+    const layers: [number, number, number][] = [
+      [width * 3.2, 0xfff6d0, 0.14],
+      [width * 1.8, color, 0.4],
+      [width * 1.15, 0xd89a1a, 0.9],
+      [width * 0.85, color, 1],
+      [Math.max(1.2, width * 0.4), 0xffffff, 1],
+    ];
+    for (const [lw, c, a] of layers) {
+      gfx.lineStyle(lw, c, a).fillStyle(c, a);
+      for (let i = 1; i < path.length; i++) gfx.lineBetween(path[i - 1].x, path[i - 1].y, path[i].x, path[i].y);
+      // juntas arredondadas (sem fresta nas quinas dos rebotes)
+      for (let i = 1; i < path.length - 1; i++) gfx.fillCircle(path[i].x, path[i].y, lw / 2);
+    }
+    // pulsos de luz correndo do herói para a ponta
+    const gap = 54;
+    const phase = (t * 700) % gap;
+    let start = 0;
+    gfx.lineStyle(Math.max(1.5, width * 0.7), 0xffffff, 0.9);
+    for (let i = 1; i < path.length; i++) {
+      const ax = path[i - 1].x;
+      const ay = path[i - 1].y;
+      const len = Math.hypot(path[i].x - ax, path[i].y - ay) || 1;
+      const ux = (path[i].x - ax) / len;
+      const uy = (path[i].y - ay) / len;
+      for (let d = (((phase - start) % gap) + gap) % gap; d < len; d += gap) {
+        const e = Math.min(len, d + 16);
+        gfx.lineBetween(ax + ux * d, ay + uy * d, ax + ux * e, ay + uy * e);
+      }
+      start += len;
+    }
+  }
+
+  private drawStar(gfx: Phaser.GameObjects.Graphics, x: number, y: number, r: number, rot: number, alpha: number) {
+    gfx.fillStyle(0xffffff, 0.8 * alpha);
+    for (let i = 0; i < 4; i++) {
+      const a = rot + (i * Math.PI) / 2;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const w = r * 0.12;
+      gfx.fillTriangle(x + ca * r, y + sa * r, x - sa * w, y + ca * w, x + sa * w, y - ca * w);
+    }
   }
 
   // ---------- Bola de Fogo ----------

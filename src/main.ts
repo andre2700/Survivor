@@ -12,15 +12,18 @@ import { installHdSprites } from './art/textures';
 import { VIEW, initView } from './ui/view';
 
 // Resolução lógica: a interface usa uma coluna de 400 px de largura. Em retrato, a altura acompanha a
-// proporção da tela; na horizontal, a altura fica em 640 e a partida usa a largura inteira.
+// proporção da tela; na horizontal, a partida usa a largura inteira e a altura lógica acompanha a
+// altura real (440 num celular deitado, até 640 em tablets), para tudo manter o tamanho do retrato.
 const BASE_WIDTH = 400;
-const LANDSCAPE_HEIGHT = 640;
+const LANDSCAPE_MIN = 440;
+const LANDSCAPE_MAX = 640;
 
 function layout() {
   const w = Math.max(1, window.innerWidth);
   const h = Math.max(1, window.innerHeight);
   if (w > h) {
-    return { width: BASE_WIDTH, height: LANDSCAPE_HEIGHT, screenWidth: Math.round(Math.min(1600, Math.max(BASE_WIDTH, (LANDSCAPE_HEIGHT * w) / h))) };
+    const height = Math.round(Math.min(LANDSCAPE_MAX, Math.max(LANDSCAPE_MIN, h * 1.1)));
+    return { width: BASE_WIDTH, height, screenWidth: Math.round(Math.min(1600, Math.max(BASE_WIDTH, (height * w) / h))) };
   }
   const height = Math.round(Math.min(900, Math.max(640, (BASE_WIDTH * h) / w)));
   return { width: BASE_WIDTH, height, screenWidth: BASE_WIDTH };

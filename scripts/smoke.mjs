@@ -11,12 +11,14 @@ mkdirSync('screenshots', { recursive: true });
 const server = await createServer({ server: { port: 5173, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
 const browser = await chromium.launch({ executablePath, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+// LANDSCAPE=1: celular deitado (screenshots com prefixo land-)
+const landscape = !!process.env.LANDSCAPE;
+const page = await browser.newPage({ viewport: landscape ? { width: 844, height: 390 } : { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 
-const shot = (name) => page.screenshot({ path: `screenshots/${name}.png` });
+const shot = (name) => page.screenshot({ path: `screenshots/${landscape ? 'land-' : ''}${name}.png` });
 const wait = (ms) => page.waitForTimeout(ms);
 const run = (fn, arg) => page.evaluate(fn, arg);
 const until = (fn, timeout = 10000) => page.waitForFunction(fn, null, { timeout });
@@ -42,7 +44,7 @@ await until(() => window.__game.scene.isActive('Hud'));
 const box = await page.locator('canvas').boundingBox();
 const k = box.width / 400;
 const cx = box.x + box.width / 2;
-const cy = box.y + box.height * 0.75;
+const cy = box.y + box.height * (landscape ? 0.6 : 0.75);
 await page.mouse.move(cx, cy);
 await page.mouse.down();
 for (let i = 0; i < 30; i++) {
@@ -90,7 +92,7 @@ await run(() => window.__game.scene.getScene('LevelUp').scene.restart());
 await wait(400);
 await shot('06-levelup-tools');
 const H = await run(() => window.__game.scale.height);
-await page.mouse.click(box.x + 200 * k, box.y + 130 * k);
+if (!landscape) await page.mouse.click(box.x + 200 * k, box.y + 130 * k);
 await until(() => !window.__game.scene.isActive('LevelUp') || window.__game.scene.getScene('Game').state === 'levelup', 3000);
 await run(() => {
   const g = window.__game.scene.getScene('Game');

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { VIEW, setupCamera } from '../ui/view';
+import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
 import { formatNumber } from '../core/format';
 import { getCharacter } from '../data/characters';
 import { TAGS } from '../data/tags';
@@ -183,17 +183,22 @@ export class PauseScene extends Phaser.Scene {
     const { width, height } = VIEW;
     const game = this.scene.get('Game') as GameScene;
     dim(this, 0.78);
-    goldTitle(this, width / 2, height * 0.14, 'PAUSADO', 34);
-    button(this, width / 2, height * 0.26, 'CONTINUAR', () => game.resumeFromPause(), { width: 220, height: 44, size: 16, variant: 'primary' });
-    button(this, width / 2, height * 0.26 + 54, 'DESISTIR', () => {
+    // deitado: botões à esquerda, atributos à direita
+    const wide = isWide();
+    const bx = wide ? col(-1) : width / 2;
+    const by = wide ? height * 0.42 : height * 0.26;
+    goldTitle(this, bx, wide ? by - 90 : height * 0.14, 'PAUSADO', 34);
+    button(this, bx, by, 'CONTINUAR', () => game.resumeFromPause(), { width: 220, height: 44, size: 16, variant: 'primary' });
+    button(this, bx, by + 54, 'DESISTIR', () => {
       this.scene.stop();
       game.state = 'playing';
       game.endRun(game.endless);
       game.scene.resume();
     }, { width: 220, height: 38, size: 14 });
-    statsPanel(this, game, height * 0.26 + 96);
+    if (wide) statsPanel(this, game, Math.max(16, (height - 300) / 2), col(1), WIDE_COL);
+    else statsPanel(this, game, by + 96);
     if (DEV_TOOLS) {
-      button(this, 34, 20, 'DEV', () => {
+      button(this, 34 - VIEW.bleed, 20, 'DEV', () => {
         this.scene.pause();
         this.scene.launch('Dev', { from: 'Pause' });
       }, { width: 56, height: 24, size: 11, variant: 'purple' });
@@ -214,8 +219,7 @@ function fitText(t: Phaser.GameObjects.Text, maxW: number, maxH: number, minSize
 }
 
 /** Painel de atributos atuais e bônus de tags (visível na pausa). */
-function statsPanel(scene: Phaser.Scene, game: GameScene, y0: number) {
-  const { width } = VIEW;
+function statsPanel(scene: Phaser.Scene, game: GameScene, y0: number, cx = VIEW.width / 2, pw = VIEW.width - 36) {
   const s = game.stats;
   const pct = (v: number) => `${formatNumber(Math.round(v * 100))}%`;
   const rows: [string, string][] = [
@@ -230,15 +234,15 @@ function statsPanel(scene: Phaser.Scene, game: GameScene, y0: number) {
     ['Sorte', formatNumber(s.luck)],
   ];
   const h = rows.length * 20 + 40;
-  panel(scene, width / 2, y0 + h / 2, width - 36, h, 'ui_panel');
-  text(scene, width / 2, y0 + 16, 'ATRIBUTOS', 12, '#ffd86a', { bold: true });
+  panel(scene, cx, y0 + h / 2, pw, h, 'ui_panel');
+  text(scene, cx, y0 + 16, 'ATRIBUTOS', 12, '#ffd86a', { bold: true });
   rows.forEach(([k, v], i) => {
     const y = y0 + 38 + i * 20;
-    scene.add.text(34, y, k, { fontFamily: FONT, fontSize: px(13), color: '#b8bdd8' }).setOrigin(0, 0.5);
-    scene.add.text(width - 34, y, v, { fontFamily: FONT, fontSize: px(13), fontStyle: 'bold', color: '#ffffff' }).setOrigin(1, 0.5);
+    scene.add.text(cx - pw / 2 + 16, y, k, { fontFamily: FONT, fontSize: px(13), color: '#b8bdd8' }).setOrigin(0, 0.5);
+    scene.add.text(cx + pw / 2 - 16, y, v, { fontFamily: FONT, fontSize: px(13), fontStyle: 'bold', color: '#ffffff' }).setOrigin(1, 0.5);
   });
   const tags = (Object.entries(game.tagCounts) as [Tag, number][]).filter(([, n]) => n > 0).map(([t, n]) => `${TAGS[t].name} ${n}`);
-  if (tags.length) text(scene, width / 2, y0 + h + 16, `Tags: ${tags.join(' · ')}`, 11, '#8a8ea8', { wrap: width - 40 });
+  if (tags.length) text(scene, cx, y0 + h + 16, `Tags: ${tags.join(' · ')}`, 11, '#8a8ea8', { wrap: pw - 4 });
 }
 
 export class VictoryScene extends Phaser.Scene {
@@ -295,12 +299,17 @@ export class GameOverScene extends Phaser.Scene {
     writeSave(save);
 
     dim(this, 0.84);
+    // deitado: resumo à esquerda, dano por arma à direita
+    const wide = isWide();
+    const lx = wide ? col(-1) : width / 2;
+    const rx = wide ? col(1) : width / 2;
+    const pw = wide ? WIDE_COL : width - 36;
     const title = result.endless ? 'FIM DA JORNADA' : result.victory ? 'VITÓRIA!' : 'VOCÊ CAIU...';
     const t = result.victory || result.endless
-      ? goldTitle(this, width / 2, 48, title, 32)
-      : text(this, width / 2, 48, title, 32, '#ff6a5a', { bold: true, stroke: '#2a0608', strokeThickness: 6 });
+      ? goldTitle(this, lx, 48, title, 32)
+      : text(this, lx, 48, title, 32, '#ff6a5a', { bold: true, stroke: '#2a0608', strokeThickness: 6 });
     this.tweens.add({ targets: t, scale: { from: 0.5, to: 1 }, duration: 420, ease: 'Back.Out' });
-    text(this, width / 2, 76, getCharacter(result.character).name, 13, '#c8cce0');
+    text(this, lx, 76, getCharacter(result.character).name, 13, '#c8cce0');
 
     const rows: [string, string][] = [
       ['Tempo', formatTime(result.time) + (newRecord ? '  · recorde!' : '')],
@@ -311,36 +320,37 @@ export class GameOverScene extends Phaser.Scene {
     ];
     const rowsH = rows.length * 22 + 20;
     const y0 = 94;
-    panel(this, width / 2, y0 + rowsH / 2, width - 36, rowsH, 'ui_panel');
+    panel(this, lx, y0 + rowsH / 2, pw, rowsH, 'ui_panel');
     rows.forEach(([k, v], i) => {
       const y = y0 + 20 + i * 22;
-      this.add.text(34, y, k, { fontFamily: FONT, fontSize: px(14), color: '#b8bdd8' }).setOrigin(0, 0.5);
-      this.add.text(width - 34, y, v, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: k === 'Ouro' ? '#ffd86a' : '#ffffff' }).setOrigin(1, 0.5);
+      this.add.text(lx - pw / 2 + 16, y, k, { fontFamily: FONT, fontSize: px(14), color: '#b8bdd8' }).setOrigin(0, 0.5);
+      this.add.text(lx + pw / 2 - 16, y, v, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: k === 'Ouro' ? '#ffd86a' : '#ffffff' }).setOrigin(1, 0.5);
     });
 
     // dano por arma: ajuda a entender o que funcionou
     const reactions = [...result.reactions].sort((a, b) => b.dealt - a.dealt);
-    const weapons = [...result.weapons].sort((a, b) => b.dealt - a.dealt).slice(0, reactions.length ? 5 : 6);
+    const weapons = [...result.weapons].sort((a, b) => b.dealt - a.dealt).slice(0, reactions.length || wide ? 5 : 6);
     const total = weapons.reduce((s, w) => s + w.dealt, 0) || 1;
-    let y = y0 + rowsH + 26;
-    text(this, width / 2, y, 'DANO POR ARMA', 13, '#ffd86a', { bold: true });
+    let y = wide ? 40 : y0 + rowsH + 26;
+    const left = rx - pw / 2;
+    text(this, rx, y, 'DANO POR ARMA', 13, '#ffd86a', { bold: true });
     y += 22;
     for (const w of weapons) {
       const def = WEAPONS[w.id as WeaponId];
-      panel(this, 32, y, 26, 26, 'ui_slot');
-      this.add.image(32, y, def.icon);
-      this.add.text(52, y - 6, `${def.name} · nv ${w.level}`, { fontFamily: FONT, fontSize: px(12), color: '#dfe3f5' }).setOrigin(0, 0.5);
-      const barW = (width - 150) * (w.dealt / total);
-      this.add.rectangle(52, y + 7, Math.max(3, barW), 5, 0x5d8ced).setOrigin(0, 0.5).setStrokeStyle(1, 0x0b0a14);
-      this.add.text(width - 26, y, formatNumber(w.dealt), { fontFamily: FONT, fontSize: px(13), fontStyle: 'bold', color: '#ffffff' }).setOrigin(1, 0.5);
+      panel(this, left + 14, y, 26, 26, 'ui_slot');
+      this.add.image(left + 14, y, def.icon);
+      this.add.text(left + 34, y - 6, `${def.name} · nv ${w.level}`, { fontFamily: FONT, fontSize: px(12), color: '#dfe3f5' }).setOrigin(0, 0.5);
+      const barW = (pw - 114) * (w.dealt / total);
+      this.add.rectangle(left + 34, y + 7, Math.max(3, barW), 5, 0x5d8ced).setOrigin(0, 0.5).setStrokeStyle(1, 0x0b0a14);
+      this.add.text(rx + pw / 2 - 8, y, formatNumber(w.dealt), { fontFamily: FONT, fontSize: px(13), fontStyle: 'bold', color: '#ffffff' }).setOrigin(1, 0.5);
       y += 32;
     }
     if (reactions.length) {
       const line = reactions.map((r) => `${r.name} ${formatNumber(r.dealt)}`).join(' · ');
-      text(this, width / 2, y + 2, `Reações: ${line}`, 12, '#9fe8ff', { bold: true, wrap: width - 48 });
+      text(this, rx, y + 2, `Reações: ${line}`, 12, '#9fe8ff', { bold: true, wrap: pw - 12 });
     }
 
-    text(this, width / 2, height - 118, `Ouro total: ${formatNumber(save.gold)}`, 14, '#ffd86a', { bold: true });
+    text(this, lx, height - 118, `Ouro total: ${formatNumber(save.gold)}`, 14, '#ffd86a', { bold: true });
     const restart = (target: 'Game' | 'Menu') => {
       sfx('select');
       this.scene.stop('Game');
@@ -348,7 +358,7 @@ export class GameOverScene extends Phaser.Scene {
       this.scene.stop();
       this.scene.start(target);
     };
-    button(this, width / 2, height - 86, 'JOGAR DE NOVO', () => restart('Game'), { width: 220, height: 44, size: 16, variant: 'primary' });
-    button(this, width / 2, height - 36, 'MENU', () => restart('Menu'), { width: 220, height: 38, size: 14 });
+    button(this, lx, height - 86, 'JOGAR DE NOVO', () => restart('Game'), { width: 220, height: 44, size: 16, variant: 'primary' });
+    button(this, lx, height - 36, 'MENU', () => restart('Menu'), { width: 220, height: 38, size: 14 });
   }
 }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { VIEW, pointerPos, setupCamera } from '../ui/view';
+import { VIEW, WIDE_COL, col, isWide, pointerPos, setupCamera } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { generateTextures, groundSprite, preloadArt, scrollGround, slotsOf } from '../art/textures';
 import { formatNumber } from '../core/format';
@@ -63,7 +63,8 @@ export function menuBackground(scene: Phaser.Scene, darken = 0.25) {
 
 /** Contador de ouro no canto superior direito. */
 export function goldPill(scene: Phaser.Scene, gold: number) {
-  const { width } = VIEW;
+  // no canto da tela (na horizontal, além da coluna)
+  const width = VIEW.width + VIEW.bleed;
   const label = formatNumber(gold);
   const w = 44 + label.length * 8;
   panel(scene, width - 10 - w / 2, 20, w, 26, 'ui_panel_dark');
@@ -86,7 +87,11 @@ export class MenuScene extends Phaser.Scene {
     menuBackground(this);
     goldPill(this, save.gold);
 
-    const soundBtn = button(this, 34, 20, save.sound ? 'SOM' : 'MUDO', () => {
+    // deitado: herói à esquerda, ficha e botões à direita
+    const wide = isWide();
+    const heroX = wide ? col(-1) : width / 2;
+    const infoX = wide ? col(1) : width / 2;
+    const soundBtn = button(this, 34 - VIEW.bleed, 20, save.sound ? 'SOM' : 'MUDO', () => {
       save.sound = !save.sound;
       setSoundEnabled(save.sound);
       writeSave(save);
@@ -94,29 +99,29 @@ export class MenuScene extends Phaser.Scene {
     }, { width: 56, height: 26, size: 11, color: save.sound ? '#f4f4f4' : '#8a8ca0' });
     soundBtn.setDepth(10);
     if (DEV_TOOLS) {
-      button(this, 34, 50, 'DEV', () => {
+      button(this, 34 - VIEW.bleed, 50, 'DEV', () => {
         this.scene.pause();
         this.scene.launch('Dev', { from: 'Menu' });
       }, { width: 56, height: 24, size: 11, variant: 'purple' }).setDepth(10);
     }
 
     // Logo
-    const logoY = height * 0.11;
-    const logo = goldTitle(this, width / 2, logoY, 'SURVIVOR', 46);
+    const logoY = wide ? 46 : height * 0.11;
+    const logo = goldTitle(this, infoX, logoY, 'SURVIVOR', 46);
     this.tweens.add({ targets: logo, y: logoY - 4, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    const tag = text(this, width / 2, logoY + 38, 'Sobreviva às hordas. Monte sua lenda.', 12, '#e8e2d0', { shadow: true });
+    const tag = text(this, infoX, logoY + 38, 'Sobreviva às hordas. Monte sua lenda.', 12, '#e8e2d0', { shadow: true });
     tag.setAlpha(0.9);
 
     // Herói em destaque sobre um pedestal luminoso
-    const cy = height * 0.33;
-    const glow = this.add.image(width / 2, cy + 70, 'aura').setScale(2.4, 1.1).setTint(0xffe9a0).setAlpha(0.6).setBlendMode(Phaser.BlendModes.ADD);
+    const cy = wide ? height * 0.5 : height * 0.33;
+    const glow = this.add.image(heroX, cy + 70, 'aura').setScale(2.4, 1.1).setTint(0xffe9a0).setAlpha(0.6).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.95, duration: 1200, yoyo: true, repeat: -1 });
-    const hero = this.add.image(width / 2, cy + 78, `portrait_${CHARACTERS[this.index].texture}`).setOrigin(0.5, 0.97).setScale(4.4);
+    const hero = this.add.image(heroX, cy + 78, `portrait_${CHARACTERS[this.index].texture}`).setOrigin(0.5, 0.97).setScale(4.4);
     this.events.on(Phaser.Scenes.Events.UPDATE, (t: number) => {
       const pose = walkPose('hero', t / 1000, false);
       hero.setScale(4.4 * pose.sx, 4.4 * pose.sy);
     });
-    this.add.particles(width / 2, cy + 60, 'glow', {
+    this.add.particles(heroX, cy + 60, 'glow', {
       x: { min: -50, max: 50 },
       speedY: { min: -40, max: -15 },
       lifespan: 1600,
@@ -128,12 +133,13 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Ficha do herói
-    const cardY = cy + 132;
-    panel(this, width / 2, cardY, width - 36, 92, 'ui_panel');
-    const name = text(this, width / 2, cardY - 30, '', 18, '#ffd86a', { bold: true, strokeThickness: 4 });
-    const desc = text(this, width / 2, cardY - 4, '', 12, '#d8dcef', { wrap: width - 70 });
-    const weaponIcon = this.add.image(width / 2 - 64, cardY + 28, 'bolt');
-    const weaponName = text(this, width / 2 - 52, cardY + 28, '', 12, '#ffe9a0', { bold: true }).setOrigin(0, 0.5);
+    const cardY = wide ? 160 : cy + 132;
+    const cardW = wide ? WIDE_COL : width - 36;
+    panel(this, infoX, cardY, cardW, 92, 'ui_panel');
+    const name = text(this, infoX, cardY - 30, '', 18, '#ffd86a', { bold: true, strokeThickness: 4 });
+    const desc = text(this, infoX, cardY - 4, '', 12, '#d8dcef', { wrap: cardW - 34 });
+    const weaponIcon = this.add.image(infoX - 64, cardY + 28, 'bolt');
+    const weaponName = text(this, infoX - 52, cardY + 28, '', 12, '#ffe9a0', { bold: true }).setOrigin(0, 0.5);
 
     let action: Phaser.GameObjects.Container | null = null;
     const refresh = () => {
@@ -150,11 +156,11 @@ export class MenuScene extends Phaser.Scene {
       }
       action?.destroy();
       if (unlocked) {
-        action = button(this, width / 2, cardY + 100, 'JOGAR', () => this.startGame(), { width: 220, height: 50, size: 22, variant: 'primary' });
+        action = button(this, infoX, cardY + 100, 'JOGAR', () => this.startGame(), { width: 220, height: 50, size: 22, variant: 'primary' });
         this.tweens.add({ targets: action, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
       } else {
         const can = save.gold >= c.cost;
-        action = button(this, width / 2, cardY + 100, `LIBERAR · ${formatNumber(c.cost)}`, () => {
+        action = button(this, infoX, cardY + 100, `LIBERAR · ${formatNumber(c.cost)}`, () => {
           if (save.gold < c.cost) return;
           save.gold -= c.cost;
           save.unlocked.push(c.id);
@@ -170,11 +176,12 @@ export class MenuScene extends Phaser.Scene {
       this.index = (this.index + d + CHARACTERS.length) % CHARACTERS.length;
       refresh();
     };
-    button(this, 40, cy + 30, '<', () => cycle(-1), { width: 40, height: 44, size: 20 });
-    button(this, width - 40, cy + 30, '>', () => cycle(1), { width: 40, height: 44, size: 20 });
+    const arrow = wide ? 120 : width / 2 - 40;
+    button(this, heroX - arrow, cy + 30, '<', () => cycle(-1), { width: 40, height: 44, size: 20 });
+    button(this, heroX + arrow, cy + 30, '>', () => cycle(1), { width: 40, height: 44, size: 20 });
     refresh();
 
-    button(this, width / 2, cardY + 156, 'MELHORIAS', () => {
+    button(this, infoX, cardY + 156, 'MELHORIAS', () => {
       unlockAudio();
       sfx('select');
       this.scene.start('Shop');
@@ -182,10 +189,10 @@ export class MenuScene extends Phaser.Scene {
 
     if (save.bestTime > 0) {
       const cycleTxt = save.bestCycle ? ` · ciclo ${save.bestCycle}` : '';
-      text(this, width / 2, height - 18, `Recorde: ${formatTime(save.bestTime)} · ${formatNumber(save.bestKills)} abates${cycleTxt}`, 11, '#a8acc4');
+      text(this, infoX, height - 18, `Recorde: ${formatTime(save.bestTime)} · ${formatNumber(save.bestKills)} abates${cycleTxt}`, 11, '#a8acc4');
     }
 
-    this.monsterParade(cardY + 210, height - 40);
+    this.monsterParade(wide ? height - 70 : cardY + 210, height - 40);
     this.input.keyboard?.once('keydown-ENTER', () => this.startGame());
   }
 
@@ -201,8 +208,9 @@ export class MenuScene extends Phaser.Scene {
         m.x += (dir * speed * dt) / 1000;
         const pose = walkPose(key, this.time.now / 1000 + i);
         m.setFrame(slotsOf(key)[pose.slot] ?? 0).setScale(1.5 * pose.sx, 1.5 * pose.sy).setRotation(dir < 0 ? -pose.rot : pose.rot);
-        if (dir > 0 && m.x > width + 60) m.x = -60;
-        if (dir < 0 && m.x < -60) m.x = width + 60;
+        // na horizontal atravessam a tela inteira
+        if (dir > 0 && m.x > width + VIEW.bleed + 60) m.x = -VIEW.bleed - 60;
+        if (dir < 0 && m.x < -VIEW.bleed - 60) m.x = width + VIEW.bleed + 60;
       });
     });
   }
