@@ -357,6 +357,23 @@ export class WeaponSystem {
 
   // ---------- Onda (Água) ----------
 
+  private foamEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
+
+  /** Espuma branca subindo da base das ondas (um emissor para todas). */
+  private foam() {
+    this.foamEmitter ??= this.scene.add.particles(0, 0, 'atlas', {
+      frame: frameName('glow'),
+      speedY: { min: -26, max: -6 },
+      speedX: { min: -14, max: 14 },
+      lifespan: { min: 280, max: 480 },
+      scale: { start: 0.22, end: 0.05 },
+      alpha: { start: 0.95, end: 0 },
+      tint: [0xffffff, 0xe6f7ff, 0xbfe8ff],
+      emitting: false,
+    }).setDepth(LAYER.fx + 1);
+    return this.foamEmitter;
+  }
+
   private fireWave(w: WeaponRuntime): boolean {
     const p = this.scene.player;
     const target = this.scene.nearestEnemies(p.x, p.y, 1, 280)[0];
@@ -393,8 +410,11 @@ export class WeaponSystem {
     const left = cos < 0;
     const tilt = Phaser.Math.Clamp(Math.atan2(sin, Math.abs(cos)), -0.5, 0.5);
     const vertical = Math.abs(sin);
-    const img = this.scene.add.image(x0, y0, 'atlas', frameName('fx_wave')).setFlipX(left).setRotation(left ? -tilt : tilt).setDepth(LAYER.fx);
+    // a base da arte se dissolve sobre uma lâmina d'água no chão, com espuma onde a onda encosta
+    const img = this.scene.add.image(x0, y0, 'atlas', frameName('fx_wave')).setOrigin(0.5, 0.86).setFlipX(left).setRotation(left ? -tilt : tilt).setDepth(LAYER.fx);
     if (w.level >= AWAKEN_EVERY) img.setTint(0xd8f4ff);
+    const sheet = this.scene.add.image(x0, y0, 'atlas', frameName('glow')).setTint(0x5fc4ff).setAlpha(0.55).setDepth(LAYER.groundFx);
+    const foam = this.foam();
     this.live.push((dt) => {
       traveled += speed * dt;
       const k = Math.min(1, traveled / range);
@@ -404,7 +424,16 @@ export class WeaponSystem {
       const cy = y0 + sin * traveled;
       // de lado, a largura da faixa é a altura da onda; na vertical, é a largura dela
       const sc = (width / 54) * (1 - vertical) + (width / 64) * vertical;
-      img.setPosition(cx, cy).setScale(sc).setDepth(cy).setAlpha((o.alpha ?? 1) * (k > 0.8 ? (1 - k) * 5 : 1));
+      const fade = (o.alpha ?? 1) * (k > 0.8 ? (1 - k) * 5 : 1);
+      img.setPosition(cx, cy).setScale(sc).setDepth(cy).setAlpha(fade);
+      // lâmina d'água: larga no sentido da crista, achatada no chão
+      const along = width * (1 - vertical) * 0.5 + width * vertical * 1.1;
+      const across = width * (1 - vertical) * 1.1 + width * vertical * 0.5;
+      sheet.setPosition(cx - cos * 6, cy - sin * 6 + 2).setDisplaySize(along * 1.3, across * 0.5).setAlpha(0.55 * fade);
+      for (let i = 0; i < 3; i++) {
+        const r = Math.random() - 0.5;
+        foam.emitParticleAt(cx - sin * r * width * 0.9 + cos * 4, cy + cos * r * width * 0.35 + sin * 4, 1);
+      }
       this.scene.queryEnemies(cx, cy, width, (e) => {
         if (hit.has(e.uid)) return;
         const dx = e.x - x0;
@@ -418,6 +447,7 @@ export class WeaponSystem {
       });
       if (k < 1) return true;
       img.destroy();
+      sheet.destroy();
       if (g >= 2 && !o.width) {
         // a onda arrebenta no fim
         this.scene.impact(cx, cy, 0x41a6f6, 1.6);
@@ -657,8 +687,9 @@ export class WeaponSystem {
         }
         gfx.fillStyle(c, al * alpha).fillPoints([...outer, ...inner.reverse()], true);
       }
-      const tip = pt(a1, 0.9);
-      axe.setPosition(tip.x, tip.y).setRotation(a1 + Math.PI / 2).setAlpha(alpha);
+      // a arte tem a lâmina à esquerda e o cabo à direita: girada para o cabo apontar para o herói
+      const at = pt(a1, 0.72);
+      axe.setPosition(at.x, at.y).setRotation(a1 + Math.PI).setAlpha(alpha);
       // dano em quem a lâmina já varreu (só enquanto ela está descendo)
       if (k < 1 || !struck) scene.queryEnemies(p.x, p.y, reach + 20, (e) => {
         if (hit.has(e.uid)) return;
@@ -1153,5 +1184,6 @@ export class WeaponSystem {
   destroy() {
     this.orbs.forEach((o) => o.destroy());
     this.aura?.destroy();
+    this.foamEmitter?.destroy();
   }
 }

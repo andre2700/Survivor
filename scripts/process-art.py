@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 SRC = Path('art/source')
 OUT = Path('src/assets/art')
@@ -89,6 +89,15 @@ def feet_span(im):
     w, h = im.size
     feet = im.getchannel('A').crop((0, int(h * 0.85), w, h)).point(lambda v: 255 if v >= 128 else 0).getbbox()
     return (feet[0], feet[2]) if feet else (0, w)
+
+
+def body_center(im):
+    """Centro (x) da cabeça e do tronco: mediana dos pixels opacos entre 8% e 45% da altura. Estável
+    entre os quadros de uma corrida, ao contrário dos pés, que se abrem e fecham."""
+    w, h = im.size
+    px = im.getchannel('A').load()
+    xs = [x for y in range(int(h * 0.08), int(h * 0.45), 2) for x in range(0, w, 2) if px[x, y] >= 128]
+    return sorted(xs)[len(xs) // 2] if xs else w / 2
 
 
 def with_shadow(im, size=None, cx=None):
@@ -251,11 +260,15 @@ def strip(frames, a, res, n_ref):
     k = a['h'] * res / heights[len(heights) // 2]
     frames = [premul_resize(f, (max(1, round(f.width * k)), max(1, round(f.height * k)))) for f in frames]
     fly = not a.get('shadow')
+    # bípedes: alinhados pela cabeça e tronco (os pés abrem e fecham na corrida e o corpo pularia
+    # de lado); os outros, pelo centro dos pés
+    biped = a.get('body') == 'biped'
+    anchors = [f.width / 2 if fly else body_center(f) if biped else sum(feet_span(f)) / 2 for f in frames]
     if a.get('shadow'):
         x0, x1 = feet_span(frames[0])
         size = max((x1 - x0) * 1.3, frames[0].width * 0.35)
-        frames = [with_shadow(f, size) for f in frames]
-    anchors = [(sum(feet_span(f)) / 2 if not fly else f.width / 2) for f in frames]
+        # sombra sempre sob o ponto de alinhamento: não escorrega entre os quadros
+        frames = [with_shadow(f, size, c if biped else None) for f, c in zip(frames, anchors)]
     left = max(anchors)
     right = max(f.width - c for f, c in zip(frames, anchors))
     cw = int(left + right) + 2
@@ -349,6 +362,15 @@ def main():
         cut = cut_background(Image.open(src))
         if a.get('flip'):
             cut = ImageOps.mirror(cut)
+        if a.get('fade'):
+            # base que some aos poucos (efeitos que encostam no chão, como a onda)
+            alpha = cut.getchannel('A')
+            ramp = Image.new('L', cut.size, 255)
+            start = int(cut.height * (1 - a['fade']))
+            ImageDraw.Draw(ramp).rectangle((0, start, cut.width, cut.height), fill=0)
+            for y in range(start, cut.height):
+                ImageDraw.Draw(ramp).line((0, y, cut.width, y), fill=round(255 * (1 - (y - start) / (cut.height - start)) ** 1.5))
+            cut.putalpha(ImageChops.multiply(alpha, ramp))
         if hd == 4 and not name.startswith('hero_'):
             # ícones: caixa quadrada para alinhar nas molduras
             side = max(cut.size)

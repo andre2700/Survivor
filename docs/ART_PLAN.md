@@ -75,3 +75,5 @@ Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manife
 - Uma figura que passa só um pouco da sua coluna (ponta de espada, asa, cajado) vai inteira para o próprio quadro; só figuras encostadas de verdade são divididas, e o `process-art.py` avisa quando isso acontece.
 - Folhas com 4 quadros ou mais são geradas em formato largo (21:9): no formato quadrado a IA as desenhava em grade 2×2.
 - Heróis: o ciclo de movimento é de corrida (`RUN` em `art/manifest.mjs`).
+- Bípedes são alinhados pela cabeça e tronco (não pelos pés, que abrem e fecham na corrida); a sombra fica fixa sob esse ponto.
+- `flip` vale também para imagens soltas (a bola de fogo veio olhando para a esquerda); `fade` dissolve a base de efeitos que tocam o chão (onda).

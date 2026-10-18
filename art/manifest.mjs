@@ -129,7 +129,8 @@ export const ART = {
   proj_axe: { h: 16, prompt: `a single spinning throwing battle axe with wooden handle and steel blade` },
   proj_orb: { h: 16 },
   // efeitos de ataques e reações (VFX: o jogo anima escala, giro e transparência)
-  fx_wave: { w: 64, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
+  // fade: a base se dissolve (a onda se apoia numa lâmina d'água desenhada pelo jogo)
+  fx_wave: { w: 64, fade: 0.22, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
   fx_spike: { h: 28, prompt: `${FX}a sharp brown rock spike erupting from the ground with small flying debris chunks` },
   fx_tornado: { h: 64, prompt: `${FX}a cartoon tornado whirlwind funnel of pale green and white swirling wind with a few small leaves` },
   // efeitos animados (4 quadros): effect descreve o efeito; poses, cada quadro
@@ -148,7 +149,7 @@ export const ART = {
   vfx_explosion: { h: 40, role: 'vfx', wide: true, effect: 'a cartoon fire explosion with crisp outlines and NO soft glow or halo around it', poses: {
     f1: 'a small bright yellow flash', f2: 'a round orange fireball blast expanding', f3: 'a big fiery explosion with flames and sparks', f4: 'dark smoke puffs with a few embers' } },
   fx_hammer: { w: 26, hd: 3, prompt: `a magic war hammer like a legendary thunder god hammer: short leather-wrapped handle with a wrist strap, big rectangular engraved steel head with crackling blue lightning, side view, handle pointing down` },
-  fx_fireball: { w: 20, prompt: `${FX}a cartoon fireball projectile with a flaming tail, flying horizontally to the RIGHT` },
+  fx_fireball: { w: 20, flip: true, prompt: `${FX}a cartoon fireball projectile with a flaming tail, flying horizontally to the RIGHT` },
   fx_firering: { w: 96, prompt: `${FX}a flat ring of orange and yellow flames seen from a top-down angle, empty in the middle, flames licking upward around the circle` },
   // cenário (visto de cima, estilo mapa de RPG)
   tree: { h: 72, shadow: true },
