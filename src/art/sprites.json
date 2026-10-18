@@ -4,22 +4,24 @@
  },
  "bat": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "bat_air": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
@@ -56,22 +58,28 @@
   "hd": 2
  },
  "fx_fireball": {
-  "hd": 2
+  "hd": 2,
+  "frames": 2
  },
  "fx_firering": {
-  "hd": 2
+  "hd": 2,
+  "frames": 2
  },
  "fx_hammer": {
-  "hd": 3
+  "hd": 3,
+  "frames": 2
  },
  "fx_spike": {
-  "hd": 2
+  "hd": 2,
+  "frames": 2
  },
  "fx_tornado": {
-  "hd": 2
+  "hd": 2,
+  "frames": 4
  },
  "fx_wave": {
-  "hd": 2
+  "hd": 2,
+  "frames": 4
  },
  "gem": {
   "hd": 4
@@ -84,22 +92,24 @@
  },
  "goblin": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "goblin_earth": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
@@ -240,22 +250,24 @@
  },
  "orc": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "orc_chief": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
@@ -289,77 +301,84 @@
  },
  "skeleton": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "slime": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "slime_bomb": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "slime_fire": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "slime_magma": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "slime_spit": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
  },
  "slime_water": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]
@@ -402,11 +421,12 @@
  },
  "wolf": {
   "hd": 3,
-  "frames": 5,
+  "frames": 6,
   "slots": [
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
    "hurt",
    "death"
   ]

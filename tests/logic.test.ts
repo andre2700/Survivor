@@ -43,7 +43,7 @@ describe('arte', () => {
       expect(slots(c.texture), c.texture).toEqual(['idle', 'walk_a', 'walk_mid', 'walk_b', 'attack', 'hurt', 'death', 'victory']);
     }
     for (const e of Object.values(ENEMIES)) {
-      const want = e.id === 'demon' ? ['idle', 'walk_a', 'walk_b', 'windup', 'attack', 'hurt', 'death'] : ['walk_a', 'walk_mid', 'walk_b', 'hurt', 'death'];
+      const want = e.id === 'demon' ? ['idle', 'walk_a', 'walk_b', 'windup', 'attack', 'hurt', 'death'] : ['walk_a', 'walk_mid', 'walk_b', 'attack', 'hurt', 'death'];
       expect(slots(e.texture), e.texture).toEqual(want);
     }
   });

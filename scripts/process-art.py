@@ -268,8 +268,10 @@ def strip(frames, a, res, n_ref):
     """Tira de quadros do mesmo tamanho, na mesma escala, alinhados pelos pés (ou pelo centro, se voa).
     A escala vem da altura mediana dos `n_ref` primeiros quadros (os de movimento)."""
     # escala única: mantém a diferença de tamanho entre poses (achatar, esticar, cair)
-    heights = sorted(f.height for f in frames[:n_ref])
-    k = a['h'] * res / heights[len(heights) // 2]
+    # escala pela altura (ou pela largura, nos efeitos deitados como a onda)
+    dim = 'h' if 'h' in a else 'w'
+    sizes = sorted((f.height if dim == 'h' else f.width) for f in frames[:n_ref])
+    k = a[dim] * res / sizes[len(sizes) // 2]
     frames = [premul_resize(f, (max(1, round(f.width * k)), max(1, round(f.height * k)))) for f in frames]
     fly = not a.get('shadow') and not a.get('ground')
     # bípedes: alinhados pela cabeça e tronco (os pés abrem e fecham na corrida e o corpo pularia
