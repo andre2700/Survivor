@@ -5,10 +5,13 @@
 //   node scripts/gen-image.mjs --out art-tests/heroi.png --prompt "..." [--ref imagem.png ...] [--model nome] [--aspect 21:9]
 //
 // --ref envia imagens de referência (estilo ou personagem) junto com o prompt.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+// Cada imagem gerada é anotada em art/source/_gen-log.jsonl (data, modelo, arquivo, tokens): é o
+// registro de gastos. `node scripts/gen-image.mjs --usage` resume o registro.
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname } from 'node:path';
 
 const API = 'https://generativelanguage.googleapis.com/v1beta';
+const LOG = 'art/source/_gen-log.jsonl';
 const DEFAULT_MODEL = 'gemini-2.5-flash-image';
 
 function parseArgs(argv) {
@@ -22,6 +25,7 @@ function parseArgs(argv) {
     else if (a === '--model') args.model = argv[++i];
     else if (a === '--ref') args.refs.push(argv[++i]);
     else if (a === '--aspect') args.aspect = argv[++i];
+    else if (a === '--usage') args.usage = true;
   }
   return args;
 }
@@ -59,6 +63,7 @@ async function generate({ prompt, out, model = DEFAULT_MODEL, refs, aspect }) {
   for (const p of resParts) if (p.text) console.log(p.text);
   if (images.length === 0) throw new Error(`nenhuma imagem retornada: ${JSON.stringify(body).slice(0, 500)}`);
   mkdirSync(dirname(out), { recursive: true });
+  appendFileSync(LOG, JSON.stringify({ at: new Date().toISOString(), model, out, tokens: body.usageMetadata?.totalTokenCount ?? null }) + '\n');
   images.forEach((img, i) => {
     const file = i === 0 ? out : out.replace(/(\.\w+)?$/, `-${i + 1}$1`);
     writeFileSync(file, Buffer.from(img.inlineData.data, 'base64'));
@@ -66,9 +71,20 @@ async function generate({ prompt, out, model = DEFAULT_MODEL, refs, aspect }) {
   });
 }
 
+/** Resumo do registro: imagens geradas por modelo e por dia. */
+function usage() {
+  if (!existsSync(LOG)) return console.log('nenhuma imagem registrada');
+  const rows = readFileSync(LOG, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const count = (key) => rows.reduce((m, r) => ((m[key(r)] = (m[key(r)] ?? 0) + 1), m), {});
+  console.log('total:', rows.length, 'imagens');
+  console.log('por modelo:', count((r) => r.model));
+  console.log('por dia:', count((r) => r.at.slice(0, 10)));
+}
+
 const args = parseArgs(process.argv.slice(2));
 try {
-  if (args.list) await listModels();
+  if (args.usage) usage();
+  else if (args.list) await listModels();
   else if (args.prompt && args.out) await generate(args);
   else console.log('uso: --list | --out arquivo.png --prompt "..." [--ref img.png] [--model nome]');
 } catch (err) {

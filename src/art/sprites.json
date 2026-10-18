@@ -249,6 +249,17 @@
    "death"
   ]
  },
+ "orc_chief": {
+  "hd": 3,
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
+ },
  "portrait_hero_barbarian": {
   "hd": 8
  },
@@ -298,7 +309,40 @@
    "death"
   ]
  },
+ "slime_bomb": {
+  "hd": 3,
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
+ },
  "slime_fire": {
+  "hd": 3,
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime_magma": {
+  "hd": 3,
+  "frames": 5,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime_spit": {
   "hd": 3,
   "frames": 5,
   "slots": [

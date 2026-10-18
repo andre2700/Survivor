@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import SPRITES from './sprites.json';
-import { auraRing, glowDot, slash, softShadow, spark, vignette } from './fx';
+import { auraRing, bomb, chest, glowDot, slash, softShadow, spark, vignette } from './fx';
 import { SLICE, UI_FRAMES, UI_HD, frame } from './ui';
 
 // A arte cartoon vem de PNGs (src/assets/art/, gerados por scripts/process-art.py) em resolução
@@ -111,6 +111,9 @@ export function generateTextures(scene: Phaser.Scene) {
   fx('shadow', softShadow(FX_HD), FX_HD);
   fx('slash', slash(FX_HD), FX_HD);
   fx('aura', auraRing(FX_HD), FX_HD);
+  // provisórios desenhados por código (até ganharem arte gerada com o mesmo nome)
+  if (!scene.textures.exists('chest')) fx('chest', chest(FX_HD), FX_HD);
+  if (!scene.textures.exists('bomb')) fx('bomb', bomb(FX_HD), FX_HD);
 
   for (const [key, style] of Object.entries(UI_FRAMES)) scene.textures.addCanvas(key, frame(style));
   scene.textures.addCanvas('vignette', vignette());

@@ -22,6 +22,8 @@ export class Enemy extends Phaser.GameObjects.Image {
   resist = 0;
   /** último aviso de "RESISTIU" (s) */
   resistShownAt = -99;
+  /** papel num evento: guarda de baú/jaula, goblin dourado, chefe surpresa */
+  tag: '' | 'guard' | 'golden' | 'surprise' = '';
   kbX = 0;
   kbY = 0;
   flashUntil = 0;
@@ -59,9 +61,10 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.def = def;
     this.uid = nextUid++;
     this.elite = elite;
-    this.boss = def.id === 'demon';
+    this.boss = !!def.boss;
     this.resist = Math.min(CONTROL_RULES.max, def.resist + (elite ? CONTROL_RULES.elite : 0));
     this.resistShownAt = -99;
+    this.tag = '';
     const eliteMult = elite ? 10 : 1;
     this.maxHp = Math.round(def.hp * hpMult * eliteMult);
     this.hp = this.maxHp;
@@ -139,7 +142,7 @@ export class Projectile extends Phaser.GameObjects.Image {
   }
 }
 
-export type PickupKind = 'gem' | 'coin' | 'heart';
+export type PickupKind = 'gem' | 'coin' | 'heart' | 'magnet' | 'bomb';
 
 export class Pickup extends Phaser.GameObjects.Image {
   kind: PickupKind = 'gem';

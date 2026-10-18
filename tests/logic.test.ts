@@ -7,6 +7,7 @@ import {
 } from '../src/core/stats';
 import { STAT_CARDS } from '../src/data/cards';
 import { CONTROL_RULES, ENEMIES, controlRoll, controlScale } from '../src/data/enemies';
+import { STAGES, stageUnlocked } from '../src/data/stages';
 import { PRIMARIES, REACTIONS, elementMultiplier, reactionFor, statusRoll } from '../src/data/elements';
 import { CHARACTERS } from '../src/data/characters';
 import { META_UPGRADES, metaCost, metaModifiers } from '../src/data/meta';
@@ -252,5 +253,25 @@ describe('resistência a controle', () => {
   it('chefe resiste mais que monstros comuns', () => {
     for (const e of Object.values(ENEMIES)) if (e.id !== 'demon') expect(e.resist).toBeLessThan(ENEMIES.demon.resist);
     expect(ENEMIES.slime.resist).toBe(0);
+  });
+});
+
+describe('fases', () => {
+  it('a próxima fase libera ao vencer o chefe da anterior', () => {
+    expect(stageUnlocked(0, {})).toBe(true);
+    expect(stageUnlocked(1, {})).toBe(false);
+    expect(stageUnlocked(1, { clareira: [true, false, false] })).toBe(true);
+    expect(stageUnlocked(2, { clareira: [true, false, false] })).toBe(false);
+    expect(stageUnlocked(5, {}, true)).toBe(true);
+  });
+  it('fases jogáveis têm chefe, ondas com inimigos existentes e o evento do objetivo', () => {
+    for (const st of STAGES.filter((s) => s.playable)) {
+      expect(ENEMIES[st.boss].boss, st.id).toBe(true);
+      for (const w of st.waves) for (const id of w.pool) expect(ENEMIES[id], `${st.id}:${id}`).toBeDefined();
+      for (const o of st.objectives) if (o.kind === 'event') expect(st.events).toContain(o.event);
+    }
+  });
+  it('inimigos com habilidade têm o comportamento certo', () => {
+    for (const e of Object.values(ENEMIES)) if (e.behavior && e.behavior !== 'melee') expect(e.skill, e.id).toBeDefined();
   });
 });

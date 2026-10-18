@@ -56,21 +56,22 @@ export class DevScene extends Phaser.Scene {
       [`Partida: ${dev.runMinutes} min`, () => setDev({ runMinutes: cycle(RUN_OPTIONS, dev.runMinutes) })],
       [`Herói imortal: ${yes(dev.heroImmortal)}`, () => setDev({ heroImmortal: !dev.heroImmortal })],
       [`Inimigos imortais: ${yes(dev.enemiesImmortal)}`, () => setDev({ enemiesImmortal: !dev.enemiesImmortal })],
+      [`Todas as fases: ${yes(dev.allStages)}`, () => setDev({ allStages: !dev.allStages })],
       [`Velocidade: ${dev.speed}×`, () => {
         setDev({ speed: cycle(SPEED_OPTIONS, dev.speed) });
         if (inRun) game.applyDevSpeed();
       }],
     ];
     let y = 78;
-    panel(this, lx, y + (settings.length * 40) / 2 + 4, lw - 24, settings.length * 40 + 20, 'ui_panel_dark');
+    panel(this, lx, y + (settings.length * 36) / 2 + 4, lw - 24, settings.length * 36 + 20, 'ui_panel_dark');
     settings.forEach(([label, fn], i) => {
-      button(this, lx, y + 24 + i * 40, label, () => {
+      button(this, lx, y + 22 + i * 36, label, () => {
         sfx('select');
         fn();
         refresh();
-      }, { width: lw - 60, height: 34, size: 13 });
+      }, { width: lw - 60, height: 30, size: 13 });
     });
-    y = wide ? 40 : y + settings.length * 40 + 30;
+    y = wide ? 40 : y + settings.length * 36 + 28;
     const rx = wide ? col(1) : width / 2;
     const rw = wide ? WIDE_COL : width;
 
@@ -85,6 +86,7 @@ export class DevScene extends Phaser.Scene {
         ['Matar todos', () => game.devKillAll()],
         ['Avançar 1 min', () => game.devSkip(60)],
         ['Curar', () => game.devHeal()],
+        ['Próximo evento', () => game.devEvent()],
       ];
       const bw = (rw - 44) / 2;
       actions.forEach(([label, fn], i) => {

@@ -44,8 +44,38 @@ Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
 - Todo conteúdo em dados (`src/data`), sem código por item.
 
 ## Marcos
-1. Fundação de sistemas ✅ · 2. Elementos ✅ · 3. Arte e primeiro conteúdo (arte cartoon já feita) ·
+1. Fundação de sistemas ✅ · 2. Elementos ✅ · 3. Mundo e fases (3a sistemas, 3b segundo mapa, 3c terceiro mapa e mais eventos) ·
 4. Progressão e heróis · 5. Pets e montarias · 6. Lançamento.
+
+## Marco 3 — Mundo e fases
+
+**Progressão de clima:** as primeiras fases são coloridas e leves; o mundo fica mais sério, sombrio e épico a cada região. Biomas podem voltar mais adiante em versões mais avançadas (a floresta do começo e, depois, uma floresta sombria).
+
+| # | Fase | Bioma | Clima | Elementos dominantes |
+|---|---|---|---|---|
+| 1 | Clareira Ensolarada | floresta | leve | neutro (aprendizado) |
+| 2 | Bosque Outonal | floresta | leve | fogo e terra |
+| 3 | Pântano Enevoado | pântano | leve → sério | água e terra |
+| 4 | Dunas Escaldantes | deserto | sério | ar e terra |
+| 5 | Floresta Sombria | floresta | sombrio | trevas (futuro), mistos |
+| 6 | Pico Congelado | montanha | sombrio | água e ar |
+| 7 | Coração do Vulcão | vulcão | épico | fogo |
+| 8 | Ruínas Malditas | ruínas | épico | mistos |
+| 9 | Cidadela Demoníaca | cidadela | épico | todos |
+
+**Cada fase define:** aparência (chão, decoração, tom de cor), ondas e inimigos, chefe, perigo do mapa, eventos possíveis e 3 objetivos (estrelas): 1) vencer o chefe; 2) um objetivo da fase (ex.: libertar o prisioneiro); 3) um desafio (ex.: terminar com metade da vida). Vencer o chefe libera a próxima fase.
+
+**Menu de fases:** mapa-múndi com uma trilha entre as regiões; cada fase é um ponto com suas estrelas; as bloqueadas aparecem apagadas.
+
+**Comportamentos de inimigo:** corpo a corpo (o atual); à distância (mantém distância e atira, com aviso); conjurador (usa uma habilidade do herói com nível, que cresce com a fase e o tempo — ex.: Bola de Fogo nv 3); explosivo (corre, pisca e explode); depois: escudeiro, invocador/totem, divisor, escavador.
+
+**Eventos aleatórios na partida:** baú guardado por elites; prisioneiro numa jaula (libertar = aliado temporário que luta com você); chefe surpresa; goblin dourado que foge com tesouro; chuva de meteoros; emboscada de elites; depois: guerra entre tribos (criaturas brigando entre si e contra o herói), santuário (escolha arriscada), mercador, totens que enfraquecem o chefe, ninhos.
+
+**Exploração:** itens pelo mapa (cura, ímã, bomba, relíquias); setas na borda da tela apontam para eventos e pontos de interesse.
+
+**Implementado (3a):** dados das fases, progresso e estrelas no save, mapa-múndi (`StageScene`), Bosque Outonal jogável (tom de outono sobre a arte da floresta, Chefe Orc), inimigos à distância/conjurador/explosivo (por troca de cor dos slimes até ganharem arte própria), os 6 eventos da lista, aliado, itens no mapa, setas de borda e botão "Próximo evento" no painel DEV. Baú e bomba ainda são desenhos provisórios por código.
+
+**Etapas:** 3a sistemas (fases, menu de mapa, novos comportamentos de inimigo, eventos, itens, setas; testado com a Clareira e o Bosque Outonal, que reaproveita a arte da floresta); 3b Pântano completo; 3c Dunas, guerra entre tribos e mais eventos.
 
 ## Resistência a controle
 

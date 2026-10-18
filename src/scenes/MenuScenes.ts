@@ -222,7 +222,8 @@ export class MenuScene extends Phaser.Scene {
     unlockAudio();
     sfx('select');
     this.cameras.main.fadeOut(220, 11, 10, 20);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Game'));
+    // escolha da fase no mapa-múndi
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Stages'));
   }
 }
 

@@ -5,6 +5,11 @@
 //   só: gerando cada pose separada, a IA repete a mesma pose).
 //
 //   node scripts/gen-art.mjs [nome ...]     (sem nomes: tudo o que falta; com nomes, ex. goblin_sheet: refaz esses)
+//   --plan       só lista o que seria gerado (sem gastar nada)
+//   --max N      não gera se a lista passar de N imagens (padrão 6: confira uma leva antes da próxima)
+//
+// Modelos: personagens (heróis, monstros, chefes) usam o Pro, mais consistente; efeitos, ícones e
+// objetos usam o Nano Banana 2, bem mais barato. Erro de crédito (402) para tudo na hora.
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
@@ -50,18 +55,38 @@ for (const [name, a] of Object.entries(ART)) {
   }
 }
 
-const names = process.argv.slice(2);
+const PRO = 'gemini-3-pro-image';
+const CHEAP = 'gemini-3.1-flash-image';
+const argv = process.argv.slice(2);
+const flag = (f) => argv.includes(f);
+const maxAt = argv.indexOf('--max');
+const max = maxAt >= 0 ? Number(argv[maxAt + 1]) : 6;
+const names = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--max');
 const todo = jobs.filter((j) => (names.length ? names.includes(j.out) : !existsSync(`art/source/${j.out}.png`)));
+// personagem = tem papel de criatura (não efeito)
+for (const j of todo) {
+  const base = ART[j.out.replace(/_(sheet|action\d*)$/, '')];
+  j.model = base?.role && base.role !== 'vfx' ? PRO : CHEAP;
+}
+if (flag('--plan') || todo.length > max) {
+  for (const j of todo) console.log(j.model === PRO ? 'pro   ' : 'barato', j.out);
+  console.log(`${todo.length} imagens${todo.length > max ? ` — acima do limite (--max ${max}); nada gerado` : ''}`);
+  process.exit(0);
+}
+let stop = false;
 
 async function gen(j) {
-  for (let t = 1; t <= 3; t++) {
+  for (let t = 1; t <= 3 && !stop; t++) {
     try {
-      await run('node', ['scripts/gen-image.mjs', '--model', 'gemini-3-pro-image', '--ref', `art/source/${j.ref}.png`,
+      await run('node', ['scripts/gen-image.mjs', '--model', j.model, '--ref', `art/source/${j.ref}.png`,
         '--out', `art/source/${j.out}.png`, '--prompt', j.prompt, ...(j.aspect ? ['--aspect', j.aspect] : [])]);
       console.log('ok', j.out);
       return;
     } catch (err) {
-      console.log(`falhou ${j.out} (${t}):`, String(err.stderr ?? err).slice(0, 200));
+      const msg = String(err.stderr ?? err);
+      console.log(`falhou ${j.out} (${t}):`, msg.slice(0, 200));
+      // sem crédito: não adianta tentar de novo
+      if (/\b402\b/.test(msg)) stop = true;
       await new Promise((r) => setTimeout(r, 15000 * t));
     }
   }
@@ -70,5 +95,5 @@ async function gen(j) {
 const queue = [...todo];
 console.log('gerando:', queue.map((j) => j.out).join(', '));
 await Promise.all([1, 2, 3].map(async () => {
-  while (queue.length) await gen(queue.shift());
+  while (queue.length && !stop) await gen(queue.shift());
 }));

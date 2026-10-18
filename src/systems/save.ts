@@ -1,5 +1,6 @@
 import type { CharacterId } from '../data/characters';
 import type { MetaId } from '../data/meta';
+import type { StageId } from '../data/stages';
 import { INFINITE_GOLD, dev } from './dev';
 
 export interface SaveData {
@@ -13,6 +14,10 @@ export interface SaveData {
   bestCycle: number;
   victories: number;
   sound: boolean;
+  /** fase escolhida no mapa-múndi */
+  stage: StageId;
+  /** estrelas de cada fase (objetivos 1 a 3); a 1ª é vencer o chefe e libera a próxima fase */
+  stars: Partial<Record<StageId, boolean[]>>;
 }
 
 const KEY = 'survivor-save-v1';
@@ -29,6 +34,8 @@ export function defaultSave(): SaveData {
     bestCycle: 0,
     victories: 0,
     sound: true,
+    stage: 'clareira',
+    stars: {},
   };
 }
 

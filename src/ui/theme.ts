@@ -121,3 +121,17 @@ export function drawBar(g: Phaser.GameObjects.Graphics, x: number, y: number, w:
   g.fillStyle(0xffffff, 0.3).fillRect(x, y, Math.round(w * f), Math.max(1, Math.floor(h / 3)));
   g.fillStyle(0x000000, 0.25).fillRect(x, y + h - 1, Math.round(w * f), 1);
 }
+
+/** Estrela de objetivo (cheia = conquistada). */
+export function starIcon(scene: Phaser.Scene, x: number, y: number, r: number, filled: boolean, on = true) {
+  const g = scene.add.graphics({ x, y });
+  const pts: Phaser.Math.Vector2[] = [];
+  for (let k = 0; k < 10; k++) {
+    const a = -Math.PI / 2 + (k * Math.PI) / 5;
+    const rr = k % 2 ? r * 0.45 : r;
+    pts.push(new Phaser.Math.Vector2(Math.cos(a) * rr, Math.sin(a) * rr));
+  }
+  g.fillStyle(filled ? 0xffd86a : 0x14101e, filled ? 1 : on ? 0.55 : 0.3).fillPoints(pts, true);
+  g.lineStyle(1.5, filled ? 0xfff6c8 : 0x8a8ca0, on ? 1 : 0.4).strokePoints(pts, true);
+  return g;
+}

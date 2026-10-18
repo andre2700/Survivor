@@ -16,6 +16,8 @@ export function formatTime(sec: number) {
 export class HudScene extends Phaser.Scene {
   private game$!: GameScene;
   private bars!: Phaser.GameObjects.Graphics;
+  /** setas na borda apontando para eventos fora da tela */
+  private arrows!: Phaser.GameObjects.Graphics;
   private levelText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
   private killText!: Phaser.GameObjects.Text;
@@ -50,6 +52,7 @@ export class HudScene extends Phaser.Scene {
     // faixa superior: XP + nível
     panel(this, width / 2, 14, width - 8, 26, 'ui_panel_dark');
     this.bars = this.add.graphics();
+    this.arrows = this.add.graphics().setDepth(-2);
     this.add.circle(26, 15, 17, 0x0b0a14);
     this.add.circle(26, 15, 15, 0x3456c0).setStrokeStyle(2, 0xa8c8ff);
     this.levelText = text(this, 26, 14, '1', 14, '#ffffff', { bold: true, strokeThickness: 3 });
@@ -185,15 +188,50 @@ export class HudScene extends Phaser.Scene {
     if (gold !== this.last.gold) this.goldText.setText(formatNumber((this.last.gold = gold)));
 
     this.updateIcons();
+    this.updateArrows();
 
     const boss = g.boss;
     const showBoss = !!boss && boss.active;
     this.bossPanel.setVisible(showBoss);
     this.bossText.setVisible(showBoss);
     if (showBoss && boss) {
-      this.bossText.setText('DEMÔNIO ANCESTRAL');
+      this.bossText.setText(boss.def.name.toUpperCase());
       const bw = Math.min(width, 400) - 60;
       drawBar(this.bars, (width - bw) / 2, 130, bw, 8, boss.hp / boss.maxHp, COLORS.hp, COLORS.hpBack);
+    }
+  }
+
+  /** Seta na borda da tela para cada evento fora da vista (baú, prisioneiro, goblin dourado...). */
+  private updateArrows() {
+    const g = this.game$;
+    const W = VIEW.screenWidth;
+    const H = VIEW.height;
+    const view = g.cameras.main.worldView;
+    this.arrows.clear();
+    const t = this.time.now / 1000;
+    for (const poi of g.runEvents.pois()) {
+      const sx = ((poi.x - view.x) / view.width) * W;
+      const sy = ((poi.y - view.y) / view.height) * H;
+      if (sx > 0 && sx < W && sy > 0 && sy < H) continue;
+      const cx = W / 2;
+      const cy = H / 2;
+      const a = Math.atan2(sy - cy, sx - cx);
+      // ponto na borda (com margem; em cima, abaixo da barra de XP)
+      const m = 24;
+      const k = Math.min((W / 2 - m) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - m - (Math.sin(a) < 0 ? 40 : 0)) / Math.abs(Math.sin(a) || 1e-6));
+      const x = cx + Math.cos(a) * k;
+      const y = cy + Math.sin(a) * k;
+      const pulse = 1 + Math.sin(t * 6) * 0.12;
+      const r = 9 * pulse;
+      this.arrows.fillStyle(0x0b0a14, 0.6).fillCircle(x, y, r + 3);
+      this.arrows.fillStyle(poi.color, 1).fillCircle(x, y, r);
+      const tip = r + 9;
+      this.arrows.fillStyle(poi.color, 1).fillTriangle(
+        x + Math.cos(a) * tip, y + Math.sin(a) * tip,
+        x + Math.cos(a + 0.5) * (r + 1), y + Math.sin(a + 0.5) * (r + 1),
+        x + Math.cos(a - 0.5) * (r + 1), y + Math.sin(a - 0.5) * (r + 1),
+      );
+      this.arrows.fillStyle(0xffffff, 0.8).fillCircle(x - r * 0.3, y - r * 0.3, r * 0.3);
     }
   }
 

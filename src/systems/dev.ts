@@ -13,6 +13,8 @@ export interface DevSettings {
   enemiesImmortal: boolean;
   /** multiplicador da velocidade do jogo */
   speed: number;
+  /** todas as fases liberadas no mapa-múndi */
+  allStages: boolean;
 }
 
 export const RUN_OPTIONS = [15, 5, 3, 1];
@@ -20,7 +22,7 @@ export const SPEED_OPTIONS = [1, 2, 4];
 export const INFINITE_GOLD = 9_999_999;
 
 const KEY = 'survivor-dev';
-const DEFAULTS: DevSettings = { infiniteGold: false, runMinutes: 15, heroImmortal: false, enemiesImmortal: false, speed: 1 };
+const DEFAULTS: DevSettings = { infiniteGold: false, runMinutes: 15, heroImmortal: false, enemiesImmortal: false, speed: 1, allStages: false };
 
 function load(): DevSettings {
   try {

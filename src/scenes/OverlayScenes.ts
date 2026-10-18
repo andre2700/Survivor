@@ -8,7 +8,8 @@ import { loadSave, writeSave } from '../systems/save';
 import { DEV_TOOLS } from '../systems/dev';
 import { sfx } from '../systems/sfx';
 import { RARITIES, describeOption } from '../systems/upgrades';
-import { FONT, button, goldTitle, panel, text, px } from '../ui/theme';
+import { FONT, button, goldTitle, panel, starIcon, text, px } from '../ui/theme';
+import { getStage } from '../data/stages';
 import type { GameScene, RunResult } from './GameScene';
 import { formatTime } from './HudScene';
 
@@ -245,6 +246,17 @@ function statsPanel(scene: Phaser.Scene, game: GameScene, y0: number, cx = VIEW.
   if (tags.length) text(scene, cx, y0 + h + 16, `Tags: ${tags.join(' · ')}`, 11, '#8a8ea8', { wrap: pw - 4 });
 }
 
+/** Estrelas da fase nesta partida, com o texto de cada objetivo cumprido. */
+function starsRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number) {
+  const stage = getStage(result.stage);
+  for (let k = 0; k < 3; k++) {
+    const s = starIcon(scene, cx - 26 + k * 26, y, 10, !!result.stars[k]);
+    if (result.stars[k]) scene.tweens.add({ targets: s, scale: { from: 0, to: 1 }, duration: 300, delay: 300 + k * 180, ease: 'Back.Out' });
+  }
+  const done = stage.objectives.filter((_, k) => result.stars[k]).map((o) => o.text);
+  if (done.length) text(scene, cx, y + 20, done.join(' · '), 10, '#ffe9a0', { wrap: VIEW.width - 40 });
+}
+
 export class VictoryScene extends Phaser.Scene {
   constructor() {
     super('Victory');
@@ -255,23 +267,32 @@ export class VictoryScene extends Phaser.Scene {
     const { width, height } = VIEW;
     const game = this.scene.get('Game') as GameScene;
     dim(this, 0.8);
-    rays(this, width / 2, height * 0.17, 0xffd86a);
-    const t = goldTitle(this, width / 2, height * 0.17, 'VITÓRIA!', 48);
+    // deitado: resultado à esquerda, modo infinito à direita
+    const wide = isWide();
+    const lx = wide ? col(-1) : width / 2;
+    const rx = wide ? col(1) : width / 2;
+    const ty = wide ? height * 0.24 : height * 0.17;
+    rays(this, lx, ty, 0xffd86a);
+    const t = goldTitle(this, lx, ty, 'VITÓRIA!', 48);
     this.tweens.add({ targets: t, scale: { from: 0.4, to: 1 }, duration: 500, ease: 'Back.Out' });
-    text(this, width / 2, height * 0.17 + 42, `${formatTime(result.time)} · ${formatNumber(result.kills)} abates · nível ${result.level}`, 13, '#e8e2d0', { shadow: true });
+    text(this, lx, ty + 42, `${formatTime(result.time)} · ${formatNumber(result.kills)} abates · nível ${result.level}`, 13, '#e8e2d0', { shadow: true });
+    starsRow(this, result, lx, ty + 72);
+    if (result.unlocked) text(this, lx, ty + 112, `Nova fase liberada: ${result.unlocked}!`, 14, '#8cf08a', { bold: true, strokeThickness: 3 });
 
-    const py = height * 0.46;
-    panel(this, width / 2, py, width - 36, 150, 'ui_card_2');
-    text(this, width / 2, py - 52, 'MODO INFINITO', 18, '#e0c2ff', { bold: true, strokeThickness: 4 });
-    text(this, width / 2, py + 4,
+    const py = wide ? height * 0.36 : height * 0.5;
+    const pw = wide ? WIDE_COL : width - 36;
+    panel(this, rx, py, pw, 150, 'ui_card_2');
+    text(this, rx, py - 52, 'MODO INFINITO', 18, '#e0c2ff', { bold: true, strokeThickness: 4 });
+    text(this, rx, py + 4,
       'Continue com a sua build. A cada 5 minutos surge um novo chefe e os inimigos ficam bem mais fortes. As recompensas crescem a cada ciclo. Morrer aqui não conta como derrota.',
-      12, '#eadcff', { wrap: width - 72 });
+      12, '#eadcff', { wrap: pw - 36 });
+    const by = wide ? py + 106 : height * 0.7;
 
-    button(this, width / 2, height * 0.7, 'CONTINUAR', () => {
+    button(this, rx, by, 'CONTINUAR', () => {
       sfx('levelup');
       game.continueEndless();
     }, { width: 240, height: 48, size: 18, variant: 'purple' });
-    button(this, width / 2, height * 0.7 + 56, 'ENCERRAR E COLETAR', () => {
+    button(this, rx, by + 56, 'ENCERRAR E COLETAR', () => {
       sfx('select');
       this.scene.stop();
       game.state = 'playing';
@@ -309,7 +330,7 @@ export class GameOverScene extends Phaser.Scene {
       ? goldTitle(this, lx, 48, title, 32)
       : text(this, lx, 48, title, 32, '#ff6a5a', { bold: true, stroke: '#2a0608', strokeThickness: 6 });
     this.tweens.add({ targets: t, scale: { from: 0.5, to: 1 }, duration: 420, ease: 'Back.Out' });
-    text(this, lx, 76, getCharacter(result.character).name, 13, '#c8cce0');
+    text(this, lx, 76, `${getCharacter(result.character).name} · ${getStage(result.stage).name}`, 13, '#c8cce0');
 
     const rows: [string, string][] = [
       ['Tempo', formatTime(result.time) + (newRecord ? '  · recorde!' : '')],

@@ -36,10 +36,10 @@ export const WAVES: Wave[] = [
   { minute: 14, pool: ['goblin_earth', 'wolf', 'skeleton', 'orc', 'slime_water', 'bat_air'], rate: 9, max: 300, event: 'swarm' },
 ];
 
-export function waveAt(seconds: number): Wave {
+export function waveAt(seconds: number, waves: Wave[] = WAVES): Wave {
   const minute = Math.floor(seconds / 60);
-  let current = WAVES[0];
-  for (const w of WAVES) if (w.minute <= minute) current = w;
+  let current = waves[0];
+  for (const w of waves) if (w.minute <= minute) current = w;
   return current;
 }
 

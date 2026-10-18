@@ -114,6 +114,11 @@ export const ART = {
   slime_water: { variant: 'slime', hue: 90, range: [70, 170] },
   goblin_earth: { variant: 'goblin', hue: -75, range: [70, 170], sat: 0.75, val: 0.9 },
   bat_air: { variant: 'bat', hue: 200, range: [230, 320], sat: 1.3, val: 1.25 },
+  // Marco 3a: inimigos novos por troca de cor (sem gerar imagem)
+  slime_spit: { variant: 'slime', hue: 125, range: [70, 170], sat: 1.1 },
+  slime_magma: { variant: 'slime', hue: -110, range: [70, 170], sat: 1.3, val: 0.8 },
+  slime_bomb: { variant: 'slime', hue: 0, range: [70, 170], sat: 0.25, val: 0.55 },
+  orc_chief: { variant: 'orc', hue: -80, range: [40, 170], sat: 1.1, val: 0.9 },
   demon: {
     h: 74, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped',
     poses: {
