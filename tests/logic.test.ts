@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import SPRITES from '../src/art/sprites.json';
+import { walkPose } from '../src/art/motion';
 import { formatNumber } from '../src/core/format';
 import {
   BASE_STATS, combine, cooldownMult, critMultiplier, damageTaken, defenseReduction, moveSpeed, rollCritTier,
@@ -30,10 +31,15 @@ describe('arte', () => {
     ];
     for (const key of keys) expect(has(key), key).toBe(true);
   });
+  it('caminhada do herói alterna os pés: passo, pernas juntas, outro passo', () => {
+    const seq = [0.01, 0.13, 0.26, 0.38, 0.51].map((t) => walkPose('hero', t).slot);
+    expect(seq).toEqual(['walk_a', 'walk_mid', 'walk_b', 'walk_mid', 'walk_a']);
+    expect(walkPose('hero', 1, false).slot).toBe('idle');
+  });
   it('personagens animados têm os quadros do seu papel', () => {
     const slots = (key: string) => (SPRITES as Record<string, { slots?: string[] }>)[key]?.slots ?? [];
     for (const c of CHARACTERS) {
-      expect(slots(c.texture), c.texture).toEqual(['idle', 'walk_a', 'walk_b', 'attack', 'hurt', 'death', 'victory']);
+      expect(slots(c.texture), c.texture).toEqual(['idle', 'walk_a', 'walk_mid', 'walk_b', 'attack', 'hurt', 'death', 'victory']);
     }
     for (const e of Object.values(ENEMIES)) {
       const want = e.id === 'demon' ? ['idle', 'walk_a', 'walk_b', 'windup', 'attack', 'hurt', 'death'] : ['walk_a', 'walk_mid', 'walk_b', 'hurt', 'death'];
@@ -133,7 +139,7 @@ describe('armas', () => {
     expect(s.damage).toBeCloseTo(160);
   });
   it('bônus de tag só ativa com armas suficientes', () => {
-    const counts = countTags([WEAPONS.wand.tags, WEAPONS.axe.tags, WEAPONS.knives.tags]);
+    const counts = countTags([WEAPONS.wand.tags, WEAPONS.hammer.tags, WEAPONS.knives.tags]);
     const s = { ...WEAPONS.wand.base };
     applyTagBonuses(s, WEAPONS.wand.tags, counts);
     expect(s.amount).toBe(WEAPONS.wand.base.amount + 1); // 3 armas de projétil

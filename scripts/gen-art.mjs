@@ -35,11 +35,14 @@ for (const [name, a] of Object.entries(ART)) {
     for (const [suffix, poses] of named) {
       const list = poses.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
       jobs.push({
-        out: `${name}_${suffix}`, ref: name, aspect: a.wide ? '21:9' : undefined, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
+        // 4 quadros ou mais numa folha quadrada viram grade 2×2: formato largo garante uma fila só
+        out: `${name}_${suffix}`, ref: name, aspect: a.wide || poses.length >= 4 ? '21:9' : undefined, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
           'Use the character from the reference image and keep exactly the same design, colors, outfit, proportions and art style. ' +
           `Create a sprite sheet: one single horizontal row of ${poses.length} frames of this same character, all at exactly the same scale, ` +
           'evenly spaced with wide magenta gaps between frames, no frame touching or overlapping another. ' +
-          `Every frame in strict side profile view, the character facing and moving to the RIGHT. Frames from left to right: ${list}. ${BG}`,
+          'Every frame in strict side profile view, the character facing and moving to the RIGHT, the head always at exactly the same ' +
+          'side-profile angle (never turned toward the viewer). Whatever the character holds stays in the same hands in every frame. ' +
+          `Frames from left to right: ${list}. ${BG}`,
       });
     }
   }

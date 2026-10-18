@@ -61,6 +61,9 @@
  "fx_firering": {
   "hd": 2
  },
+ "fx_hammer": {
+  "hd": 3
+ },
  "fx_spike": {
   "hd": 2
  },
@@ -109,10 +112,11 @@
  },
  "hero_barbarian": {
   "hd": 3,
-  "frames": 7,
+  "frames": 8,
   "slots": [
    "idle",
    "walk_a",
+   "walk_mid",
    "walk_b",
    "attack",
    "hurt",
@@ -122,10 +126,11 @@
  },
  "hero_knight": {
   "hd": 3,
-  "frames": 7,
+  "frames": 8,
   "slots": [
    "idle",
    "walk_a",
+   "walk_mid",
    "walk_b",
    "attack",
    "hurt",
@@ -135,10 +140,11 @@
  },
  "hero_mage": {
   "hd": 3,
-  "frames": 7,
+  "frames": 8,
   "slots": [
    "idle",
    "walk_a",
+   "walk_mid",
    "walk_b",
    "attack",
    "hurt",
@@ -148,10 +154,11 @@
  },
  "hero_ranger": {
   "hd": 3,
-  "frames": 7,
+  "frames": 8,
   "slots": [
    "idle",
    "walk_a",
+   "walk_mid",
    "walk_b",
    "attack",
    "hurt",
@@ -181,6 +188,12 @@
   "hd": 4
  },
  "icon_fireball": {
+  "hd": 4
+ },
+ "icon_greataxe": {
+  "hd": 4
+ },
+ "icon_hammer": {
   "hd": 4
  },
  "icon_laser": {

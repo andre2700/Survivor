@@ -14,10 +14,11 @@ interface Gait {
 
 // monstros: dois passos com as pernas juntas entre eles (slime: normal, achatado, esticado; morcego: asas)
 const STEP = ['walk_a', 'walk_mid', 'walk_b', 'walk_mid'];
-// heróis e chefe: o quadro parado faz o papel das pernas juntas
+// chefe: o quadro parado faz o papel das pernas juntas
 const STRIDE = ['walk_a', 'idle', 'walk_b', 'idle'];
 const GAITS: Record<string, Gait> = {
-  hero: { fps: 7, cycle: STRIDE, squash: 0.03, tilt: 0.04 },
+  // herói: passo com o pé de perto, pernas juntas, passo com o pé de longe, pernas juntas
+  hero: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.03 },
   slime: { fps: 6, cycle: ['walk_a', 'walk_mid', 'walk_b', 'walk_a'], squash: 0.05, tilt: 0 },
   bat: { fps: 12, cycle: STEP, squash: 0.03, tilt: 0.05 },
   goblin: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.05 },
@@ -44,7 +45,7 @@ export function walkPose(kind: string, t: number, moving = true): Pose {
   const g = GAITS[kind] ?? GAITS.hero;
   if (!moving) {
     const b = Math.sin(t * 2.4) * 0.025;
-    pose.slot = g.cycle === STRIDE ? 'idle' : g.cycle[0];
+    pose.slot = g.cycle === STRIDE || kind === 'hero' ? 'idle' : g.cycle[0];
     pose.sx = 1 - b * 0.5;
     pose.sy = 1 + b;
     pose.rot = 0;

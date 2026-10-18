@@ -4,9 +4,9 @@ import { ORIGINS, type Primary } from './elements';
 export type Element = 'physical' | 'fire' | 'water' | 'air' | 'earth' | 'light' | 'dark' | 'lightning';
 export type Tag = 'melee' | 'projectile' | 'spell' | 'area' | 'heavy' | 'fast' | Primary;
 /** Como a arma ataca. Cada padrão é implementado uma vez em `systems/weapons.ts`. */
-export type Pattern = 'nearest' | 'volley' | 'arc' | 'lob' | 'orbit' | 'aura' | 'strike' | 'wave' | 'fissure' | 'tornado' | 'laser' | 'fireball' | 'tremor';
+export type Pattern = 'nearest' | 'volley' | 'arc' | 'cleave' | 'hammer' | 'orbit' | 'aura' | 'strike' | 'wave' | 'fissure' | 'tornado' | 'laser' | 'fireball' | 'tremor' | 'hammer';
 
-export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives' | 'wave' | 'quake' | 'tornado' | 'laser' | 'fireball' | 'tremor';
+export type WeaponId = 'wand' | 'sword' | 'axe' | 'orb' | 'aura' | 'lightning' | 'knives' | 'wave' | 'quake' | 'tornado' | 'laser' | 'fireball' | 'tremor' | 'hammer';
 
 export interface WeaponStats {
   damage: number;
@@ -64,10 +64,10 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     growth: [{ damage: 0.3 }, { area: 0.15 }, { amount: 1 }, { damage: 0.3 }, { cooldown: 0.1 }],
   },
   axe: {
-    id: 'axe', name: 'Machado', icon: 'axe', pattern: 'lob', element: 'physical', tags: ['projectile', 'heavy'],
-    description: 'Arremessa machados em arco. Dano alto.',
-    base: { damage: 25, cooldown: 1.8, amount: 1, pierce: 3, area: 1, speed: 300, duration: 2.2, effect: 1 },
-    growth: [{ amount: 1 }, { damage: 0.35 }, { pierce: 2 }, { area: 0.15 }, { damage: 0.35 }],
+    id: 'axe', name: 'Machado', icon: 'icon_greataxe', pattern: 'cleave', element: 'physical', tags: ['melee', 'heavy'],
+    description: 'Machadada de duas mãos que varre e racha o chão.',
+    base: { damage: 30, cooldown: 1.5, amount: 1, pierce: 999, area: 1, speed: 0, duration: 0.2, effect: 1.2 },
+    growth: [{ damage: 0.35 }, { area: 0.15 }, { cooldown: 0.1 }, { damage: 0.35 }, { amount: 1 }],
   },
   orb: {
     id: 'orb', name: 'Orbe Sagrado', icon: 'orb', pattern: 'orbit', element: 'light', tags: ['spell', 'area'],
@@ -130,6 +130,13 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     // recarga = distância andada (÷ 100 px) entre tremores
     base: { damage: 14, cooldown: 0.9, amount: 1, pierce: 999, area: 1, speed: 0, duration: 0, effect: 1.4 },
     growth: [{ damage: 0.3 }, { area: 0.15 }, { cooldown: 0.1 }, { amount: 1 }, { damage: 0.3 }],
+  },
+  hammer: {
+    id: 'hammer', name: 'Martelo do Trovão', icon: 'icon_hammer', pattern: 'hammer', element: 'lightning', tags: ['projectile', 'heavy'],
+    description: 'Arremessado em linha, carrega os inimigos e volta para a sua mão.',
+    // alcance = velocidade × duração
+    base: { damage: 20, cooldown: 2.2, amount: 1, pierce: 999, area: 1, speed: 340, duration: 0.75, effect: 1 },
+    growth: [{ damage: 0.3 }, { area: 0.15 }, { cooldown: 0.1 }, { damage: 0.3 }, { amount: 1 }],
   },
 };
 

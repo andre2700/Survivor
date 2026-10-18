@@ -133,8 +133,10 @@ export class WeaponSystem {
         return this.fireNearest(w);
       case 'volley':
         return this.fireVolley(w);
-      case 'lob':
-        return this.fireLob(w);
+      case 'cleave':
+        return this.fireCleave(w);
+      case 'hammer':
+        return this.fireHammer(w);
       case 'arc':
         return this.fireArc(w);
       case 'aura':
@@ -180,33 +182,28 @@ export class WeaponSystem {
 
   private fireVolley(w: WeaponRuntime): boolean {
     const p = this.scene.player;
-    const f = this.scene.facing;
     const s = w.stats;
+    // no inimigo mais próximo; sem ninguém por perto, na direção do movimento
+    const target = this.scene.nearestEnemies(p.x, p.y, 1, 300)[0];
+    const a = target ? Math.atan2(target.y - p.y, target.x - p.x) : Math.atan2(this.scene.facing.y, this.scene.facing.x);
+    const fx = Math.cos(a);
+    const fy = Math.sin(a);
     for (let i = 0; i < s.amount; i++) {
       this.scene.time.delayedCall(i * 60, () => {
         const off = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 5;
-        this.shoot(w, 'knife', 'proj_knife', p.x - f.y * off, p.y - 3 + f.x * off, f.x * s.speed, f.y * s.speed);
-      });
-    }
-    return true;
-  }
-
-  private fireLob(w: WeaponRuntime): boolean {
-    const p = this.scene.player;
-    const s = w.stats;
-    for (let i = 0; i < s.amount; i++) {
-      this.scene.time.delayedCall(i * 110, () => {
-        const vx = (Math.random() * 2 - 1) * 70 + this.scene.facing.x * 40;
-        this.shoot(w, 'axe', 'proj_axe', p.x, p.y - 6, vx, -s.speed);
+        this.shoot(w, 'knife', 'proj_knife', p.x - fy * off, p.y - 3 + fx * off, fx * s.speed, fy * s.speed);
       });
     }
     return true;
   }
 
   private fireArc(w: WeaponRuntime): boolean {
-    // golpeia na direção do movimento (joystick); parado, mantém a última direção
+    // golpeia o inimigo mais próximo ao alcance da lâmina; sem ninguém ao alcance, na direção do
+    // movimento (joystick; parado, mantém a última direção)
+    const p = this.scene.player;
     const f = this.scene.facing;
-    const angle = Math.atan2(f.y, f.x);
+    const target = this.scene.nearestEnemies(p.x, p.y, 1, 56 * w.stats.area + 14)[0];
+    const angle = target ? Math.atan2(target.y - p.y, target.x - p.x) : Math.atan2(f.y, f.x);
     for (let i = 0; i < w.stats.amount; i++) {
       // 1º golpe para frente, 2º para trás, os seguintes alternam com leve atraso
       this.scene.time.delayedCall(i * 140, () => this.slash(w, i % 2 === 0 ? angle : angle + Math.PI));
@@ -590,6 +587,220 @@ export class WeaponSystem {
     });
   }
 
+  // ---------- Machado de duas mãos (Bárbaro) ----------
+
+  /**
+   * Machadada pesada: um golpe largo e lento à frente (no inimigo mais próximo ao alcance, senão na
+   * direção do movimento) que termina num impacto no chão. Nv 5: o impacto racha o chão em volta;
+   * nv 10: solta uma onda de choque; nv 20: o golpe vira um giro completo (redemoinho).
+   */
+  private fireCleave(w: WeaponRuntime): boolean {
+    const p = this.scene.player;
+    const f = this.scene.facing;
+    const reach = 62 * w.stats.area;
+    const target = this.scene.nearestEnemies(p.x, p.y, 1, reach + 14)[0];
+    const angle = target ? Math.atan2(target.y - p.y, target.x - p.x) : Math.atan2(f.y, f.x);
+    for (let i = 0; i < w.stats.amount; i++) {
+      // golpes extras alternam para trás e para os lados
+      const a = angle + [0, Math.PI, Math.PI / 2, -Math.PI / 2][i % 4];
+      this.scene.time.delayedCall(i * 220, () => this.cleave(w, a, reach));
+    }
+    return true;
+  }
+
+  private cleave(w: WeaponRuntime, angle: number, reach: number) {
+    const scene = this.scene;
+    const p = scene.player;
+    const g = grandeur(w.level);
+    const spin = g >= 3;
+    // arco largo: o machado desce de um lado ao outro (ou dá a volta toda no redemoinho)
+    const sweep = spin ? Math.PI * 2 : 2.2;
+    // mistura normal: luz aditiva sobre a grama puxa para o verde
+    const gfx = scene.add.graphics().setDepth(LAYER.fx);
+    const color = w.level >= AWAKEN_EVERY ? 0xffd27a : 0xf6f1e4;
+    let t = 0;
+    const dur = spin ? 0.32 : 0.2;
+    let struck = false;
+    const hit = new Set<number>();
+    this.live.push((dt) => {
+      t += dt;
+      const k = Math.min(1, t / dur);
+      const ease = 1 - (1 - k) ** 3;
+      const a0 = angle - sweep / 2;
+      const a1 = a0 + sweep * ease;
+      gfx.clear();
+      // rastro em meia-lua: mais grosso na ponta do machado
+      const steps = 14;
+      for (let i = 0; i < steps; i++) {
+        const u = i / steps;
+        const aa = a0 + (a1 - a0) * u;
+        const ab = a0 + (a1 - a0) * (u + 1 / steps);
+        const alpha = (0.15 + 0.85 * u) * (k < 1 ? 1 : Math.max(0, 1 - (t - dur) / 0.15));
+        gfx.lineStyle(4 + 14 * u, color, alpha);
+        gfx.lineBetween(p.x + Math.cos(aa) * reach * 0.8, p.y - 4 + Math.sin(aa) * reach * 0.65, p.x + Math.cos(ab) * reach * 0.8, p.y - 4 + Math.sin(ab) * reach * 0.65);
+      }
+      // dano em quem a lâmina já varreu
+      scene.queryEnemies(p.x, p.y, reach + 20, (e) => {
+        if (hit.has(e.uid)) return;
+        const dx = e.x - p.x;
+        const dy = e.y - p.y;
+        const d = Math.hypot(dx, dy);
+        if (d > reach + e.radius) return;
+        const rel = Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - a0);
+        if (!spin && (rel < -0.3 || rel > (a1 - a0) + 0.3)) return;
+        if (spin && (rel + Math.PI * 2) % (Math.PI * 2) > a1 - a0 + 0.3) return;
+        hit.add(e.uid);
+        this.hit(w, e, 1.8);
+      });
+      if (k >= 1 && !struck) {
+        struck = true;
+        // impacto no chão onde o machado bate
+        const ix = p.x + Math.cos(angle) * reach * 0.7;
+        const iy = p.y + Math.sin(angle) * reach * 0.55;
+        scene.impact(ix, iy, 0xffe0a0, 1.4 + g * 0.3);
+        scene.cameras.main.shake(90, 0.004 + g * 0.002);
+        sfx('boom');
+        if (g >= 1) this.quakeCracks(ix, iy, 3 + g, reach * 0.6);
+        if (g >= 2) this.shockwave(w, ix, iy, reach * 1.3);
+      }
+      if (t < dur + 0.15) return true;
+      gfx.destroy();
+      return false;
+    });
+    sfx('whoosh');
+  }
+
+  /** Rachaduras curtas saindo de um ponto (só visual). */
+  private quakeCracks(x: number, y: number, n: number, len: number) {
+    const g = this.scene.add.graphics().setDepth(LAYER.groundFx);
+    for (let i = 0; i < n; i++) {
+      let a = Math.random() * Math.PI * 2;
+      let cx = x;
+      let cy = y;
+      g.lineStyle(3, 0x3a2a1a, 0.85);
+      g.beginPath().moveTo(cx, cy);
+      for (let j = 0; j < 4; j++) {
+        a += (Math.random() - 0.5) * 0.8;
+        cx += Math.cos(a) * (len / 4);
+        cy += Math.sin(a) * (len / 4) * 0.7;
+        g.lineTo(cx, cy);
+      }
+      g.strokePath();
+    }
+    this.scene.tweens.add({ targets: g, alpha: 0, delay: 300, duration: 400, onComplete: () => g.destroy() });
+  }
+
+  /** Onda de choque: anel que se expande e fere e empurra quem estiver dentro. */
+  private shockwave(w: WeaponRuntime, x: number, y: number, radius: number) {
+    const ring = this.scene.add.image(x, y, 'atlas', frameName('aura')).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd890).setDepth(LAYER.groundFx).setScale(0.2, 0.15);
+    this.scene.tweens.add({ targets: ring, scaleX: (radius * 2) / 96, scaleY: (radius * 1.5) / 96, alpha: 0, duration: 320, ease: 'Quad.Out', onComplete: () => ring.destroy() });
+    this.burst(w, x, y, radius, 0.6, 220);
+  }
+
+  // ---------- Martelo do Trovão ----------
+
+  /**
+   * O martelo voa em linha reta até o inimigo mais próximo (e além), carregando quem atinge, e volta
+   * para a mão do herói ferindo de novo. Nv 5: maior; nv 10: um trovão cai onde ele faz a volta;
+   * nv 20: ao voltar, solta uma descarga em volta do herói.
+   */
+  private fireHammer(w: WeaponRuntime): boolean {
+    const p = this.scene.player;
+    const s = w.stats;
+    const targets = this.scene.nearestEnemies(p.x, p.y, s.amount, 300);
+    const f = this.scene.facing;
+    for (let i = 0; i < s.amount; i++) {
+      const t = targets[i];
+      const a = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(f.y, f.x) + i * ((Math.PI * 2) / s.amount);
+      this.scene.time.delayedCall(i * 120, () => this.hammer(w, a));
+    }
+    sfx('whoosh');
+    return true;
+  }
+
+  private hammer(w: WeaponRuntime, angle: number) {
+    const scene = this.scene;
+    const p = scene.player;
+    const s = w.stats;
+    const g = grandeur(w.level);
+    const size = s.area * (g >= 1 ? 1.25 : 1);
+    const img = scene.add.image(p.x, p.y - 8, 'atlas', frameName('fx_hammer')).setDepth(LAYER.fx).setScale(size);
+    if (w.level >= AWAKEN_EVERY) img.setTint(0xfff0c0);
+    const range = s.speed * s.duration;
+    const vx = Math.cos(angle);
+    const vy = Math.sin(angle);
+    let x = p.x;
+    let y = p.y - 8;
+    let out = 0;
+    let back = false;
+    let pause = 0;
+    const carried = new Set<Enemy>();
+    const hit = new Set<number>();
+    const radius = 12 * size;
+    this.live.push((dt) => {
+      let mx: number;
+      let my: number;
+      if (!back) {
+        const step = Math.min(s.speed * dt, range - out);
+        out += step;
+        mx = vx * step;
+        my = vy * step;
+        if (out >= range) {
+          // pausa curta no fim, solta quem carregava e volta
+          pause += dt;
+          if (pause === dt) {
+            for (const e of carried) this.push(e, vx, vy, 160);
+            carried.clear();
+            hit.clear();
+            if (g >= 2) {
+              this.drawBolt(x, y + 8, scene.cameras.main.worldView.y - 10, w.level >= AWAKEN_EVERY);
+              this.burst(w, x, y + 8, 40 * s.area, 1, 120);
+              sfx('zap');
+            }
+          }
+          if (pause >= 0.1) back = true;
+        }
+      } else {
+        // volta para a mão do herói, onde quer que ele esteja
+        const dx = p.x - x;
+        const dy = p.y - 8 - y;
+        const d = Math.hypot(dx, dy) || 1;
+        const step = Math.min(d, s.speed * 1.25 * dt);
+        mx = (dx / d) * step;
+        my = (dy / d) * step;
+        if (d < 10) {
+          img.destroy();
+          scene.impact(p.x, p.y - 8, 0x9fd8ff, 0.8);
+          if (g >= 3) {
+            this.shockwave(w, p.x, p.y, 70 * s.area);
+            this.drawBolt(p.x, p.y, scene.cameras.main.worldView.y - 10, true);
+          }
+          return false;
+        }
+      }
+      x += mx;
+      y += my;
+      img.setPosition(x, y).setRotation(img.rotation + dt * 16 * (vx >= 0 ? 1 : -1));
+      if (Math.random() < 0.7) scene.sparks.explode(1, x, y);
+      // na ida, carrega os inimigos atingidos junto (chefes só levam dano)
+      for (const e of carried) {
+        if (!e.active) carried.delete(e);
+        else {
+          e.x += mx;
+          e.y += my;
+        }
+      }
+      scene.queryEnemies(x, y + 8, radius + 24, (e) => {
+        if (hit.has(e.uid)) return;
+        if ((e.x - x) ** 2 + (e.y - 8 - y) ** 2 > (radius + e.radius) ** 2) return;
+        hit.add(e.uid);
+        this.hit(w, e, back ? 0.8 : 0);
+        if (!back && !e.boss && e.active) carried.add(e);
+      });
+      return true;
+    });
+  }
+
   // ---------- Raio de Luz ----------
 
   private fireLaser(w: WeaponRuntime): boolean {
@@ -624,8 +835,8 @@ export class WeaponSystem {
   }
 
   /**
-   * Feixes de luz que saem do herói e o acompanham: a cada quadro o caminho é refeito a partir da
-   * posição dele (e da tela), e a mira gira devagar para onde ele anda — dá para varrer a tela.
+   * Feixes de luz que saem do herói e o acompanham: a direção fica fixa, mas a cada quadro o caminho
+   * (com os rebotes) é refeito a partir da posição dele e da tela.
    */
   private laser(w: WeaponRuntime, aim: number, offsets: number[], g: number) {
     const s = w.stats;
@@ -642,19 +853,8 @@ export class WeaponSystem {
     let on = 0;
     let tick = 0;
     let t = 0;
-    let lastX = p.x;
-    let lastY = p.y;
     this.live.push((dt) => {
       t += dt;
-      // a mira segue o movimento do herói, girando no máximo 1,8 rad/s
-      const mx = p.x - lastX;
-      const my = p.y - lastY;
-      lastX = p.x;
-      lastY = p.y;
-      if (mx * mx + my * my > 0.01) {
-        const diff = Phaser.Math.Angle.Wrap(Math.atan2(my, mx) - aim);
-        aim += Phaser.Math.Clamp(diff, -1.8 * dt, 1.8 * dt);
-      }
       const view = scene.cameras.main.worldView;
       const k = on / s.duration;
       // acende grosso, pulsa enquanto ligado e afina até sumir

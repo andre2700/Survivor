@@ -24,7 +24,8 @@ export const FRAME_TEMPLATES = {
   // monstro com ataque próprio, que precisa ser visto chegando
   special: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
-  hero: { move: ['idle', 'walk_a', 'walk_b', 'attack'], action: ['hurt', 'death', 'victory'] },
+  // herói: ciclo de caminhada completo (pé de perto à frente, pernas juntas, pé de longe à frente)
+  hero: { move: ['idle', 'walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death', 'victory'] },
   // efeito visual animado (reações, explosões): 4 quadros numa folha só, descritos em `poses`
   vfx: { move: ['f1', 'f2', 'f3', 'f4'], action: [] },
 };
@@ -32,9 +33,9 @@ export const FRAME_TEMPLATES = {
 // Descrição de cada pose por tipo de corpo.
 const BIPED = {
   idle: 'idle stance, relaxed, weapon held ready',
-  walk_a: 'walking, left leg forward, right leg back (contact pose)',
+  walk_a: 'walking, mid-stride: the NEAR leg (closest to the viewer) stepping forward and the FAR leg back, arms swinging opposite to the legs',
   walk_mid: 'walking, legs together under the body (passing pose)',
-  walk_b: 'walking, right leg forward, left leg back (contact pose)',
+  walk_b: 'walking, mid-stride: the FAR leg stepping forward and the NEAR leg back, the opposite legs of the other stride frame',
   windup: 'winding up a big attack: weapon raised high behind the head, body leaning back, menacing',
   attack: 'attacking: swinging or thrusting the weapon forward to the RIGHT with full force, dynamic',
   hurt: 'recoiling from a hit: flinching backwards, eyes squeezed shut, grimacing in pain',
@@ -75,10 +76,18 @@ export const ART = {
   // chão: textura que se repete (sem fundo para recortar)
   ground: { tile: true, prompt: `a seamless tileable texture of lush green grass ground seen from directly above, for a top-down RPG map. Very clean and calm: only soft, large, painterly patches of slightly lighter and darker green, like a smooth cartoon lawn. NO grass tufts, NO outlines, NO dots, NO speckles, NO flowers, NO objects. Even lighting, fills the whole square image edge to edge` },
   // heróis
-  hero_knight: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `a brave young knight hero in steel armor with a blue cape and a sword, ${CHAR}, heroic stance` },
-  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
-  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
-  hero_barbarian: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, holding a big battle axe, ${CHAR}, fierce stance` },
+  hero_knight: {
+    h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'BOTH the sword (blade clearly visible, pointing forward and up) and the round blue steel shield; the sword never disappears',
+    prompt: `a brave young knight hero in steel armor with a blue cape, a sword in one hand and a round blue steel shield with a gold rim on the other arm, ${CHAR}, heroic stance`,
+    poses: { attack: 'slashing the sword forward to the RIGHT in a wide arc, shield held up in front of the body, dynamic' },
+  },
+  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'the tall magic staff with the glowing purple crystal firmly in the front hand', prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
+  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'a dagger in each hand', prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
+  hero_barbarian: {
+    h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'the huge double-bladed great axe gripped with BOTH hands on the long handle',
+    prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, gripping a huge double-bladed two-handed great axe with BOTH hands, ${CHAR}, fierce stance`,
+    poses: { attack: 'chopping down hard with the huge great axe held in both hands: axe head low in front to the RIGHT, body leaning forward, dynamic' },
+  },
   // inimigos
   slime: { h: 22, hd: 3, shadow: true, role: 'monster', body: 'blob' },
   bat: { h: 22, hd: 3, role: 'monster', body: 'flyer', prompt: `a small purple cave bat monster with big ears, open wings, fangs and glowing eyes, flying, ${CHAR}` },
@@ -131,6 +140,7 @@ export const ART = {
     f1: 'a low swirl of sand starting on the ground', f2: 'a growing sand whirlwind', f3: 'a tall sand whirlwind with flying pebbles', f4: 'the whirlwind collapsing into falling sand' } },
   vfx_explosion: { h: 40, role: 'vfx', wide: true, effect: 'a cartoon fire explosion with crisp outlines and NO soft glow or halo around it', poses: {
     f1: 'a small bright yellow flash', f2: 'a round orange fireball blast expanding', f3: 'a big fiery explosion with flames and sparks', f4: 'dark smoke puffs with a few embers' } },
+  fx_hammer: { w: 26, hd: 3, prompt: `a magic war hammer like a legendary thunder god hammer: short leather-wrapped handle with a wrist strap, big rectangular engraved steel head with crackling blue lightning, side view, handle pointing down` },
   fx_fireball: { w: 20, prompt: `${FX}a cartoon fireball projectile with a flaming tail, flying horizontally to the RIGHT` },
   fx_firering: { w: 96, prompt: `${FX}a flat ring of orange and yellow flames seen from a top-down angle, empty in the middle, flames licking upward around the circle` },
   // cenário (visto de cima, estilo mapa de RPG)
@@ -165,6 +175,8 @@ export const ART = {
   icon_quake: { h: 16, hd: 4, prompt: `${ICON}: cracked brown ground split open by a fissure with rocks bursting out` },
   icon_tornado: { h: 16, hd: 4, prompt: `${ICON}: a pale green and white tornado swirl` },
   icon_laser: { h: 16, hd: 4, prompt: `${ICON}: a bright golden-white beam of light zigzagging between two small mirrors` },
+  icon_hammer: { h: 16, hd: 4, prompt: `${ICON}: a legendary thunder god war hammer with a short handle and a big rectangular steel head crackling with blue lightning` },
+  icon_greataxe: { h: 16, hd: 4, prompt: `${ICON}: a huge double-bladed two-handed great axe with a long handle` },
   icon_fireball: { h: 16, hd: 4, prompt: `${ICON}: a blazing round fireball with a flaming tail` },
   icon_tremor: { h: 16, hd: 4, prompt: `${ICON}: a brown leather boot stomping on cracked ground with rocks flying` },
   icon_element: { h: 16, hd: 4, prompt: `${ICON}: a magic orb split into four colored quarters: red fire, blue water, green wind and brown earth` },
@@ -180,7 +192,8 @@ export function sheets(a) {
   const t = FRAME_TEMPLATES[a.role];
   const pose = (slot) => {
     const text = a.poses?.[slot] ?? POSES[a.body]?.[slot];
-    return { slot, text: a.hold ? `${text}, holding ${a.hold}` : text };
+    // na morte a arma cai: não repete o que ele segura
+    return { slot, text: a.hold && slot !== 'death' ? `${text}, holding ${a.hold}` : text };
   };
   const per = a.wide ? 2 : 3;
   const actions = [];
