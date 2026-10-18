@@ -26,6 +26,13 @@ const GAITS: Record<string, Gait> = {
   skeleton: { fps: 7, cycle: STEP, squash: 0.025, tilt: 0.05 },
   orc: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.04 },
   demon: { fps: 4, cycle: STRIDE, squash: 0.02, tilt: 0.025 },
+  // Pântano
+  frog: { fps: 6, cycle: STEP, squash: 0.06, tilt: 0 },
+  croc: { fps: 7, cycle: STEP, squash: 0.02, tilt: 0.03 },
+  mosquito: { fps: 14, cycle: STEP, squash: 0.03, tilt: 0.06 },
+  sporeshroom: { fps: 6, cycle: STEP, squash: 0.04, tilt: 0.05 },
+  frog_shaman: { fps: 7, cycle: STEP, squash: 0.03, tilt: 0.04 },
+  frog_king: { fps: 4, cycle: STRIDE, squash: 0.04, tilt: 0.02 },
 };
 
 export interface Pose {

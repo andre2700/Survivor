@@ -24,7 +24,7 @@ O design completo está em [docs/GDD.md](docs/GDD.md).
 - **Partida de 15 min + chefe**; ao vencer, dá para continuar no **modo infinito** (ciclos de 5 min, cada um com chefe e inimigos mais fortes; morrer ali não é derrota).
 - **Melhorias permanentes sem teto** na loja (com rolagem).
 - **Estatísticas pós-partida:** dano causado por arma.
-- **Fases e mapa-múndi** (`src/data/stages.ts`, Marco 3): trilha de 9 fases, das leves às épicas; cada uma com aparência, ondas, chefe, eventos e 3 objetivos (estrelas). Vencer o chefe libera a próxima. Jogáveis hoje: Clareira Ensolarada e Bosque Outonal (chefe: Chefe Orc).
+- **Fases e mapa-múndi** (`src/data/stages.ts`, Marco 3): trilha de 9 fases, das leves às épicas; cada uma com aparência, ondas, chefe, eventos e 3 objetivos (estrelas). Vencer o chefe libera a próxima. Jogáveis hoje: Clareira Ensolarada, Bosque Outonal (chefe: Chefe Orc) e Pântano Enevoado (chefe: Rei Sapo; névoa nas bordas da tela e lama que deixa lento; Sapo, Jacaré com bote, Mosquito, Cogumelo de Esporos e Xamã Sapo, que lança a Onda).
 - **Inimigos com habilidade** (`src/systems/enemySkills.ts`): Slime Cuspidor (atira de longe), Slime de Magma (lança a Bola de Fogo, com nível que cresce com a fase e o tempo) e Slime Bomba (pisca e explode, ferindo também os inimigos). Todo ataque tem aviso antes.
 - **Eventos aleatórios** (`src/systems/runEvents.ts`): baú guardado, prisioneiro que vira aliado, chefe surpresa, goblin dourado, chuva de meteoros e emboscada. Itens pelo mapa (ímã, bomba, cura) e setas na borda da tela apontando para os eventos.
 - **Resistência a controle:** chefes e elites ignoram ou sofrem menos empurrões, congelamento e lentidão.

@@ -180,6 +180,51 @@ export const ART = {
   flowers: { h: 14, prompt: `a small cluster of colorful wild flowers (white, yellow and pink) with leaves, like a top-down RPG map decoration` },
   mushroom: { h: 14, prompt: `two small red mushrooms with white spots, like a top-down RPG map decoration` },
   tallgrass: { h: 16, prompt: `a small tuft of tall green grass blades, like a top-down RPG map decoration` },
+  // ---------- Pântano Enevoado (Marco 3b) ----------
+  ground_swamp: { tile: true, contrast: 0.45, prompt: `a seamless tileable texture of soft swampy marsh ground seen from directly above, for a top-down RPG map: mossy teal-green grass with a few large darker damp patches. Very clean and calm: only soft, large, painterly patches. NO puddles, NO water, NO grass tufts, NO outlines, NO dots, NO objects. Even lighting, fills the whole square image edge to edge` },
+  reeds: { h: 22, prompt: `a small clump of tall cattail reeds with brown fluffy tops and green leaves, like a top-down RPG map decoration` },
+  swamp_tree: { h: 74, shadow: true, prompt: `a single cute twisted swamp mangrove tree with arching roots and hanging green moss, front view, like a top-down RPG map object` },
+  mossy_log: { h: 16, shadow: true, prompt: `a single mossy fallen log with a tiny mushroom on it, front view, like a top-down RPG map object` },
+  glowshroom: { h: 14, prompt: `a small cluster of three glowing teal-blue mushrooms, like a top-down RPG map decoration` },
+  lilypond: { w: 64, prompt: `a flat small pond of dark teal water with two green lily pads and one pink lotus flower, seen from directly above, organic blob shape, like a top-down RPG map decal` },
+  mud: { w: 72, prompt: `a flat irregular patch of wet dark brown mud with a few small bubbles, seen from directly above, organic blob shape, like a top-down RPG map decal` },
+  frog: {
+    h: 24, hd: 3, shadow: true, role: 'monster', body: 'blob',
+    prompt: `a chubby round green swamp frog monster with big yellow eyes and a wide grin, ${CHAR}`,
+    poses: { walk_a: 'crouched low, ready to hop', walk_mid: 'mid-hop in the air, hind legs stretched back', walk_b: 'landing, body squashed, legs spread', attack: 'shooting its long pink tongue forward to the RIGHT, mouth wide open' },
+  },
+  croc: {
+    h: 26, hd: 3, shadow: true, wide: true, role: 'special', body: 'quadruped',
+    prompt: `a chunky green swamp crocodile monster with a big toothy grin, scaly back and four short legs, ${CHAR}`,
+    poses: { walk_a: 'crawling, front right leg forward', walk_mid: 'crawling, legs under the body', walk_b: 'crawling, front left leg forward', windup: 'crouched low with the tail raised, jaws closed, about to lunge', attack: 'lunging forward to the RIGHT with huge jaws wide open' },
+  },
+  mosquito: {
+    h: 18, hd: 3, role: 'monster', body: 'flyer',
+    prompt: `a small cartoon giant swamp mosquito monster with a long needle nose, striped body, big red eyes and transparent wings, flying, ${CHAR}`,
+    poses: { attack: 'diving forward to the RIGHT stinging with its long needle nose' },
+  },
+  sporeshroom: {
+    h: 26, hd: 3, shadow: true, role: 'monster', body: 'blob',
+    prompt: `a cute grumpy purple mushroom monster with a white-spotted cap, a pale stem body and two little stubby feet, ${CHAR}`,
+    poses: { walk_a: 'waddling, near foot forward', walk_mid: 'feet together under the body', walk_b: 'waddling, far foot forward', attack: 'puffing a cloud of green spores forward to the RIGHT from under its cap, cheeks puffed' },
+  },
+  frog_shaman: {
+    h: 34, hd: 3, shadow: true, role: 'special', body: 'biped', hold: 'the wooden staff with the blue water orb',
+    prompt: `a frog shaman monster standing upright on two legs, wearing a leaf cloak and a necklace of shells, holding a wooden staff topped with a glowing blue water orb, ${CHAR}`,
+    poses: { windup: 'raising the staff high, the water orb glowing brightly', attack: 'thrusting the staff forward to the RIGHT, casting a splash of water' },
+  },
+  frog_king: {
+    h: 70, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped',
+    prompt: `a huge fat frog king boss monster with a golden crown, a royal purple cape, a big round belly and a golden scepter, ${CHAR}, menacing`,
+    poses: {
+      idle: 'standing proudly on its hind legs, scepter raised', walk_a: 'crouched, about to hop forward', walk_b: 'mid-hop, body stretched upward',
+      windup: 'crouched very low, cheeks puffed, about to make a huge leap', attack: 'slamming down belly-first on the ground in front, a big shockwave splash',
+      death: 'defeated: lying flat on its back, crown fallen beside it, X eyes',
+    },
+  },
+  // objetos dos eventos (no lugar dos provisórios desenhados por código)
+  chest: { h: 22, shadow: true, prompt: `a single closed wooden treasure chest with gold trim and a golden lock, front view, like a top-down RPG map object` },
+  bomb: { h: 16, prompt: `a single round black cartoon bomb with a short lit fuse sparkling, like a top-down RPG map item` },
   dirt: { w: 72, prompt: `a flat irregular patch of bare brown dirt ground with a few small pebbles, seen from directly above, organic blob shape, like a top-down RPG map decal` },
   dirt2: { w: 64, prompt: `a flat irregular patch of bare brown dirt ground with tiny grass bits around the edges, seen from directly above, elongated organic shape, like a top-down RPG map decal` },
   // ícones (armas, cartas, interface)

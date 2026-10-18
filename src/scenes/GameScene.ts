@@ -37,6 +37,8 @@ import { FONT, px } from '../ui/theme';
  */
 /** Aproximação extra da câmera do jogo: personagens maiores na tela do celular. */
 export const WORLD_ZOOM = 1.2;
+/** Decoração de pé (ordem de profundidade pela base), as demais ficam rente ao chão. */
+const UPRIGHT = new Set(['bush', 'stump', 'rock', 'mossy_log']);
 /** Limites do zoom do jogador: afastar mostra mais da tela (e pesa mais), aproximar mostra o herói maior. */
 export const ZOOM_RANGE = [0.7, 1.8];
 const ZOOM_KEY = 'survivor-zoom';
@@ -164,6 +166,10 @@ export class GameScene extends Phaser.Scene {
   private frame = 0;
   private decor = new Map<string, Phaser.GameObjects.Image[]>();
   private tallDecor: Phaser.GameObjects.Image[] = [];
+  /** poças de lama visíveis (deixam o herói lento) */
+  private mud: Phaser.GameObjects.Image[] = [];
+  /** névoa do pântano: nuvens nas bordas da tela */
+  private fog: { img: Phaser.GameObjects.Image; a: number; r: number; speed: number }[] = [];
 
   constructor() {
     super('Game');
@@ -236,11 +242,13 @@ export class GameScene extends Phaser.Scene {
     this.active = [];
     this.corpses = [];
     this.decor.clear();
+    this.fog = [];
+    this.mud = [];
 
     const width = this.viewW;
     const height = this.viewH;
     // chão e vinheta acompanham a câmera (com margem para não aparecer borda)
-    this.ground = groundSprite(this, 0, 0, width + 128, height + 128).setOrigin(0).setDepth(LAYER.ground);
+    this.ground = groundSprite(this, 0, 0, width + 128, height + 128, this.stage.ground).setOrigin(0).setDepth(LAYER.ground);
     this.player = this.add.image(0, 0, 'atlas', frameName(this.char.texture)).setOrigin(0.5, 0.68);
     this.playerSlots = slotsOf(this.char.texture);
     this.vignette = this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width + 40, height + 40).setDepth(LAYER.overlay);
@@ -374,6 +382,7 @@ export class GameScene extends Phaser.Scene {
     this.ground.setPosition(vx - 64, vy - 64);
     scrollGround(this.ground, vx - 64, vy - 64);
     this.vignette.setPosition(cam.midPoint.x - this.viewW / 2 - 20, cam.midPoint.y - this.viewH / 2 - 20);
+    this.updateFog(cam.midPoint.x, cam.midPoint.y);
     this.motes.setPosition(cam.midPoint.x, cam.midPoint.y);
     this.drawPlayerHp();
     if (this.frame % 15 === 0) this.updateDecor();
@@ -408,7 +417,9 @@ export class GameScene extends Phaser.Scene {
       x /= len;
       y /= len;
     }
-    const speed = moveSpeed(this.stats);
+    // poça de lama: o herói anda mais devagar
+    const inMud = this.mud.some((m) => ((this.player.x - m.x) / (m.displayWidth * 0.45)) ** 2 + ((this.player.y - m.y) / (m.displayHeight * 0.4)) ** 2 < 1);
+    const speed = moveSpeed(this.stats) * (inMud ? 0.6 : 1);
     const dt = Math.min(this.game.loop.delta, 50) / 1000;
     this.player.x += x * speed * dt;
     this.player.y += y * speed * dt;
@@ -906,13 +917,14 @@ export class GameScene extends Phaser.Scene {
       const base = Math.random() * Math.PI * 2;
       for (let i = 0; i < 30; i++) {
         const p = this.spawnPoint(base + (Math.random() - 0.5) * 0.8);
-        const e = this.spawnEnemy(ENEMIES.bat, p.x + Phaser.Math.Between(-30, 30), p.y + Phaser.Math.Between(-30, 30));
+        const e = this.spawnEnemy(ENEMIES[this.stage.swarm ?? 'bat'], p.x + Phaser.Math.Between(-30, 30), p.y + Phaser.Math.Between(-30, 30));
         if (e) e.speed *= 1.4;
       }
     } else {
       this.events.emit('announce', 'VOCÊ ESTÁ CERCADO!');
       const n = 28;
-      const id: EnemyId = this.elapsed > 400 ? 'orc' : 'skeleton';
+      const [early, late] = this.stage.ring ?? ['skeleton', 'orc'];
+      const id: EnemyId = this.elapsed > 400 ? late : early;
       // deixa uma brecha no anel para o jogador conseguir escapar
       const gap = Math.floor(Math.random() * n);
       for (let i = 0; i < n; i++) {
@@ -1214,6 +1226,25 @@ export class GameScene extends Phaser.Scene {
     this.events.emit('announce', 'MODO INFINITO: CICLO 1');
   }
 
+  /** Névoa (perigo do Pântano): nuvens lentas que cobrem as bordas da tela e escondem quem se aproxima. */
+  private updateFog(cx: number, cy: number) {
+    if (this.stage.hazard !== 'fog') return;
+    if (!this.fog.length) {
+      for (let i = 0; i < 14; i++) {
+        const img = this.add.image(0, 0, 'atlas', frameName('glow')).setTint(0xd6e6dc).setDepth(LAYER.overlay - 2);
+        this.fog.push({ img, a: (i / 14) * Math.PI * 2, r: 0.42 + Math.random() * 0.2, speed: (Math.random() < 0.5 ? 1 : -1) * (0.02 + Math.random() * 0.03) });
+      }
+    }
+    const w = this.viewW;
+    const h = this.viewH;
+    for (const f of this.fog) {
+      f.a += f.speed * 0.016;
+      const breathe = 1 + Math.sin(this.elapsed * 0.5 + f.a * 3) * 0.08;
+      f.img.setPosition(cx + Math.cos(f.a) * w * f.r, cy + Math.sin(f.a) * h * f.r * 0.9)
+        .setScale((w / 32) * 0.55 * breathe).setAlpha(0.5);
+    }
+  }
+
   /** Decoração da fase sorteada pelos pesos dela (r entre 0 e 1). */
   private pickDecor(r: number) {
     const entries = Object.entries(this.stage.decor) as [string, number][];
@@ -1343,8 +1374,8 @@ export class GameScene extends Phaser.Scene {
           const py = y * CHUNK + rnd() * CHUNK;
           if (Math.hypot(px, py) < 60) continue;
           const img = this.add.image(Math.round(px), Math.round(py), 'atlas', frameName(tex)).setOrigin(0.5, 1).setTint(this.stage.tint.decor);
-          const tall = tex === 'tree' || tex === 'tree2';
-          img.setDepth(tall || tex === 'bush' || tex === 'stump' || tex === 'rock' ? py - 6 : LAYER.groundDecor);
+          const tall = (this.stage.tall ?? ['tree', 'tree2']).includes(tex);
+          img.setDepth(tall || UPRIGHT.has(tex) ? py - 6 : LAYER.groundDecor);
           if (tall) img.setData('tall', true);
           imgs.push(img);
         }
@@ -1353,8 +1384,11 @@ export class GameScene extends Phaser.Scene {
           const dx = x * CHUNK + rnd() * CHUNK;
           const dy = y * CHUNK + rnd() * CHUNK;
           if (Math.hypot(dx, dy) > 80) {
-            const patch = this.add.image(Math.round(dx), Math.round(dy), 'atlas', frameName(rnd() < 0.5 ? 'dirt' : 'dirt2')).setTint(this.stage.tint.decor);
+            const kinds = this.stage.patches ?? ['dirt', 'dirt2'];
+            const kind = kinds[Math.floor(rnd() * kinds.length)];
+            const patch = this.add.image(Math.round(dx), Math.round(dy), 'atlas', frameName(kind)).setTint(this.stage.tint.decor);
             patch.setDepth(LAYER.groundDecor - 1).setFlipX(rnd() < 0.5);
+            if (kind === 'mud') patch.setData('mud', true);
             imgs.push(patch);
           }
         }
@@ -1367,6 +1401,7 @@ export class GameScene extends Phaser.Scene {
       this.decor.delete(key);
     }
     this.tallDecor = [...this.decor.values()].flat().filter((i) => i.getData('tall'));
+    this.mud = [...this.decor.values()].flat().filter((i) => i.getData('mud'));
   }
 
   /** Árvores ficam translúcidas quando o herói passa por trás delas. */

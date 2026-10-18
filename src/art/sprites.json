@@ -29,11 +29,30 @@
  "bolt": {
   "hd": 4
  },
+ "bomb": {
+  "hd": 2
+ },
  "bush": {
+  "hd": 2
+ },
+ "chest": {
   "hd": 2
  },
  "coin": {
   "hd": 4
+ },
+ "croc": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "demon": {
   "hd": 3,
@@ -56,6 +75,44 @@
  },
  "flowers": {
   "hd": 2
+ },
+ "frog": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "frog_king": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "frog_shaman": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "fx_fireball": {
   "hd": 2,
@@ -90,6 +147,9 @@
  "gem_red": {
   "hd": 4
  },
+ "glowshroom": {
+  "hd": 2
+ },
  "goblin": {
   "hd": 3,
   "frames": 6,
@@ -115,6 +175,9 @@
   ]
  },
  "ground": {
+  "hd": 2
+ },
+ "ground_swamp": {
   "hd": 2
  },
  "heart": {
@@ -242,6 +305,27 @@
  "knife": {
   "hd": 4
  },
+ "lilypond": {
+  "hd": 2
+ },
+ "mosquito": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "mossy_log": {
+  "hd": 2
+ },
+ "mud": {
+  "hd": 2
+ },
  "mushroom": {
   "hd": 2
  },
@@ -294,6 +378,9 @@
   "hd": 2
  },
  "proj_orb": {
+  "hd": 2
+ },
+ "reeds": {
   "hd": 2
  },
  "rock": {
@@ -383,7 +470,22 @@
    "death"
   ]
  },
+ "sporeshroom": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "stump": {
+  "hd": 2
+ },
+ "swamp_tree": {
   "hd": 2
  },
  "tallgrass": {

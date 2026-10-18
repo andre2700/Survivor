@@ -89,7 +89,8 @@ export function generateTextures(scene: Phaser.Scene) {
   for (const [key, { hd, frames = 1 }] of Object.entries(SPRITE)) {
     if (!scene.textures.exists(key)) continue;
     mark(key, hd);
-    if (key === 'ground') continue;
+    // chãos (texturas que se repetem) ficam fora do atlas
+    if (key.startsWith('ground')) continue;
     const tex = scene.textures.get(key);
     const source = tex.getSourceImage() as HTMLImageElement;
     const w = source.width / frames;
@@ -152,12 +153,12 @@ function buildAtlas(scene: Phaser.Scene, parts: AtlasPart[]) {
 }
 
 /** Chão de grama repetido; `scroll` desloca a textura em unidades lógicas. */
-export function groundSprite(scene: Phaser.Scene, x: number, y: number, w: number, h: number) {
-  return scene.add.tileSprite(x, y, w, h, 'ground').setTileScale(1 / hdOf('ground'));
+export function groundSprite(scene: Phaser.Scene, x: number, y: number, w: number, h: number, key = 'ground') {
+  return scene.add.tileSprite(x, y, w, h, key).setTileScale(1 / hdOf(key));
 }
 
 export function scrollGround(ground: Phaser.GameObjects.TileSprite, x: number, y: number) {
-  const hd = hdOf('ground');
+  const hd = hdOf(ground.texture.key);
   ground.tilePositionX = x * hd;
   ground.tilePositionY = y * hd;
 }

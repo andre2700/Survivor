@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import SPRITES from '../src/art/sprites.json';
+import { ART, FRAME_TEMPLATES } from '../art/manifest.mjs';
 import { walkPose } from '../src/art/motion';
 import { formatNumber } from '../src/core/format';
 import {
@@ -42,9 +43,13 @@ describe('arte', () => {
     for (const c of CHARACTERS) {
       expect(slots(c.texture), c.texture).toEqual(['idle', 'walk_a', 'walk_mid', 'walk_b', 'attack', 'hurt', 'death', 'victory']);
     }
+    // cada criatura tem os quadros do modelo do seu papel (variantes de cor usam o da original)
     for (const e of Object.values(ENEMIES)) {
-      const want = e.id === 'demon' ? ['idle', 'walk_a', 'walk_b', 'windup', 'attack', 'hurt', 'death'] : ['walk_a', 'walk_mid', 'walk_b', 'attack', 'hurt', 'death'];
-      expect(slots(e.texture), e.texture).toEqual(want);
+      const a = ART[e.texture];
+      const role = (a.variant ? ART[a.variant].role : a.role)!;
+      const t = FRAME_TEMPLATES[role];
+      expect(slots(e.texture), e.texture).toEqual([...t.move, ...t.action]);
+      expect(slots(e.texture), `${e.texture} sem quadro de ataque`).toContain('attack');
     }
   });
 });
@@ -251,7 +256,7 @@ describe('resistência a controle', () => {
     expect(controlScale(boss)).toBeCloseTo(1 - boss * CONTROL_RULES.reduce);
   });
   it('chefe resiste mais que monstros comuns', () => {
-    for (const e of Object.values(ENEMIES)) if (e.id !== 'demon') expect(e.resist).toBeLessThan(ENEMIES.demon.resist);
+    for (const e of Object.values(ENEMIES)) if (!e.boss) expect(e.resist, e.id).toBeLessThan(ENEMIES.demon.resist);
     expect(ENEMIES.slime.resist).toBe(0);
   });
 });

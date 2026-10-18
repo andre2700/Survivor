@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
 SRC = Path('art/source')
 OUT = Path('src/assets/art')
@@ -129,9 +129,12 @@ def with_shadow(im, size=None, cx=None):
     return out
 
 
-def ground(path):
-    """Ladrilho de grama repetível: desloca meia textura e cobre a emenda com o centro original."""
+def ground(path, contrast=1.0):
+    """Ladrilho de grama repetível: desloca meia textura e cobre a emenda com o centro original.
+    `contrast` < 1 suaviza manchas fortes (a repetição fica menos visível)."""
     im = Image.open(path).convert('RGB')
+    if contrast != 1:
+        im = ImageEnhance.Contrast(im).enhance(contrast)
     w, h = im.size
     s = min(w, h)
     im = im.crop(((w - s) // 2, (h - s) // 2, (w + s) // 2, (h + s) // 2)).resize((512, 512), Image.LANCZOS)
@@ -222,6 +225,20 @@ def slice_sheet(path, n):
             owner[i] = dom
         else:
             print(f'  aviso: {path.name}: figuras encostadas divididas entre os quadros', [k for k in range(n) if per[k]])
+    # duas figuras grandes empilhadas na mesma coluna (a IA às vezes repete uma pose acima da outra):
+    # fica só a de baixo
+    for k in range(n):
+        mine = [i for i in big if owner.get(i, -1) == k]
+        if len(mine) < 2:
+            continue
+        span = {i: (min(y for _, y in regions[i - 1]), max(y for _, y in regions[i - 1])) for i in mine}
+        low = max(mine, key=lambda i: span[i][1])
+        for i in mine:
+            # só se for uma cópia (tamanho parecido): um cajado caído sob o corpo não conta
+            similar = 0.5 < len(regions[i - 1]) / len(regions[low - 1]) < 2
+            if i != low and similar and span[i][1] < span[low][0] + (span[low][1] - span[low][0]) * 0.3:
+                owner[i] = -1
+                print(f'  aviso: {path.name}: figura repetida empilhada no quadro {k + 1}, descartada')
     frames = []
     for k in range(n):
         m = Image.new('L', (w // q, h // q))
@@ -349,7 +366,7 @@ def main():
             print('falta', src)
             continue
         if a.get('tile'):
-            ground(src).save(OUT / f'{name}.png', optimize=True)
+            ground(src, a.get('contrast', 1)).save(OUT / f'{name}.png', optimize=True)
             index[name] = {'hd': GROUND_HD}
             continue
         hd = a.get('hd', 2)

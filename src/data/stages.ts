@@ -29,8 +29,19 @@ export interface StageDef {
   playable: boolean;
   /** tom do chão e da decoração (multiplica as cores da arte) */
   tint: { ground: number; decor: number; sky: string };
-  /** chance relativa de cada decoração */
-  decor: Partial<Record<'tree' | 'tree2' | 'bush' | 'rock' | 'stump' | 'flowers' | 'mushroom' | 'tallgrass', number>>;
+  /** chance relativa de cada decoração (nomes da arte; árvores e troncos ficam de pé, o resto rente ao chão) */
+  decor: Record<string, number>;
+  /** decoração alta (passa na frente do herói quando ele está atrás) */
+  tall?: string[];
+  /** manchas no chão (decalques), sorteadas por trecho do mapa */
+  patches?: string[];
+  /** textura do chão (padrão: grama da floresta) */
+  ground?: string;
+  /** perigo do mapa: névoa que esconde a borda da tela e poças de lama que deixam lento */
+  hazard?: 'fog';
+  /** criatura das revoadas (padrão: morcego) e do cerco (padrão: esqueleto, orc mais tarde) */
+  swarm?: EnemyId;
+  ring?: [EnemyId, EnemyId];
   waves: Wave[];
   boss: EnemyId;
   /** multiplicador de vida e dano dos inimigos */
@@ -60,6 +71,25 @@ const AUTUMN_WAVES: Wave[] = [
   { minute: 12, pool: ['bat_air', 'orc', 'slime_spit', 'slime_bomb', 'slime_fire'], rate: 7.8, max: 270, event: 'swarm' },
   { minute: 13, pool: ['skeleton', 'orc', 'slime_magma'], rate: 8.3, max: 290, event: 'ring' },
   { minute: 14, pool: ['goblin_earth', 'orc', 'slime_magma', 'slime_spit', 'slime_bomb'], rate: 9.2, max: 310, event: 'swarm' },
+];
+
+/** Pântano Enevoado: sapos, jacarés com bote, mosquitos, cogumelos que atiram esporos e xamãs. */
+const SWAMP_WAVES: Wave[] = [
+  { minute: 0, pool: ['frog', 'mosquito'], rate: 1.8, max: 45 },
+  { minute: 1, pool: ['frog', 'sporeshroom'], rate: 2.4, max: 60 },
+  { minute: 2, pool: ['frog', 'croc', 'mosquito'], rate: 3, max: 80 },
+  { minute: 3, pool: ['sporeshroom', 'croc', 'slime_water'], rate: 3.4, max: 100, event: 'swarm' },
+  { minute: 4, pool: ['frog', 'frog_shaman', 'croc', 'mosquito'], rate: 3.8, max: 120 },
+  { minute: 5, pool: ['croc', 'sporeshroom', 'frog_shaman', 'goblin_earth'], rate: 4.4, max: 140, event: 'ring' },
+  { minute: 6, pool: ['frog', 'croc', 'frog_shaman', 'slime_water'], rate: 4.9, max: 160 },
+  { minute: 7, pool: ['mosquito', 'croc', 'sporeshroom', 'frog_shaman'], rate: 5.4, max: 180, event: 'swarm' },
+  { minute: 8, pool: ['croc', 'orc', 'sporeshroom'], rate: 6, max: 200, event: 'ring' },
+  { minute: 9, pool: ['frog', 'croc', 'frog_shaman', 'sporeshroom', 'goblin_earth'], rate: 6.6, max: 220, event: 'swarm' },
+  { minute: 10, pool: ['croc', 'orc', 'frog_shaman'], rate: 7, max: 240 },
+  { minute: 11, pool: ['croc', 'sporeshroom', 'frog_shaman', 'skeleton'], rate: 7.5, max: 260, event: 'ring' },
+  { minute: 12, pool: ['mosquito', 'croc', 'frog_shaman', 'sporeshroom', 'slime_water'], rate: 8, max: 280, event: 'swarm' },
+  { minute: 13, pool: ['croc', 'orc', 'frog_shaman'], rate: 8.5, max: 300, event: 'ring' },
+  { minute: 14, pool: ['frog', 'croc', 'frog_shaman', 'sporeshroom', 'orc', 'mosquito'], rate: 9.4, max: 320, event: 'swarm' },
 ];
 
 /** Fase futura: aparece no mapa, ainda sem arte própria. */
@@ -95,7 +125,20 @@ export const STAGES: StageDef[] = [
       { kind: 'kills', n: 3000, text: 'Derrote 3.000 inimigos' },
     ],
   },
-  soon('pantano', 'Pântano Enevoado', 'A névoa esconde o que espreita', 'leve', 'água e terra', 0x5fb8a0),
+  {
+    id: 'pantano', name: 'Pântano Enevoado', subtitle: 'A névoa esconde o que espreita', mood: 'leve', elements: 'água e terra', playable: true,
+    tint: { ground: 0xffffff, decor: 0xffffff, sky: '#2e5a52' }, color: 0x5fb8a0,
+    ground: 'ground_swamp', hazard: 'fog', swarm: 'mosquito', ring: ['frog', 'croc'],
+    decor: { swamp_tree: 6, reeds: 34, mossy_log: 8, glowshroom: 14, rock: 6, bush: 8, tallgrass: 20 },
+    tall: ['swamp_tree'], patches: ['lilypond', 'mud', 'mud'],
+    waves: SWAMP_WAVES, boss: 'frog_king', difficulty: 1.6,
+    events: ['chest', 'captive', 'surpriseBoss', 'goldenGoblin', 'meteors', 'ambush'],
+    objectives: [
+      { kind: 'boss', text: 'Derrote o Rei Sapo' },
+      { kind: 'event', event: 'chest', text: 'Abra o baú guardado' },
+      { kind: 'hp', min: 0.5, text: 'Vença com metade da vida ou mais' },
+    ],
+  },
   soon('dunas', 'Dunas Escaldantes', 'Tempestades de areia sem fim', 'sério', 'ar e terra', 0xe8c070),
   soon('sombria', 'Floresta Sombria', 'A clareira, anos depois', 'sombrio', 'mistos', 0x4a5a8a),
   soon('pico', 'Pico Congelado', 'O frio que congela até a coragem', 'sombrio', 'água e ar', 0xa8d8f0),

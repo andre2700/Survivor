@@ -75,6 +75,8 @@ Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
 
 **Implementado (3a):** dados das fases, progresso e estrelas no save, mapa-múndi (`StageScene`), Bosque Outonal jogável (tom de outono sobre a arte da floresta, Chefe Orc), inimigos à distância/conjurador/explosivo (por troca de cor dos slimes até ganharem arte própria), os 6 eventos da lista, aliado, itens no mapa, setas de borda e botão "Próximo evento" no painel DEV. Baú e bomba ainda são desenhos provisórios por código.
 
+**Implementado (3b):** Pântano Enevoado com chão, decoração (juncos, árvore de mangue, tronco, cogumelos que brilham, lagoas, lama), névoa nas bordas, lama que deixa o herói 40% mais lento, revoada de mosquitos, cerco de sapos e jacarés, e 6 criaturas novas: Sapo, Jacaré (bote: para, mostra a faixa no chão e avança em linha reta), Mosquito Gigante, Cogumelo de Esporos (à distância), Xamã Sapo (conjurador: a Onda do herói, com nível) e o chefe Rei Sapo. Baú e bomba ganharam arte.
+
 **Etapas:** 3a sistemas (fases, menu de mapa, novos comportamentos de inimigo, eventos, itens, setas; testado com a Clareira e o Bosque Outonal, que reaproveita a arte da floresta); 3b Pântano completo; 3c Dunas, guerra entre tribos e mais eventos.
 
 ## Resistência a controle
