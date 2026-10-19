@@ -97,3 +97,5 @@ Todo inimigo tem **Resistência** (0 a 1) contra controles: empurrão, congelame
 
 - Todo monstro tem ao menos um quadro de ataque (mostrado quando encosta no herói).
 - Todo efeito animado tem ao menos 2 quadros (onda e tornado: 4).
+
+**Chefes (19/10/2026):** os chefes de fase têm cerca de 120 px de altura (quase 3× o herói) e o chefe surpresa é 2,2× o monstro original. Chefes não ficam brancos ao levar golpes (levam golpes o tempo todo e ficariam brancos direto): só um leve tom avermelhado e o quadro de dano, no máximo a cada 0,9 s. A pancada com aviso no chão cresce com o tamanho do chefe.

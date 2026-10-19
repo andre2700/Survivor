@@ -85,3 +85,4 @@ Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manife
 - Quadros de personagem virados também acontecem (o dano do lobisomem veio com o focinho para a esquerda): a prancha de cada criatura é conferida e `mirror` espelha o quadro no processamento.
 - Funis (tornado) precisam ser largos logo no topo; quadro com ponta em cima e embaixo é trocado pelo espelho de um quadro bom vizinho.
 - Chão gerado que forma desenhos repetidos pode ser trocado por outro chão recolorido (`regrade`), sem gastar imagem: o da Floresta Sombria é a grama da Clareira sem cor.
+- Sombra embutida (19/10/2026): a tela de cada quadro cresce até caber a sombra inteira com o desfoque. Antes ela era cortada na borda do quadro e virava uma faixa reta, que nos chefes ampliados aparecia como um retângulo escuro em volta deles. Toda a arte foi reprocessada (sem gerar imagens).

@@ -353,12 +353,12 @@ export class RunEvents {
     const { x, y } = this.away(180, 220);
     const e = sc.spawnEnemy(ENEMIES[id], x, y, true);
     if (!e) return;
-    // desafiador: um elite gigante com vida de chefe, golpe de chefe (pancada com aviso no chão),
+    // desafiador: um elite gigante (2,2× maior) com vida de chefe, golpe de chefe (pancada com aviso no chão),
     // dano dobrado e Resistência alta
     e.tag = 'surprise';
     e.boss = true;
-    e.baseScale *= 1.8;
-    e.radius *= 1.8;
+    e.baseScale *= 2.2;
+    e.radius *= 2.2;
     e.maxHp *= 8;
     e.hp = e.maxHp;
     e.damage *= 2;

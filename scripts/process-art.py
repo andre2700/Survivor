@@ -177,13 +177,20 @@ def with_shadow(im, size=None, cx=None):
     sw = size or max((fx1 - fx0) * 1.3, w * 0.35)
     sh = sw * 0.28
     cx = (fx0 + fx1) / 2 if cx is None else cx
-    out = Image.new('RGBA', (w, h + round(sh / 2)))
+    # a tela cresce até caber a sombra inteira com o desfoque: sombra cortada na borda do quadro vira
+    # uma faixa reta (aparecia como um retângulo escuro em volta dos chefes grandes)
+    blur = sh / 6
+    m = blur * 3
+    pad_l = round(max(0, sw / 2 + m - cx))
+    pad_r = round(max(0, cx + sw / 2 + m - w))
+    out = Image.new('RGBA', (w + pad_l + pad_r, h + round(sh / 2 + m)))
+    cx += pad_l
     shadow = Image.new('L', out.size)
     ImageDraw.Draw(shadow).ellipse((cx - sw / 2, h - sh / 2, cx + sw / 2, h + sh / 2), fill=90)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(sh / 6))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(blur))
     out.paste((10, 14, 8, 255), (0, 0), shadow)
-    out.alpha_composite(im)
-    return out
+    out.alpha_composite(im, (pad_l, 0))
+    return (out, pad_l) if size else out
 
 
 def ground(path, contrast=1.0, soften=0):
@@ -359,7 +366,9 @@ def strip(frames, a, res, n_ref):
         x0, x1 = feet_span(frames[0])
         size = max((x1 - x0) * 1.3, frames[0].width * 0.35)
         # sombra sempre sob o ponto de alinhamento: não escorrega entre os quadros
-        frames = [with_shadow(f, size, c if biped else None) for f, c in zip(frames, anchors)]
+        done = [with_shadow(f, size, c if biped else None) for f, c in zip(frames, anchors)]
+        frames = [f for f, _ in done]
+        anchors = [c + p for c, (_, p) in zip(anchors, done)]
     left = max(anchors)
     right = max(f.width - c for f, c in zip(frames, anchors))
     cw = int(left + right) + 2

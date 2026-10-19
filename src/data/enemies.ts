@@ -94,8 +94,13 @@ const BASE = {
   wolf: { id: 'wolf', kind: 'wolf', name: 'Lobo', texture: 'wolf', hp: 22, speed: 66, damage: 8, xp: 2, scale: 1, radius: 11, knockback: 0.9, resist: 0.1 },
   skeleton: { id: 'skeleton', kind: 'skeleton', name: 'Esqueleto', texture: 'skeleton', hp: 28, speed: 40, damage: 9, xp: 2, scale: 1, radius: 8, knockback: 0.8, resist: 0.15 },
   orc: { id: 'orc', kind: 'orc', name: 'Orc', texture: 'orc', hp: 75, speed: 31, damage: 14, xp: 4, scale: 1, radius: 13, knockback: 0.4, resist: 0.35 },
-  demon: { id: 'demon', kind: 'demon', name: 'Demônio Ancestral', texture: 'demon', hp: 15000, speed: 42, damage: 25, xp: 150, scale: 1.3, radius: 22, knockback: 0, resist: 0.75, boss: true },
+  demon: { id: 'demon', kind: 'demon', name: 'Demônio Ancestral', texture: 'demon', hp: 15000, speed: 42, damage: 25, xp: 150, scale: 1.6, radius: 22, knockback: 0, resist: 0.75, boss: true },
 } satisfies Record<string, EnemyDef>;
+
+/*
+ * Chefes de fase ficam bem maiores que os monstros (cerca de 120 px de altura, quase 3× o herói) para
+ * se destacarem na multidão: a escala de cada um compensa a altura da arte.
+ */
 
 /** Variante elemental: mesma criatura com outra cor, elemento e números um pouco maiores. */
 function variant(of: EnemyDef, id: EnemyId, name: string, element: Element, extra: Partial<EnemyDef> = {}): EnemyDef {
@@ -125,7 +130,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   }),
   // chefe do Bosque Outonal
   orc_chief: variant(BASE.orc, 'orc_chief', 'Chefe Orc', 'earth', {
-    hp: 9000, speed: 40, damage: 22, xp: 120, scale: 2, radius: 15, knockback: 0, resist: 0.7, boss: true,
+    hp: 9000, speed: 40, damage: 22, xp: 120, scale: 2.8, radius: 15, knockback: 0, resist: 0.7, boss: true,
   }),
   // ---------- Pântano Enevoado ----------
   frog: { id: 'frog', kind: 'frog', name: 'Sapo do Brejo', texture: 'frog', element: 'water', hp: 20, speed: 46, damage: 8, xp: 1, scale: 1, radius: 9, knockback: 1, resist: 0 },
@@ -145,7 +150,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     id: 'frog_shaman', kind: 'frog_shaman', name: 'Xamã Sapo', texture: 'frog_shaman', element: 'water', hp: 40, speed: 30, damage: 10, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.15,
     behavior: 'caster', skill: { kind: 'wave', damage: 1.5, cooldown: 4.5, range: 170, windup: 0.9, speed: 150, radius: 26, level: 1 },
   },
-  frog_king: { id: 'frog_king', kind: 'frog_king', name: 'Rei Sapo', texture: 'frog_king', element: 'water', hp: 22000, speed: 40, damage: 26, xp: 160, scale: 1, radius: 24, knockback: 0, resist: 0.75, boss: true },
+  frog_king: { id: 'frog_king', kind: 'frog_king', name: 'Rei Sapo', texture: 'frog_king', element: 'water', hp: 22000, speed: 40, damage: 26, xp: 160, scale: 1.7, radius: 24, knockback: 0, resist: 0.75, boss: true },
   // ---------- Dunas Escaldantes ----------
   scorpion: { id: 'scorpion', kind: 'scorpion', name: 'Escorpião', texture: 'scorpion', element: 'earth', hp: 34, speed: 42, damage: 11, xp: 2, scale: 1, radius: 11, knockback: 0.7, resist: 0.15 },
   vulture: { id: 'vulture', kind: 'vulture', name: 'Abutre', texture: 'vulture', element: 'air', hp: 14, speed: 70, damage: 7, xp: 1, scale: 1, radius: 9, knockback: 1.1, resist: 0 },
@@ -164,7 +169,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     id: 'lizard_shaman', kind: 'lizard_shaman', name: 'Xamã Lagarto', texture: 'lizard_shaman', element: 'air', hp: 48, speed: 32, damage: 11, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
     behavior: 'caster', skill: { kind: 'tornado', damage: 1.2, cooldown: 5, range: 180, windup: 0.9, speed: 70, radius: 18, level: 1 },
   },
-  scorpion_emperor: { id: 'scorpion_emperor', kind: 'scorpion_emperor', name: 'Imperador Escorpião', texture: 'scorpion_emperor', element: 'earth', hp: 30000, speed: 44, damage: 30, xp: 180, scale: 1, radius: 26, knockback: 0, resist: 0.8, boss: true },
+  scorpion_emperor: { id: 'scorpion_emperor', kind: 'scorpion_emperor', name: 'Imperador Escorpião', texture: 'scorpion_emperor', element: 'earth', hp: 30000, speed: 44, damage: 30, xp: 180, scale: 1.8, radius: 26, knockback: 0, resist: 0.8, boss: true },
   // ---------- Floresta Sombria ----------
   // bote: se agacha (aviso) e salta em linha reta
   werewolf: {
@@ -182,7 +187,7 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     id: 'witch', kind: 'witch', name: 'Bruxa', texture: 'witch', element: 'air', hp: 55, speed: 30, damage: 12, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
     behavior: 'caster', skill: { kind: 'strike', damage: 1.8, cooldown: 4.5, range: 190, windup: 1, speed: 0, radius: 24, level: 1 },
   },
-  ancient_ent: { id: 'ancient_ent', kind: 'ancient_ent', name: 'Ent Ancião Corrompido', texture: 'ancient_ent', element: 'earth', hp: 42000, speed: 36, damage: 34, xp: 200, scale: 1, radius: 28, knockback: 0, resist: 0.85, boss: true },
+  ancient_ent: { id: 'ancient_ent', kind: 'ancient_ent', name: 'Ent Ancião Corrompido', texture: 'ancient_ent', element: 'earth', hp: 42000, speed: 36, damage: 34, xp: 200, scale: 1.6, radius: 28, knockback: 0, resist: 0.85, boss: true },
 };
 
 /** Cor das partículas quando o inimigo morre. */

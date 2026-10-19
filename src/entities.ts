@@ -27,6 +27,8 @@ export class Enemy extends Phaser.GameObjects.Image {
   kbX = 0;
   kbY = 0;
   flashUntil = 0;
+  /** último sinal de golpe num chefe (s) */
+  flashAt = -99;
   /** último instante (s) em que foi atingido por orbe/aura */
   orbHitAt = -99;
   auraHitAt = -99;
@@ -79,6 +81,7 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.xp = def.xp * (elite ? 12 : 1);
     this.kbX = this.kbY = 0;
     this.flashUntil = 0;
+    this.flashAt = -99;
     this.orbHitAt = this.auraHitAt = -99;
     this.phase = Math.random() * Math.PI * 2;
     const scale = def.scale * (elite ? 1.6 : 1);

@@ -64,6 +64,8 @@ export const LAYER = {
 
 /** Pancada do chefe: perto do herói, para, avisa no chão e golpeia a área à frente. */
 const BOSS_SLAM = { range: 120, reach: 40, radius: 56, windup: 0.9, recover: 0.45, cooldown: 4, damage: 1.5 };
+/** Chefes: intervalo mínimo (s) entre os sinais de golpe (tom avermelhado e quadro de dano). */
+const BOSS_FLASH = { every: 0.9 };
 /** Corpos caídos visíveis ao mesmo tempo (os demais inimigos só somem). */
 const MAX_CORPSES = 60;
 
@@ -696,14 +698,16 @@ export class GameScene extends Phaser.Scene {
   private updateBossAttack(e: Enemy, d: number, dx: number, dy: number, dt: number) {
     e.attackTimer -= dt;
     if (e.attackPhase === 'walk') {
-      if (e.attackTimer > 0 || d > BOSS_SLAM.range) return false;
+      if (e.attackTimer > 0 || d > Math.max(BOSS_SLAM.range, e.radius + 70)) return false;
       e.attackPhase = 'windup';
       e.attackTimer = BOSS_SLAM.windup;
-      e.attackX = e.x + (dx / d) * BOSS_SLAM.reach;
-      e.attackY = e.y + (dy / d) * BOSS_SLAM.reach;
+      // chefes maiores alcançam e acertam uma área maior
+      const reach = Math.max(BOSS_SLAM.reach, e.radius + 10);
+      e.attackX = e.x + (dx / d) * reach;
+      e.attackY = e.y + (dy / d) * reach;
       // aviso no chão: o anel vermelho cresce até a hora do golpe
       const ring = this.add.image(e.attackX, e.attackY, 'atlas', frameName('aura')).setTint(0xff3020).setDepth(LAYER.groundFx);
-      const s = (BOSS_SLAM.radius * 2) / 96;
+      const s = (this.slamRadius(e) * 2) / 96;
       ring.setScale(s * 0.3, s * 0.24).setAlpha(0.4);
       this.tweens.add({ targets: ring, scaleX: s, scaleY: s * 0.8, alpha: 0.95, duration: BOSS_SLAM.windup * 1000, onComplete: () => ring.destroy() });
       return true;
@@ -716,13 +720,17 @@ export class GameScene extends Phaser.Scene {
       this.flames.explode(30, e.attackX, e.attackY);
       this.cameras.main.shake(220, 0.012);
       sfx('boss');
-      const r = BOSS_SLAM.radius;
+      const r = this.slamRadius(e);
       if ((this.player.x - e.attackX) ** 2 + ((this.player.y - e.attackY) / 0.8) ** 2 < r * r) this.onPlayerTouched(e, BOSS_SLAM.damage);
       return true;
     }
     e.attackPhase = 'walk';
     e.attackTimer = BOSS_SLAM.cooldown * (0.8 + Math.random() * 0.4);
     return false;
+  }
+
+  private slamRadius(e: Enemy) {
+    return Math.max(BOSS_SLAM.radius, e.radius * 1.5);
   }
 
   /** Corpo caído no quadro de morte, que some em seguida. */
@@ -818,9 +826,20 @@ export class GameScene extends Phaser.Scene {
 
   private damage(e: Enemy, dmg: number, label: string, color: string, big: boolean) {
     e.hp -= dmg;
-    e.setTintFill(0xffffff);
-    e.flashUntil = this.elapsed + 0.06;
-    e.hurtUntil = this.elapsed + 0.15;
+    if (e.boss) {
+      // chefe leva golpes o tempo todo: só um leve tom avermelhado e o quadro de dano de vez em quando,
+      // nunca o branco (senão fica branco direto)
+      if (this.elapsed - e.flashAt > BOSS_FLASH.every) {
+        e.flashAt = this.elapsed;
+        e.setTint(0xffb4a8);
+        e.flashUntil = this.elapsed + 0.08;
+        e.hurtUntil = this.elapsed + 0.18;
+      }
+    } else {
+      e.setTintFill(0xffffff);
+      e.flashUntil = this.elapsed + 0.06;
+      e.hurtUntil = this.elapsed + 0.15;
+    }
     this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
     if (e.hp <= 0 && dev.enemiesImmortal) e.hp = e.maxHp;
     if (e.hp <= 0) this.killEnemy(e, true);
