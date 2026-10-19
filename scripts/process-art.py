@@ -110,6 +110,41 @@ def upright_funnel(im):
     return ImageOps.flip(im) if width(int(h * 0.8), h) > width(0, int(h * 0.2)) else im
 
 
+def facing(im):
+    """Lado para onde a figura aponta: deslocamento (−1 a 1) do centro de massa em relação ao centro
+    da caixa. A parte densa (bola de fogo, crista da onda, cabeça do martelo) puxa para o seu lado."""
+    a = im.getchannel('A')
+    box = a.getbbox()
+    if not box:
+        return 0
+    px = a.load()
+    total = sx = 0
+    for y in range(box[1], box[3], 2):
+        for x in range(box[0], box[2], 2):
+            v = px[x, y]
+            if v > 100:
+                total += v
+                sx += v * x
+    if not total:
+        return 0
+    mid = (box[0] + box[2]) / 2
+    return (sx / total - mid) / ((box[2] - box[0]) / 2)
+
+
+def same_facing(frames, name):
+    """Espelha os quadros que apontam para o lado contrário do primeiro (a IA às vezes desenha um
+    quadro virado, e o efeito "vira" a cada troca de quadro)."""
+    ref = facing(frames[0])
+    out = []
+    for i, f in enumerate(frames):
+        d = facing(f)
+        if i and abs(ref) > 0.06 and abs(d) > 0.06 and (d > 0) != (ref > 0):
+            print(f'  aviso: {name}: quadro {i + 1} estava virado; espelhado')
+            f = ImageOps.mirror(f)
+        out.append(f)
+    return out
+
+
 def fade_bottom(im, frac):
     """Base que some aos poucos (efeitos que encostam no chão, como a onda)."""
     ramp = Image.new('L', im.size, 255)
@@ -364,6 +399,8 @@ def main():
             frames = slice_sheet(sheet, n)
             if a.get('flip'):
                 frames = [ImageOps.mirror(f) for f in frames]
+            if a.get('facing'):
+                frames = same_facing(frames, name)
             if a.get('wide_top'):
                 # funil (tornado): largo em cima; quadro que veio de ponta-cabeça é desvirado
                 fixed = [upright_funnel(f) for f in frames]

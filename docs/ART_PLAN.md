@@ -77,3 +77,8 @@ Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manife
 - Heróis: o ciclo de movimento é de corrida (`RUN` em `art/manifest.mjs`).
 - Bípedes são alinhados pela cabeça e tronco (não pelos pés, que abrem e fecham na corrida); a sombra fica fixa sob esse ponto.
 - `flip` vale também para imagens soltas (a bola de fogo veio olhando para a esquerda); `fade` dissolve a base de efeitos que tocam o chão (onda).
+
+## Orientação dos quadros (19/10/2026)
+- A IA às vezes desenha um quadro virado (de ponta-cabeça ou para o lado contrário), e o efeito "vira" a cada troca de quadro. O processamento corrige sozinho: `wide_top` desvira funis (tornado) e `facing` espelha os quadros que apontam para o lado contrário do 1º (bola de fogo, onda, martelo). O `process-art.py` avisa cada correção.
+- Projéteis isolados são conferidos na prancha de todos os efeitos antes de publicar: a ponta precisa apontar para a direita (o jogo gira pela direção do voo). O `proj_bolt` vinha virado e ganhou `flip`.
+- Regra: depois de processar qualquer efeito ou projétil, montar a prancha com todos os quadros e conferir a orientação de cada um.

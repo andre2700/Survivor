@@ -12,6 +12,7 @@
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 // ground: efeito apoiado no chão (quadros alinhados pela base, não pelo centro).
 // frames: quantos quadros o efeito tem (padrão 4; mínimo 2).
+// facing: efeito com direção; quadros virados para o lado contrário do 1º são espelhados no processamento.
 // wideSheets: folhas em 21:9 sem mudar a quantidade de quadros por folha (asas abertas).
 const CHAR = 'full body, side view facing RIGHT';
 const FX = 'game VFX sprite, single effect centered, bold readable shape, vivid colors: ';
@@ -137,13 +138,13 @@ export const ART = {
   coin: { h: 12, hd: 4, prompt: `${ICON}: a shiny gold coin seen from the front, with a star engraved` },
   heart: { h: 12, hd: 4, prompt: `${ICON}: a glossy red heart (health pickup)` },
   // projéteis (deitados apontando para a direita)
-  proj_bolt: { w: 16, prompt: `a magic energy bolt projectile, glowing purple and pink arcane fireball with a short sparkling tail, flying horizontally to the RIGHT` },
+  proj_bolt: { w: 16, flip: true, prompt: `a magic energy bolt projectile, glowing purple and pink arcane fireball with a short sparkling tail, flying horizontally to the RIGHT` },
   proj_knife: { w: 16, prompt: `a single steel throwing dagger lying horizontally, blade pointing to the RIGHT` },
   proj_axe: { h: 16, prompt: `a single spinning throwing battle axe with wooden handle and steel blade` },
   proj_orb: { h: 16 },
   // efeitos de ataques e reações (VFX: o jogo anima escala, giro e transparência)
   // fade: a base se dissolve (a onda se apoia numa lâmina d'água desenhada pelo jogo)
-  fx_wave: { w: 64, fade: 0.22, ground: true, role: 'vfx', effect: 'this same ocean wave (same shape, size and colors as the reference)', poses: {
+  fx_wave: { w: 64, facing: true, fade: 0.22, ground: true, role: 'vfx', effect: 'this same ocean wave (same shape, size and colors as the reference)', poses: {
     f1: 'the wave with foam on the crest and a few droplets', f2: 'the same wave, the crest curled a bit further, foam rolling forward',
     f3: 'the same wave, foam spraying forward with more droplets', f4: 'the same wave, foam churning, crest slightly lower' }, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
   fx_spike: { h: 28, frames: 2, ground: true, role: 'vfx', effect: 'this same rock spike (same style as the reference)', poses: {
@@ -166,9 +167,9 @@ export const ART = {
     f1: 'a low swirl of sand starting on the ground', f2: 'a growing sand whirlwind', f3: 'a tall sand whirlwind with flying pebbles', f4: 'the whirlwind collapsing into falling sand' } },
   vfx_explosion: { h: 40, role: 'vfx', wide: true, effect: 'a cartoon fire explosion with crisp outlines and NO soft glow or halo around it', poses: {
     f1: 'a small bright yellow flash', f2: 'a round orange fireball blast expanding', f3: 'a big fiery explosion with flames and sparks', f4: 'dark smoke puffs with a few embers' } },
-  fx_hammer: { w: 26, hd: 3, frames: 2, role: 'vfx', effect: 'this same war hammer (same shape and style as the reference)', poses: {
+  fx_hammer: { w: 26, facing: true, hd: 3, frames: 2, role: 'vfx', effect: 'this same war hammer (same shape and style as the reference)', poses: {
     f1: 'the hammer with blue lightning crackling around the head', f2: 'the same hammer, the lightning bolts in different positions' }, prompt: `a magic war hammer like a legendary thunder god hammer: short leather-wrapped handle with a wrist strap, big rectangular engraved steel head with crackling blue lightning, side view, handle pointing down` },
-  fx_fireball: { w: 20, flip: true, frames: 2, role: 'vfx', effect: 'this same fireball (same style as the reference)', poses: {
+  fx_fireball: { w: 20, flip: true, facing: true, frames: 2, role: 'vfx', effect: 'this same fireball (same style as the reference)', poses: {
     f1: 'the fireball with its flaming tail', f2: 'the same fireball, the tail flames flickering in a different shape' }, prompt: `${FX}a cartoon fireball projectile with a flaming tail, flying horizontally to the RIGHT` },
   fx_firering: { w: 96, frames: 2, role: 'vfx', effect: 'this same ring of flames (same style as the reference)', poses: {
     f1: 'the ring of flames', f2: 'the same ring, every flame at a different height and shape (flickering)' }, prompt: `${FX}a flat ring of orange and yellow flames seen from a top-down angle, empty in the middle, flames licking upward around the circle` },
