@@ -38,7 +38,7 @@ import { FONT, px } from '../ui/theme';
 /** Aproximação extra da câmera do jogo: personagens maiores na tela do celular. */
 export const WORLD_ZOOM = 1.2;
 /** Decoração de pé (ordem de profundidade pela base), as demais ficam rente ao chão. */
-const UPRIGHT = new Set(['bush', 'stump', 'rock', 'mossy_log']);
+const UPRIGHT = new Set(['bush', 'stump', 'rock', 'mossy_log', 'cactus', 'desert_rock']);
 /** Limites do zoom do jogador: afastar mostra mais da tela (e pesa mais), aproximar mostra o herói maior. */
 export const ZOOM_RANGE = [0.7, 1.8];
 const ZOOM_KEY = 'survivor-zoom';
@@ -320,7 +320,9 @@ export class GameScene extends Phaser.Scene {
     this.ground.setTint(this.stage.tint.ground);
     this.cameras.main.setRoundPixels(true);
     this.updateDecor();
-    for (let i = 0; i < 6; i++) this.spawnEnemy(ENEMIES.slime);
+    // primeiros inimigos: os da primeira onda da fase
+    const first = this.stage.waves[0].pool;
+    for (let i = 0; i < 6; i++) this.spawnEnemy(ENEMIES[first[i % first.length]]);
 
     const kb = this.input.keyboard!;
     this.keys = kb.addKeys({
@@ -420,9 +422,9 @@ export class GameScene extends Phaser.Scene {
       x /= len;
       y /= len;
     }
-    // poça de lama: o herói anda mais devagar
-    const inMud = this.mud.some((m) => ((this.player.x - m.x) / (m.displayWidth * 0.45)) ** 2 + ((this.player.y - m.y) / (m.displayHeight * 0.4)) ** 2 < 1);
-    const speed = moveSpeed(this.stats) * (inMud ? 0.6 : 1);
+    // poça de lama e areia movediça: o herói anda mais devagar
+    const inMud = this.mud.find((m) => ((this.player.x - m.x) / (m.displayWidth * 0.45)) ** 2 + ((this.player.y - m.y) / (m.displayHeight * 0.4)) ** 2 < 1);
+    const speed = moveSpeed(this.stats) * (inMud ? (inMud.getData('mud') as number) : 1);
     const dt = Math.min(this.game.loop.delta, 50) / 1000;
     this.player.x += x * speed * dt;
     this.player.y += y * speed * dt;
@@ -458,7 +460,8 @@ export class GameScene extends Phaser.Scene {
     const py = this.player.y;
     let touched: Enemy | null = null;
     this.grid.query(px, py, 40, (e) => {
-      if (!e.active) return;
+      // o verme enterrado passa por baixo sem ferir (só fere ao irromper)
+      if (!e.active || e.burrowed) return;
       const r = e.radius + 8;
       if ((e.x - px) ** 2 + (e.y - py) ** 2 < r * r) {
         touched = e;
@@ -609,8 +612,27 @@ export class GameScene extends Phaser.Scene {
       const slow = still ? 0 : this.elements.speedFactor(e, t);
       let vx = (dx / d) * e.speed * slow;
       let vy = (dy / d) * e.speed * slow;
+      // guerra de tribos: com o herói longe, cada guerreiro luta com o rival mais próximo
+      const foe = e.faction && d > 90 ? this.runEvents.foeOf(e) : null;
+      let fight = false;
+      if (foe) {
+        const fx = foe.x - e.x;
+        const fy = foe.y - e.y;
+        const fd = Math.hypot(fx, fy) || 1;
+        if (fd > e.radius + foe.radius + 4) {
+          vx = (fx / fd) * e.speed * slow;
+          vy = (fy / fd) * e.speed * slow;
+        } else {
+          vx = vy = 0;
+          fight = slow > 0;
+          if (fight && t >= e.foeAt) {
+            e.foeAt = t + 0.7;
+            this.elementalDamage(foe, e.damage * 2.5, '#ffb070');
+          }
+        }
+      }
       // à distância, conjurador e explosivo: mantêm distância, andam de lado ou param para atacar
-      if (e.def.skill && !e.boss && slow > 0 && t >= e.frozenUntil) {
+      if (!foe && e.def.skill && !e.boss && slow > 0 && t >= e.frozenUntil) {
         const m = this.enemySkills.think(e, d);
         const side = (e.uid % 2 ? 1 : -1) * m.side;
         vx = ((dx / d) * m.forward - (dy / d) * side) * e.speed * slow;
@@ -623,7 +645,7 @@ export class GameScene extends Phaser.Scene {
         vx = -vx;
         vy = -vy;
       }
-      if (e.def.kind === 'bat') {
+      if (e.def.kind === 'bat' || e.def.kind === 'vulture') {
         const wob = Math.sin(t * 6 + e.phase) * 25;
         vx += (-dy / d) * wob;
         vy += (dx / d) * wob;
@@ -632,12 +654,13 @@ export class GameScene extends Phaser.Scene {
       e.y += (vy + e.kbY) * dt;
       e.kbX *= decay;
       e.kbY *= decay;
-      e.flipX = dx < 0;
+      e.flipX = foe ? foe.x < e.x : dx < 0;
       e.depth = e.y;
       if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
       const pose = walkPose(e.def.kind, t + e.phase, slow > 0 && (vx !== 0 || vy !== 0));
       // colado no herói, mostra o quadro de ataque (mordida, golpe); quem não tem, segue andando
-      const slot = e.attackPhase !== 'walk' ? e.attackPhase : t < e.hurtUntil ? 'hurt' : slow > 0 && d < e.radius + 14 ? 'attack' : pose.slot;
+      // o verme enterrado aparece como o monte de areia (quadro de se enterrar)
+      const slot = e.burrowed ? 'windup' : e.attackPhase !== 'walk' ? e.attackPhase : t < e.hurtUntil ? 'hurt' : fight || (slow > 0 && d < e.radius + 14) ? 'attack' : pose.slot;
       const f = e.slots[slot] ?? e.slots[pose.slot] ?? 0;
       if (f !== e.animFrame) {
         e.animFrame = f;
@@ -1391,7 +1414,9 @@ export class GameScene extends Phaser.Scene {
             const kind = kinds[Math.floor(rnd() * kinds.length)];
             const patch = this.add.image(Math.round(dx), Math.round(dy), 'atlas', frameName(kind)).setTint(this.stage.tint.decor);
             patch.setDepth(LAYER.groundDecor - 1).setFlipX(rnd() < 0.5);
-            if (kind === 'mud') patch.setData('mud', true);
+            // fator de velocidade do herói dentro da mancha
+            if (kind === 'mud') patch.setData('mud', 0.6);
+            if (kind === 'quicksand') patch.setData('mud', 0.5);
             imgs.push(patch);
           }
         }

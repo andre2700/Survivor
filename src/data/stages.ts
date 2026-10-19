@@ -8,7 +8,13 @@ export type StageId = 'clareira' | 'outono' | 'pantano' | 'dunas' | 'sombria' | 
 export type Mood = 'leve' | 'sério' | 'sombrio' | 'épico';
 
 /** Eventos aleatórios que podem acontecer na fase (ver systems/events.ts). */
-export type RunEventId = 'chest' | 'captive' | 'surpriseBoss' | 'goldenGoblin' | 'meteors' | 'ambush';
+export type RunEventId = 'chest' | 'captive' | 'surpriseBoss' | 'goldenGoblin' | 'meteors' | 'ambush' | 'tribeWar' | 'sandstorm';
+
+/** Tribo da guerra de tribos: nome no anúncio e criaturas dela. */
+export interface Tribe {
+  name: string;
+  pool: EnemyId[];
+}
 
 /** Objetivo de estrela: vencer o chefe, completar um evento ou um desafio. */
 export type Objective =
@@ -35,6 +41,8 @@ export interface StageDef {
   tall?: string[];
   /** manchas no chão (decalques), sorteadas por trecho do mapa */
   patches?: string[];
+  /** as duas tribos da guerra de tribos (padrão: goblins contra esqueletos) */
+  tribes?: [Tribe, Tribe];
   /** textura do chão (padrão: grama da floresta) */
   ground?: string;
   /** perigo do mapa: névoa que esconde a borda da tela e poças de lama que deixam lento */
@@ -92,6 +100,25 @@ const SWAMP_WAVES: Wave[] = [
   { minute: 14, pool: ['frog', 'croc', 'frog_shaman', 'sporeshroom', 'orc', 'mosquito'], rate: 9.4, max: 320, event: 'swarm' },
 ];
 
+/** Dunas Escaldantes: escorpiões, abutres, cactos atiradores, vermes que se enterram e xamãs do vento. */
+const DUNES_WAVES: Wave[] = [
+  { minute: 0, pool: ['scorpion', 'vulture'], rate: 2, max: 50 },
+  { minute: 1, pool: ['scorpion', 'cactus_spitter'], rate: 2.6, max: 65 },
+  { minute: 2, pool: ['scorpion', 'vulture', 'sandworm'], rate: 3.2, max: 85 },
+  { minute: 3, pool: ['cactus_spitter', 'sandworm', 'goblin_earth'], rate: 3.6, max: 105, event: 'swarm' },
+  { minute: 4, pool: ['scorpion', 'lizard_shaman', 'sandworm', 'vulture'], rate: 4, max: 125 },
+  { minute: 5, pool: ['sandworm', 'cactus_spitter', 'lizard_shaman', 'skeleton'], rate: 4.6, max: 145, event: 'ring' },
+  { minute: 6, pool: ['scorpion', 'sandworm', 'lizard_shaman', 'bat_air'], rate: 5.1, max: 165 },
+  { minute: 7, pool: ['vulture', 'sandworm', 'cactus_spitter', 'lizard_shaman'], rate: 5.6, max: 185, event: 'swarm' },
+  { minute: 8, pool: ['sandworm', 'orc', 'cactus_spitter'], rate: 6.2, max: 205, event: 'ring' },
+  { minute: 9, pool: ['scorpion', 'sandworm', 'lizard_shaman', 'cactus_spitter', 'goblin_earth'], rate: 6.8, max: 225, event: 'swarm' },
+  { minute: 10, pool: ['sandworm', 'orc', 'lizard_shaman'], rate: 7.2, max: 245 },
+  { minute: 11, pool: ['sandworm', 'cactus_spitter', 'lizard_shaman', 'skeleton'], rate: 7.7, max: 265, event: 'ring' },
+  { minute: 12, pool: ['vulture', 'sandworm', 'lizard_shaman', 'cactus_spitter', 'bat_air'], rate: 8.2, max: 285, event: 'swarm' },
+  { minute: 13, pool: ['sandworm', 'orc', 'lizard_shaman'], rate: 8.7, max: 305, event: 'ring' },
+  { minute: 14, pool: ['scorpion', 'sandworm', 'lizard_shaman', 'cactus_spitter', 'orc', 'vulture'], rate: 9.6, max: 325, event: 'swarm' },
+];
+
 /** Fase futura: aparece no mapa, ainda sem arte própria. */
 function soon(id: StageId, name: string, subtitle: string, mood: Mood, elements: string, color: number): StageDef {
   return {
@@ -139,7 +166,21 @@ export const STAGES: StageDef[] = [
       { kind: 'hp', min: 0.5, text: 'Vença com metade da vida ou mais' },
     ],
   },
-  soon('dunas', 'Dunas Escaldantes', 'Tempestades de areia sem fim', 'sério', 'ar e terra', 0xe8c070),
+  {
+    id: 'dunas', name: 'Dunas Escaldantes', subtitle: 'Tempestades de areia sem fim', mood: 'sério', elements: 'ar e terra', playable: true,
+    tint: { ground: 0xffffff, decor: 0xffffff, sky: '#8a6a3a' }, color: 0xe8c070,
+    ground: 'ground_dunes', swarm: 'vulture', ring: ['scorpion', 'cactus_spitter'],
+    decor: { cactus: 10, palm: 3, desert_rock: 10, bones: 8, dry_bush: 16 },
+    tall: ['palm'], patches: ['quicksand'],
+    tribes: [{ name: 'Escorpiões', pool: ['scorpion', 'scorpion', 'sandworm'] }, { name: 'Lagartos', pool: ['lizard_shaman', 'goblin_earth'] }],
+    waves: DUNES_WAVES, boss: 'scorpion_emperor', difficulty: 1.9,
+    events: ['chest', 'captive', 'surpriseBoss', 'tribeWar', 'sandstorm', 'goldenGoblin', 'ambush'],
+    objectives: [
+      { kind: 'boss', text: 'Derrote o Imperador Escorpião' },
+      { kind: 'event', event: 'tribeWar', text: 'Acabe com uma guerra de tribos' },
+      { kind: 'kills', n: 4000, text: 'Derrote 4.000 inimigos' },
+    ],
+  },
   soon('sombria', 'Floresta Sombria', 'A clareira, anos depois', 'sombrio', 'mistos', 0x4a5a8a),
   soon('pico', 'Pico Congelado', 'O frio que congela até a coragem', 'sombrio', 'água e ar', 0xa8d8f0),
   soon('vulcao', 'Coração do Vulcão', 'O chão ferve sob seus pés', 'épico', 'fogo', 0xe8502a),

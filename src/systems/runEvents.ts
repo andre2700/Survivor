@@ -1,6 +1,7 @@
 // Eventos aleatórios dentro da partida (Marco 3): baú guardado, prisioneiro que vira aliado, chefe
-// surpresa, goblin dourado, chuva de meteoros e emboscada. Também espalha itens pelo mapa (ímã, bomba,
-// cura) e diz à HUD para onde apontar as setas de borda. Cada fase escolhe os seus eventos.
+// surpresa, goblin dourado, chuva de meteoros, emboscada, guerra de tribos e tempestade de areia.
+// Também espalha itens pelo mapa (ímã, bomba, cura) e diz à HUD para onde apontar as setas de borda.
+// Cada fase escolhe os seus eventos.
 import Phaser from 'phaser';
 import { walkPose } from '../art/motion';
 import { frameName, slotsOf } from '../art/textures';
@@ -8,7 +9,7 @@ import { CHARACTERS, type CharacterDef } from '../data/characters';
 import { ENEMIES, type EnemyId } from '../data/enemies';
 import { WEAPONS, weaponStatsAt } from '../data/weapons';
 import { damageMult } from '../core/stats';
-import type { RunEventId } from '../data/stages';
+import type { RunEventId, Tribe } from '../data/stages';
 import { waveAt } from '../data/waves';
 import type { Enemy } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
@@ -52,7 +53,18 @@ const TITLES: Record<RunEventId, string> = {
   goldenGoblin: 'UM GOBLIN DOURADO! PEGUE-O!',
   meteors: 'CHUVA DE METEOROS!',
   ambush: 'EMBOSCADA!',
+  tribeWar: 'GUERRA DE TRIBOS!',
+  sandstorm: 'TEMPESTADE DE AREIA!',
 };
+
+/** Tribos da guerra quando a fase não define as suas. */
+const DEFAULT_TRIBES: [Tribe, Tribe] = [
+  { name: 'Goblins', pool: ['goblin', 'goblin_earth'] },
+  { name: 'Esqueletos', pool: ['skeleton'] },
+];
+
+/** Tempestade de areia: dura isto (s) e fere todos a cada `tick` (s). */
+const STORM = { time: 16, tick: 2, streaks: 110 };
 
 export class RunEvents {
   private next = 70;
@@ -65,6 +77,11 @@ export class RunEvents {
   private goldenUntil = 0;
   private nextItem = 40;
   private done = new Set<RunEventId>();
+  /** guerreiros vivos de cada tribo, o campo de batalha e o fim da guerra */
+  private tribes: [Enemy[], Enemy[]] = [[], []];
+  private war: { x: number; y: number; until: number } | null = null;
+  /** tempestade de areia: fim, próximo dano, lado do vento, véu e grãos (posição na tela, 0 a 1) */
+  private storm: { until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[] } | null = null;
 
   constructor(private scene: GameScene) {}
 
@@ -86,6 +103,8 @@ export class RunEvents {
     this.updateChests();
     this.updateCaptive(dt);
     this.updateAlly(dt);
+    this.updateWar();
+    this.updateStorm(dt);
     if (this.golden && (!this.golden.active || sc.elapsed > this.goldenUntil)) {
       if (this.golden.active) {
         // escapou: some numa nuvem
@@ -102,7 +121,8 @@ export class RunEvents {
     const st = this.scene.stage;
     const goal = st.objectives.find((o) => o.kind === 'event');
     if (goal && goal.kind === 'event' && !this.done.has(goal.event)) return goal.event;
-    const pool = st.events.filter((e) => !(e === 'captive' && (this.captive || this.ally)) && !(e === 'goldenGoblin' && this.golden));
+    const pool = st.events.filter((e) => !(e === 'captive' && (this.captive || this.ally)) && !(e === 'goldenGoblin' && this.golden)
+      && !(e === 'tribeWar' && this.war) && !(e === 'sandstorm' && this.storm));
     return pool[Math.floor(Math.random() * pool.length)] ?? 'ambush';
   }
 
@@ -130,6 +150,10 @@ export class RunEvents {
         return this.startMeteors();
       case 'ambush':
         return this.startAmbush();
+      case 'tribeWar':
+        return this.startWar();
+      case 'sandstorm':
+        return this.startStorm();
     }
   }
 
@@ -403,6 +427,119 @@ export class RunEvents {
     }
   }
 
+  // ---------- Guerra de tribos ----------
+
+  /**
+   * Duas tribos lutam entre si num campo perto do herói. As duas são hostis a ele: quem chega perto
+   * leva ataque dos dois lados. Quando uma tribo é derrotada, fica um baú no campo.
+   */
+  private startWar() {
+    const sc = this.scene;
+    const tribes = sc.stage.tribes ?? DEFAULT_TRIBES;
+    const { x, y } = this.away(250, 310);
+    this.war = { x, y, until: sc.elapsed + 55 };
+    this.tribes = [[], []];
+    tribes.forEach((tribe, side) => {
+      const n = 12;
+      for (let i = 0; i < n; i++) {
+        const id = tribe.pool[i % tribe.pool.length];
+        const ex = x + (side ? 1 : -1) * (60 + Math.random() * 40);
+        const ey = y + (i / (n - 1) - 0.5) * 120;
+        // o líder de cada tribo é um elite
+        const e = sc.spawnEnemy(ENEMIES[id], ex, ey, i === 0);
+        if (!e) continue;
+        e.tag = 'tribe';
+        e.faction = side + 1;
+        this.tribes[side].push(e);
+      }
+    });
+    sc.events.emit('announce', `GUERRA: ${tribes[0].name.toUpperCase()} x ${tribes[1].name.toUpperCase()}!`);
+  }
+
+  /** Rival mais próximo de um guerreiro (fica com o mesmo enquanto ele estiver vivo). */
+  foeOf(e: Enemy): Enemy | null {
+    if (e.foe?.active && e.foe.faction === 3 - e.faction) return e.foe;
+    let best: Enemy | null = null;
+    let bd = 260 * 260;
+    for (const o of this.tribes[2 - e.faction] ?? []) {
+      if (!o.active || o.faction !== 3 - e.faction) continue;
+      const d = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = o;
+      }
+    }
+    e.foe = best;
+    return best;
+  }
+
+  private updateWar() {
+    const w = this.war;
+    if (!w) return;
+    const sc = this.scene;
+    this.tribes = this.tribes.map((list) => list.filter((e) => e.active && e.faction)) as [Enemy[], Enemy[]];
+    const wiped = !this.tribes[0].length || !this.tribes[1].length;
+    if (!wiped && sc.elapsed < w.until) return;
+    // fim da guerra: quem sobrou vira inimigo comum
+    for (const e of [...this.tribes[0], ...this.tribes[1]]) {
+      e.faction = 0;
+      e.foe = null;
+      e.tag = '';
+    }
+    this.tribes = [[], []];
+    this.war = null;
+    if (!wiped) return;
+    sc.completed.add('tribeWar');
+    this.placeChest(w.x, w.y);
+    sc.events.emit('announce', 'A GUERRA ACABOU! UM BAÚ FICOU NO CAMPO');
+  }
+
+  // ---------- Tempestade de areia ----------
+
+  /** Cataclismo: a areia esconde a vista, o vento empurra o herói e todos (herói e inimigos) se ferem. */
+  private startStorm() {
+    const sc = this.scene;
+    const grains = Array.from({ length: STORM.streaks }, () => ({ u: Math.random(), v: Math.random(), len: 6 + Math.random() * 18, sp: 0.5 + Math.random() * 0.7 }));
+    this.storm?.veil.destroy();
+    this.storm = { until: sc.elapsed + STORM.time, next: sc.elapsed + STORM.tick, wind: Math.random() < 0.5 ? -1 : 1, veil: sc.add.graphics().setDepth(LAYER.fx + 5), grains };
+  }
+
+  private updateStorm(dt: number) {
+    const s = this.storm;
+    if (!s) return;
+    const sc = this.scene;
+    const t = sc.elapsed;
+    if (t >= s.until || sc.state === 'over') {
+      s.veil.destroy();
+      this.storm = null;
+      return;
+    }
+    // véu de areia: entra e sai suave
+    const left = s.until - t;
+    const k = Math.min(1, (STORM.time - left) / 1.5, left / 1.5);
+    const v = sc.cameras.main.worldView;
+    const g = s.veil.clear();
+    g.fillStyle(0xc89850, 0.45 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
+    for (const p of s.grains) {
+      p.u += s.wind * p.sp * dt;
+      p.v += Math.sin(t * 2 + p.len) * 0.02 * dt;
+      if (p.u > 1.05) p.u -= 1.1;
+      if (p.u < -0.05) p.u += 1.1;
+      const x = v.x + p.u * v.width;
+      const y = v.y + ((p.v % 1) + 1) % 1 * v.height;
+      g.lineStyle(p.len > 16 ? 2.5 : 1.5, 0xfff0c8, 0.7 * k).lineBetween(x, y, x - s.wind * p.len * 1.6, y + p.len * 0.15);
+    }
+    // o vento empurra o herói de lado
+    sc.player.x += s.wind * 16 * dt;
+    if (t < s.next) return;
+    s.next = t + STORM.tick;
+    // cataclismo: fere o herói e os inimigos (chefes resistem mais)
+    sc.hurtPlayer(Math.max(6, sc.stats.maxHp * 0.05) * sc.stage.difficulty);
+    sc.queryEnemies(v.centerX, v.centerY, Math.hypot(v.width, v.height) / 2, (e) => {
+      if (e.active && v.contains(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.01 : Math.max(20, e.maxHp * 0.12), '#e8c070');
+    });
+  }
+
   /** Um inimigo de evento morreu: recompensas do goblin dourado e do chefe surpresa. */
   onKill(e: Enemy) {
     const sc = this.scene;
@@ -433,6 +570,7 @@ export class RunEvents {
     if (this.golden?.active) list.push({ x: this.golden.x, y: this.golden.y, color: 0xffd84a });
     this.surprises = this.surprises.filter((e) => e.active && e.tag === 'surprise');
     for (const e of this.surprises) list.push({ x: e.x, y: e.y, color: 0xff6a5a });
+    if (this.war) list.push({ x: this.war.x, y: this.war.y, color: 0xffa040 });
     return list;
   }
 }

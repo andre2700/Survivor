@@ -32,8 +32,26 @@
  "bomb": {
   "hd": 2
  },
+ "bones": {
+  "hd": 2
+ },
  "bush": {
   "hd": 2
+ },
+ "cactus": {
+  "hd": 2
+ },
+ "cactus_spitter": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "chest": {
   "hd": 2
@@ -67,10 +85,16 @@
    "death"
   ]
  },
+ "desert_rock": {
+  "hd": 2
+ },
  "dirt": {
   "hd": 2
  },
  "dirt2": {
+  "hd": 2
+ },
+ "dry_bush": {
   "hd": 2
  },
  "flowers": {
@@ -175,6 +199,9 @@
   ]
  },
  "ground": {
+  "hd": 2
+ },
+ "ground_dunes": {
   "hd": 2
  },
  "ground_swamp": {
@@ -308,6 +335,19 @@
  "lilypond": {
   "hd": 2
  },
+ "lizard_shaman": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "mosquito": {
   "hd": 3,
   "frames": 6,
@@ -356,6 +396,9 @@
    "death"
   ]
  },
+ "palm": {
+  "hd": 2
+ },
  "portrait_hero_barbarian": {
   "hd": 8
  },
@@ -380,11 +423,52 @@
  "proj_orb": {
   "hd": 2
  },
+ "quicksand": {
+  "hd": 2
+ },
  "reeds": {
   "hd": 2
  },
  "rock": {
   "hd": 2
+ },
+ "sandworm": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "scorpion": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "scorpion_emperor": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "skeleton": {
   "hd": 3,
@@ -520,6 +604,18 @@
  "vfx_steam": {
   "hd": 2,
   "frames": 4
+ },
+ "vulture": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "wolf": {
   "hd": 3,

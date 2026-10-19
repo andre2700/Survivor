@@ -12,6 +12,7 @@
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 // ground: efeito apoiado no chão (quadros alinhados pela base, não pelo centro).
 // frames: quantos quadros o efeito tem (padrão 4; mínimo 2).
+// wideSheets: folhas em 21:9 sem mudar a quantidade de quadros por folha (asas abertas).
 const CHAR = 'full body, side view facing RIGHT';
 const FX = 'game VFX sprite, single effect centered, bold readable shape, vivid colors: ';
 const ICON = 'game UI item icon, single object centered, bold readable silhouette, no circle or badge behind it';
@@ -220,6 +221,51 @@ export const ART = {
       idle: 'standing proudly on its hind legs, scepter raised', walk_a: 'crouched, about to hop forward', walk_b: 'mid-hop, body stretched upward',
       windup: 'crouched very low, cheeks puffed, about to make a huge leap', attack: 'slamming down belly-first on the ground in front, a big shockwave splash',
       death: 'defeated: lying flat on its back, crown fallen beside it, X eyes',
+    },
+  },
+  // ---------- Dunas Escaldantes (Marco 3c) ----------
+  ground_dunes: { tile: true, contrast: 0.5, prompt: `a seamless tileable texture of warm golden desert sand seen from directly above, for a top-down RPG map: soft large painterly patches of slightly lighter and darker sand, very gentle wind ripples. Very clean and calm. NO rocks, NO plants, NO footprints, NO outlines, NO dots, NO objects. Even lighting, fills the whole square image edge to edge` },
+  cactus: { h: 30, shadow: true, prompt: `a single cute green saguaro cactus with two arms and a small pink flower, front view, like a top-down RPG map object` },
+  desert_rock: { h: 20, shadow: true, prompt: `a single orange-red sandstone desert rock with layered stripes, front view, like a top-down RPG map object` },
+  bones: { h: 12, prompt: `a small cartoon animal skull and a couple of bones half buried in sand, like a top-down RPG map decoration` },
+  dry_bush: { h: 14, prompt: `a small round dry desert shrub tumbleweed, light brown, like a top-down RPG map decoration` },
+  palm: { h: 76, shadow: true, prompt: `a single cute desert palm tree with a slightly curved trunk and green fronds, front view, like a top-down RPG map object` },
+  quicksand: { w: 72, prompt: `a flat irregular patch of swirling darker quicksand with a spiral pattern, seen from directly above, organic blob shape, like a top-down RPG map decal` },
+  scorpion: {
+    h: 22, hd: 3, shadow: true, wide: true, role: 'monster', body: 'quadruped',
+    prompt: `a chunky orange desert scorpion monster with big pincers and a curled stinger tail, angry eyes, ${CHAR}`,
+    poses: { walk_a: 'scuttling, front legs forward', walk_mid: 'scuttling, legs under the body', walk_b: 'scuttling, back legs forward', attack: 'striking forward to the RIGHT with the stinger tail and pincers snapping' },
+  },
+  vulture: {
+    // wideSheets: folhas em 21:9 (as asas abertas se encostavam), mantendo 3 quadros por folha
+    h: 22, hd: 3, role: 'monster', body: 'flyer', wideSheets: true,
+    prompt: `a scrawny cartoon desert vulture monster with a bald pink head, hooked beak and ragged brown wings, flying, ${CHAR}`,
+    poses: { attack: 'diving forward to the RIGHT with talons out and beak open' },
+  },
+  cactus_spitter: {
+    h: 28, hd: 3, shadow: true, role: 'monster', body: 'blob',
+    prompt: `a grumpy round green cactus monster with sharp needles, a small flower on top and two stubby feet, ${CHAR}`,
+    poses: { walk_a: 'waddling, near foot forward', walk_mid: 'feet together under the body', walk_b: 'waddling, far foot forward', attack: 'shooting a spray of needles forward to the RIGHT, cheeks puffed' },
+  },
+  sandworm: {
+    h: 34, hd: 3, shadow: true, role: 'special', body: 'blob',
+    prompt: `a big segmented sandy-beige desert worm monster rising from the sand, round mouth full of teeth, small eyes, ${CHAR}`,
+    poses: {
+      walk_a: 'slithering on the surface, body curved low, no sand block or ground under it', walk_mid: 'slithering, body raised in an S curve, no ground under it', walk_b: 'slithering, body stretched forward, no ground under it',
+      windup: 'burrowing head-first down into a mound of sand, only the tail sticking out', attack: 'erupting up from a burst of sand with its toothy mouth wide open',
+    },
+  },
+  lizard_shaman: {
+    h: 34, hd: 3, shadow: true, role: 'special', body: 'biped', hold: 'the bone staff with the swirling green wind gem',
+    prompt: `a desert lizard shaman monster standing upright on two legs, wearing a tribal sand-colored robe and feather headdress, holding a bone staff topped with a swirling green wind gem, ${CHAR}`,
+    poses: { windup: 'raising the staff high, a small whirlwind forming around the gem', attack: 'thrusting the staff forward to the RIGHT, releasing a gust of wind' },
+  },
+  scorpion_emperor: {
+    h: 66, hd: 3, shadow: true, wide: true, role: 'boss', body: 'quadruped',
+    prompt: `a giant armored golden scorpion emperor boss monster with huge pincers, a crown-like crest and a glowing purple stinger tail, ${CHAR}, menacing`,
+    poses: {
+      idle: 'standing tall, pincers raised, tail curled high', walk_a: 'scuttling, front legs forward', walk_b: 'scuttling, back legs forward',
+      windup: 'rearing back with the glowing stinger raised high, about to strike', attack: 'slamming the stinger down into the ground in front, a burst of sand',
     },
   },
   // objetos dos eventos (no lugar dos provisórios desenhados por código)

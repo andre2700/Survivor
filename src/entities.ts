@@ -22,8 +22,8 @@ export class Enemy extends Phaser.GameObjects.Image {
   resist = 0;
   /** último aviso de "RESISTIU" (s) */
   resistShownAt = -99;
-  /** papel num evento: guarda de baú/jaula, goblin dourado, chefe surpresa */
-  tag: '' | 'guard' | 'golden' | 'surprise' = '';
+  /** papel num evento: guarda de baú/jaula, goblin dourado, chefe surpresa, guerreiro de tribo */
+  tag: '' | 'guard' | 'golden' | 'surprise' | 'tribe' = '';
   kbX = 0;
   kbY = 0;
   flashUntil = 0;
@@ -44,6 +44,12 @@ export class Enemy extends Phaser.GameObjects.Image {
   attackTimer = 0;
   attackX = 0;
   attackY = 0;
+  /** verme da areia andando por baixo da areia (mostra o monte de areia em vez de andar) */
+  burrowed = false;
+  /** guerra de tribos: lado do inimigo (0 = nenhum), o rival que ele persegue e o próximo golpe nele */
+  faction = 0;
+  foe: Enemy | null = null;
+  foeAt = 0;
   /** efeitos elementais ativos: fim de cada um (s); 0 = inativo */
   status: Record<Primary, number> = { fire: 0, water: 0, air: 0, earth: 0 };
   /** fim do último efeito ou controle ativo (pula inimigos sem efeito no laço) */
@@ -82,6 +88,10 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.slots = slotsOf(def.texture);
     this.hurtUntil = 0;
     this.attackPhase = 'walk';
+    this.burrowed = false;
+    this.faction = 0;
+    this.foe = null;
+    this.foeAt = 0;
     this.attackTimer = 3;
     this.status.fire = this.status.water = this.status.air = this.status.earth = 0;
     this.statusEnd = this.burnDps = this.burnTickAt = this.frozenUntil = this.mudUntil = 0;

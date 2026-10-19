@@ -3,18 +3,24 @@ import type { Element } from './weapons';
 export type EnemyId = 'slime' | 'bat' | 'goblin' | 'wolf' | 'skeleton' | 'orc' | 'demon'
   | 'slime_fire' | 'slime_water' | 'goblin_earth' | 'bat_air'
   | 'slime_spit' | 'slime_magma' | 'slime_bomb' | 'orc_chief'
-  | 'frog' | 'croc' | 'mosquito' | 'sporeshroom' | 'frog_shaman' | 'frog_king';
+  | 'frog' | 'croc' | 'mosquito' | 'sporeshroom' | 'frog_shaman' | 'frog_king'
+  | 'scorpion' | 'vulture' | 'cactus_spitter' | 'sandworm' | 'lizard_shaman' | 'scorpion_emperor';
 
 /**
  * Como o inimigo luta: corpo a corpo (encosta); à distância (mantém distância e atira, com aviso);
  * conjurador (usa uma habilidade do herói com nível); explosivo (corre, pisca e explode).
  */
-export type Behavior = 'melee' | 'ranged' | 'caster' | 'exploder' | 'charger';
+export type Behavior = 'melee' | 'ranged' | 'caster' | 'exploder' | 'charger' | 'burrower';
 
 /** Habilidade de ataque de um inimigo (à distância, conjurador ou explosivo). */
 export interface EnemySkill {
-  /** tiro (gosma, esporos), bola de fogo e onda (habilidades do herói), explosão ou bote (avança de repente) */
-  kind: 'spit' | 'fireball' | 'wave' | 'explode' | 'charge';
+  /**
+   * tiro (gosma, esporos, espinhos), bola de fogo, onda e tornado (habilidades do herói), explosão,
+   * bote (avança de repente) ou toca (se enterra, anda por baixo da areia e irrompe sob o herói)
+   */
+  kind: 'spit' | 'fireball' | 'wave' | 'tornado' | 'explode' | 'charge' | 'burrow';
+  /** tiros por disparo, em leque (padrão 1) */
+  count?: number;
   /** dano em múltiplos do dano de contato do inimigo */
   damage: number;
   cooldown: number;
@@ -138,6 +144,25 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     behavior: 'caster', skill: { kind: 'wave', damage: 1.5, cooldown: 4.5, range: 170, windup: 0.9, speed: 150, radius: 26, level: 1 },
   },
   frog_king: { id: 'frog_king', kind: 'frog_king', name: 'Rei Sapo', texture: 'frog_king', element: 'water', hp: 22000, speed: 40, damage: 26, xp: 160, scale: 1, radius: 24, knockback: 0, resist: 0.75, boss: true },
+  // ---------- Dunas Escaldantes ----------
+  scorpion: { id: 'scorpion', kind: 'scorpion', name: 'Escorpião', texture: 'scorpion', element: 'earth', hp: 34, speed: 42, damage: 11, xp: 2, scale: 1, radius: 11, knockback: 0.7, resist: 0.15 },
+  vulture: { id: 'vulture', kind: 'vulture', name: 'Abutre', texture: 'vulture', element: 'air', hp: 14, speed: 70, damage: 7, xp: 1, scale: 1, radius: 9, knockback: 1.1, resist: 0 },
+  // à distância: um leque de espinhos
+  cactus_spitter: {
+    id: 'cactus_spitter', kind: 'cactus_spitter', name: 'Cacto Atirador', texture: 'cactus_spitter', element: 'earth', hp: 38, speed: 24, damage: 9, xp: 2, scale: 1, radius: 10, knockback: 0.6, resist: 0.2,
+    behavior: 'ranged', skill: { kind: 'spit', damage: 1, cooldown: 3, range: 160, windup: 0.5, speed: 170, radius: 5, level: 1, count: 3 },
+  },
+  // toca: se enterra (aviso), anda como um monte de areia e irrompe sob o herói (círculo no chão)
+  sandworm: {
+    id: 'sandworm', kind: 'sandworm', name: 'Verme da Areia', texture: 'sandworm', element: 'earth', hp: 90, speed: 34, damage: 15, xp: 4, scale: 1, radius: 12, knockback: 0.4, resist: 0.35,
+    behavior: 'burrower', skill: { kind: 'burrow', damage: 1.6, cooldown: 4.5, range: 200, windup: 0.5, speed: 150, radius: 30, level: 1 },
+  },
+  // conjurador: lança o Tornado do herói (com nível), que persegue devagar e puxa
+  lizard_shaman: {
+    id: 'lizard_shaman', kind: 'lizard_shaman', name: 'Xamã Lagarto', texture: 'lizard_shaman', element: 'air', hp: 48, speed: 32, damage: 11, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'tornado', damage: 1.2, cooldown: 5, range: 180, windup: 0.9, speed: 70, radius: 18, level: 1 },
+  },
+  scorpion_emperor: { id: 'scorpion_emperor', kind: 'scorpion_emperor', name: 'Imperador Escorpião', texture: 'scorpion_emperor', element: 'earth', hp: 30000, speed: 44, damage: 30, xp: 180, scale: 1, radius: 26, knockback: 0, resist: 0.8, boss: true },
 };
 
 /** Cor das partículas quando o inimigo morre. */
@@ -146,4 +171,5 @@ export const DEATH_TINT: Record<EnemyId, number> = {
   slime_fire: 0xff7a2e, slime_water: 0x41a6f6, goblin_earth: 0xc69c6d, bat_air: 0xa7f070,
   slime_spit: 0xc06ad8, slime_magma: 0xff4a1a, slime_bomb: 0x5a4a4a, orc_chief: 0xb5532e,
   frog: 0x6fdc72, croc: 0x4fa040, mosquito: 0xe8c040, sporeshroom: 0xa070d0, frog_shaman: 0x41a6f6, frog_king: 0x5ab84a,
+  scorpion: 0xe08a3a, vulture: 0x8a6a4a, cactus_spitter: 0x6ab84a, sandworm: 0xd8b880, lizard_shaman: 0x9ad050, scorpion_emperor: 0xe8c040,
 };

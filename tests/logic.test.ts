@@ -279,4 +279,14 @@ describe('fases', () => {
   it('inimigos com habilidade têm o comportamento certo', () => {
     for (const e of Object.values(ENEMIES)) if (e.behavior && e.behavior !== 'melee') expect(e.skill, e.id).toBeDefined();
   });
+  it('tribos da guerra e criaturas da fase existem e não são chefes', () => {
+    for (const st of STAGES.filter((s) => s.playable)) {
+      for (const tribe of st.tribes ?? []) for (const id of tribe.pool) expect(ENEMIES[id].boss, `${st.id}:${id}`).toBeFalsy();
+      for (const id of [st.swarm, ...(st.ring ?? [])]) if (id) expect(ENEMIES[id], `${st.id}:${id}`).toBeDefined();
+    }
+  });
+  it('as fases ficam mais difíceis ao longo do mapa', () => {
+    const playable = STAGES.filter((s) => s.playable);
+    for (let i = 1; i < playable.length; i++) expect(playable[i].difficulty).toBeGreaterThan(playable[i - 1].difficulty);
+  });
 });

@@ -33,6 +33,13 @@ const GAITS: Record<string, Gait> = {
   sporeshroom: { fps: 6, cycle: STEP, squash: 0.04, tilt: 0.05 },
   frog_shaman: { fps: 7, cycle: STEP, squash: 0.03, tilt: 0.04 },
   frog_king: { fps: 4, cycle: STRIDE, squash: 0.04, tilt: 0.02 },
+  // Dunas
+  scorpion: { fps: 10, cycle: STEP, squash: 0.02, tilt: 0.02 },
+  vulture: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.06 },
+  cactus_spitter: { fps: 6, cycle: STEP, squash: 0.05, tilt: 0.04 },
+  sandworm: { fps: 6, cycle: STEP, squash: 0.05, tilt: 0.02 },
+  lizard_shaman: { fps: 7, cycle: STEP, squash: 0.03, tilt: 0.04 },
+  scorpion_emperor: { fps: 5, cycle: STRIDE, squash: 0.02, tilt: 0.015 },
 };
 
 export interface Pose {

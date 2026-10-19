@@ -43,7 +43,7 @@ for (const [name, a] of Object.entries(ART)) {
       const list = poses.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
       jobs.push({
         // 4 quadros ou mais numa folha quadrada viram grade 2×2: formato largo garante uma fila só
-        out: `${name}_${suffix}`, ref: name, aspect: a.wide || poses.length >= 4 ? '21:9' : undefined, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
+        out: `${name}_${suffix}`, ref: name, aspect: a.wide || a.wideSheets || poses.length >= 4 ? '21:9' : undefined, prompt: `${STYLE.replace(/Single subject, centered, small margin\. /, '')} ` +
           'Use the character from the reference image and keep exactly the same design, colors, outfit, proportions and art style. ' +
           `Create a sprite sheet: one single horizontal row of ${poses.length} frames of this same character, all at exactly the same scale, ` +
           'evenly spaced with wide magenta gaps between frames, no frame touching or overlapping another. ' +
