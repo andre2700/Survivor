@@ -82,3 +82,6 @@ Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manife
 - A IA às vezes desenha um quadro virado (de ponta-cabeça ou para o lado contrário), e o efeito "vira" a cada troca de quadro. O processamento corrige sozinho: `wide_top` desvira funis (tornado) e `facing` espelha os quadros que apontam para o lado contrário do 1º (bola de fogo, onda, martelo). O `process-art.py` avisa cada correção.
 - Projéteis isolados são conferidos na prancha de todos os efeitos antes de publicar: a ponta precisa apontar para a direita (o jogo gira pela direção do voo). O `proj_bolt` vinha virado e ganhou `flip`.
 - Regra: depois de processar qualquer efeito ou projétil, montar a prancha com todos os quadros e conferir a orientação de cada um.
+- Quadros de personagem virados também acontecem (o dano do lobisomem veio com o focinho para a esquerda): a prancha de cada criatura é conferida e `mirror` espelha o quadro no processamento.
+- Funis (tornado) precisam ser largos logo no topo; quadro com ponta em cima e embaixo é trocado pelo espelho de um quadro bom vizinho.
+- Chão gerado que forma desenhos repetidos pode ser trocado por outro chão recolorido (`regrade`), sem gastar imagem: o da Floresta Sombria é a grama da Clareira sem cor.

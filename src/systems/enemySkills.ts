@@ -33,8 +33,21 @@ interface Shot {
 /** Tiros inimigos ao mesmo tempo (desempenho). */
 const MAX_SHOTS = 120;
 
+/** Raio da bruxa marcado no chão: cai em `at` (s). */
+interface Strike {
+  x: number;
+  y: number;
+  at: number;
+  r: number;
+  damage: number;
+}
+
+/** Quanto tempo a teia prende o herói (s) e a velocidade dele preso. */
+export const WEB = { time: 1.6, speed: 0.45 };
+
 export class EnemySkills {
   private shots: Shot[] = [];
+  private strikes: Strike[] = [];
 
   constructor(private scene: GameScene) {}
 
@@ -207,6 +220,20 @@ export class EnemySkills {
       const ey = e.y + Math.sin(a) * len;
       g.fillStyle(color, 0.18).fillPoints([{ x: e.x + nx, y: e.y + ny }, { x: ex + nx, y: ey + ny }, { x: ex - nx, y: ey - ny }, { x: e.x - nx, y: e.y - ny }] as Phaser.Math.Vector2[], true);
       this.scene.tweens.add({ targets: g, alpha: { from: 0.3, to: 1 }, duration: skill.windup * 1000, onComplete: () => g.destroy() });
+    } else if (skill.kind === 'strike') {
+      // aviso: um círculo onde cada raio vai cair (o primeiro no herói; com nível, mais raios em volta)
+      const lvl = this.level(skill);
+      const n = 1 + Math.floor((lvl - 1) / 3);
+      const r = skill.radius * (1 + (lvl - 1) * 0.1);
+      const at = this.scene.elapsed + skill.windup;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = i ? 40 + Math.random() * 40 : 0;
+        const x = tx + Math.cos(a) * d;
+        const y = ty + Math.sin(a) * d * 0.8;
+        this.strikes.push({ x, y, at: at + i * 0.12, r, damage: e.damage * skill.damage });
+        this.ring(x, y, r, 0xffe066, skill.windup + i * 0.12);
+      }
     } else if (skill.kind === 'tornado') {
       // aviso: o vento rodando em volta do xamã
       this.ring(e.x, e.y, 22, 0x9ad050, skill.windup);
@@ -218,6 +245,8 @@ export class EnemySkills {
 
   private release(e: Enemy, skill: EnemySkill) {
     const dmg = e.damage * skill.damage;
+    // o raio já foi marcado no chão na preparação
+    if (skill.kind === 'strike') return;
     if (skill.kind === 'explode') {
       this.explode(e.x, e.y, skill.radius, dmg);
       this.scene.elementalDamage(e, e.hp + 1, '#ffffff');
@@ -240,8 +269,8 @@ export class EnemySkills {
     const wave = skill.kind === 'wave';
     const tornado = skill.kind === 'tornado';
     const area = skill.radius * (1 + (lvl - 1) * 0.1);
-    // esporos verdes do cogumelo; espinhos amarelos do cacto; gosma roxa do slime
-    const color = e.def.kind === 'sporeshroom' ? 0x9ad050 : e.def.kind === 'cactus_spitter' ? 0xe8e070 : 0xb060e0;
+    // esporos verdes do cogumelo; espinhos amarelos do cacto; teia branca da aranha; gosma roxa do slime
+    const color = e.def.kind === 'sporeshroom' ? 0x9ad050 : e.def.kind === 'cactus_spitter' ? 0xe8e070 : skill.kind === 'web' ? 0xf4f4ff : 0xb060e0;
     let img: Phaser.GameObjects.Image;
     if (tornado) img = this.scene.add.image(e.x, e.y, 'atlas', frameName('fx_tornado')).setOrigin(0.5, 0.92).setTint(0xe8d8a0).setScale((area * 2.4) / 60);
     else if (fireball) img = this.scene.add.image(e.x, e.y - 6, 'atlas', frameName('fx_fireball')).setTint(0xffb08a).setScale(0.9).setRotation(angle);
@@ -322,6 +351,11 @@ export class EnemySkills {
         continue;
       }
       if (hitPlayer) {
+        // teia: prende o herói mesmo quando o dano é esquivado
+        if (s.kind === 'web') {
+          if (this.scene.elapsed >= this.scene.webUntil) this.scene.floatText(p.x, p.y - 20, 'PRESO!', '#f4f4ff', false);
+          this.scene.webUntil = this.scene.elapsed + WEB.time;
+        }
         this.scene.hurtPlayer(s.damage);
         this.scene.impact(s.img.x, s.img.y, s.color, 0.6);
         s.img.destroy();
@@ -334,10 +368,26 @@ export class EnemySkills {
       keep.push(s);
     }
     this.shots = keep;
+    this.updateStrikes();
+  }
+
+  private updateStrikes() {
+    if (!this.strikes.length) return;
+    const sc = this.scene;
+    const t = sc.elapsed;
+    const p = sc.player;
+    this.strikes = this.strikes.filter((s) => {
+      if (t < s.at) return true;
+      sc.weapons.drawBolt(s.x, s.y, sc.cameras.main.worldView.y - 10, false, 0xffe066);
+      sfx('zap');
+      if ((p.x - s.x) ** 2 + ((p.y - s.y) / 0.8) ** 2 < (s.r + 6) ** 2) sc.hurtPlayer(s.damage);
+      return false;
+    });
   }
 
   destroy() {
     for (const s of this.shots) s.img.destroy();
     this.shots = [];
+    this.strikes = [];
   }
 }

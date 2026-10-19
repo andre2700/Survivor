@@ -4,7 +4,8 @@ export type EnemyId = 'slime' | 'bat' | 'goblin' | 'wolf' | 'skeleton' | 'orc' |
   | 'slime_fire' | 'slime_water' | 'goblin_earth' | 'bat_air'
   | 'slime_spit' | 'slime_magma' | 'slime_bomb' | 'orc_chief'
   | 'frog' | 'croc' | 'mosquito' | 'sporeshroom' | 'frog_shaman' | 'frog_king'
-  | 'scorpion' | 'vulture' | 'cactus_spitter' | 'sandworm' | 'lizard_shaman' | 'scorpion_emperor';
+  | 'scorpion' | 'vulture' | 'cactus_spitter' | 'sandworm' | 'lizard_shaman' | 'scorpion_emperor'
+  | 'werewolf' | 'wisp' | 'spider' | 'witch' | 'ancient_ent';
 
 /**
  * Como o inimigo luta: corpo a corpo (encosta); à distância (mantém distância e atira, com aviso);
@@ -15,10 +16,11 @@ export type Behavior = 'melee' | 'ranged' | 'caster' | 'exploder' | 'charger' | 
 /** Habilidade de ataque de um inimigo (à distância, conjurador ou explosivo). */
 export interface EnemySkill {
   /**
-   * tiro (gosma, esporos, espinhos), bola de fogo, onda e tornado (habilidades do herói), explosão,
-   * bote (avança de repente) ou toca (se enterra, anda por baixo da areia e irrompe sob o herói)
+   * tiro (gosma, esporos, espinhos), teia (tiro que prende o herói), bola de fogo, onda, tornado e raio
+   * (habilidades do herói), explosão, bote (avança de repente) ou toca (se enterra, anda por baixo da
+   * areia e irrompe sob o herói)
    */
-  kind: 'spit' | 'fireball' | 'wave' | 'tornado' | 'explode' | 'charge' | 'burrow';
+  kind: 'spit' | 'web' | 'fireball' | 'wave' | 'tornado' | 'strike' | 'explode' | 'charge' | 'burrow';
   /** tiros por disparo, em leque (padrão 1) */
   count?: number;
   /** dano em múltiplos do dano de contato do inimigo */
@@ -163,6 +165,24 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
     behavior: 'caster', skill: { kind: 'tornado', damage: 1.2, cooldown: 5, range: 180, windup: 0.9, speed: 70, radius: 18, level: 1 },
   },
   scorpion_emperor: { id: 'scorpion_emperor', kind: 'scorpion_emperor', name: 'Imperador Escorpião', texture: 'scorpion_emperor', element: 'earth', hp: 30000, speed: 44, damage: 30, xp: 180, scale: 1, radius: 26, knockback: 0, resist: 0.8, boss: true },
+  // ---------- Floresta Sombria ----------
+  // bote: se agacha (aviso) e salta em linha reta
+  werewolf: {
+    id: 'werewolf', kind: 'werewolf', name: 'Lobisomem', texture: 'werewolf', hp: 85, speed: 48, damage: 16, xp: 4, scale: 1, radius: 11, knockback: 0.5, resist: 0.3,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.5, cooldown: 3, range: 130, windup: 0.5, speed: 300, radius: 0, level: 1 },
+  },
+  wisp: { id: 'wisp', kind: 'wisp', name: 'Fogo-Fátuo', texture: 'wisp', element: 'air', hp: 12, speed: 78, damage: 7, xp: 1, scale: 1, radius: 8, knockback: 1.2, resist: 0 },
+  // à distância: cospe teia que prende o herói (fica bem mais lento por um instante)
+  spider: {
+    id: 'spider', kind: 'spider', name: 'Aranha Sombria', texture: 'spider', element: 'earth', hp: 40, speed: 40, damage: 10, xp: 2, scale: 1, radius: 10, knockback: 0.7, resist: 0.15,
+    behavior: 'ranged', skill: { kind: 'web', damage: 0.8, cooldown: 3.4, range: 150, windup: 0.5, speed: 160, radius: 7, level: 1 },
+  },
+  // conjuradora: o Raio do herói (com nível: mais raios em volta), com círculo de aviso onde cai
+  witch: {
+    id: 'witch', kind: 'witch', name: 'Bruxa', texture: 'witch', element: 'air', hp: 55, speed: 30, damage: 12, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'strike', damage: 1.8, cooldown: 4.5, range: 190, windup: 1, speed: 0, radius: 24, level: 1 },
+  },
+  ancient_ent: { id: 'ancient_ent', kind: 'ancient_ent', name: 'Ent Ancião Corrompido', texture: 'ancient_ent', element: 'earth', hp: 42000, speed: 36, damage: 34, xp: 200, scale: 1, radius: 28, knockback: 0, resist: 0.85, boss: true },
 };
 
 /** Cor das partículas quando o inimigo morre. */
@@ -172,4 +192,5 @@ export const DEATH_TINT: Record<EnemyId, number> = {
   slime_spit: 0xc06ad8, slime_magma: 0xff4a1a, slime_bomb: 0x5a4a4a, orc_chief: 0xb5532e,
   frog: 0x6fdc72, croc: 0x4fa040, mosquito: 0xe8c040, sporeshroom: 0xa070d0, frog_shaman: 0x41a6f6, frog_king: 0x5ab84a,
   scorpion: 0xe08a3a, vulture: 0x8a6a4a, cactus_spitter: 0x6ab84a, sandworm: 0xd8b880, lizard_shaman: 0x9ad050, scorpion_emperor: 0xe8c040,
+  werewolf: 0x8a8f9a, wisp: 0x9af0f0, spider: 0x7a4fa8, witch: 0x7ac050, ancient_ent: 0x9a50d0,
 };

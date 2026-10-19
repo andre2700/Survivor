@@ -1,5 +1,6 @@
 // Eventos aleatórios dentro da partida (Marco 3): baú guardado, prisioneiro que vira aliado, chefe
-// surpresa, goblin dourado, chuva de meteoros, emboscada, guerra de tribos e tempestade de areia.
+// surpresa, goblin dourado, chuva de meteoros, emboscada, guerra de tribos, tempestade de areia,
+// santuário maldito (escolha arriscada) e lua de sangue.
 // Também espalha itens pelo mapa (ímã, bomba, cura) e diz à HUD para onde apontar as setas de borda.
 // Cada fase escolhe os seus eventos.
 import Phaser from 'phaser';
@@ -55,6 +56,8 @@ const TITLES: Record<RunEventId, string> = {
   ambush: 'EMBOSCADA!',
   tribeWar: 'GUERRA DE TRIBOS!',
   sandstorm: 'TEMPESTADE DE AREIA!',
+  cursedShrine: 'UM SANTUÁRIO MALDITO!',
+  bloodMoon: 'LUA DE SANGUE!',
 };
 
 /** Tribos da guerra quando a fase não define as suas. */
@@ -65,6 +68,9 @@ const DEFAULT_TRIBES: [Tribe, Tribe] = [
 
 /** Tempestade de areia: dura isto (s) e fere todos a cada `tick` (s). */
 const STORM = { time: 16, tick: 2, streaks: 110 };
+
+/** Lua de sangue: dura isto (s); fração da vida que herói e inimigos perdem a cada `STORM.tick`. */
+const BLOOD_MOON = { time: 20, hero: 0.04, foe: 0.1 };
 
 export class RunEvents {
   private next = 70;
@@ -79,9 +85,11 @@ export class RunEvents {
   private done = new Set<RunEventId>();
   /** guerreiros vivos de cada tribo, o campo de batalha e o fim da guerra */
   private tribes: [Enemy[], Enemy[]] = [[], []];
+  /** santuário maldito esperando o herói */
+  private shrine: { img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Graphics; progress: number } | null = null;
   private war: { x: number; y: number; until: number } | null = null;
   /** tempestade de areia: fim, próximo dano, lado do vento, véu e grãos (posição na tela, 0 a 1) */
-  private storm: { until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[] } | null = null;
+  private storm: { kind: 'sand' | 'blood'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[] } | null = null;
 
   constructor(private scene: GameScene) {}
 
@@ -105,6 +113,7 @@ export class RunEvents {
     this.updateAlly(dt);
     this.updateWar();
     this.updateStorm(dt);
+    this.updateShrine(dt);
     if (this.golden && (!this.golden.active || sc.elapsed > this.goldenUntil)) {
       if (this.golden.active) {
         // escapou: some numa nuvem
@@ -122,7 +131,7 @@ export class RunEvents {
     const goal = st.objectives.find((o) => o.kind === 'event');
     if (goal && goal.kind === 'event' && !this.done.has(goal.event)) return goal.event;
     const pool = st.events.filter((e) => !(e === 'captive' && (this.captive || this.ally)) && !(e === 'goldenGoblin' && this.golden)
-      && !(e === 'tribeWar' && this.war) && !(e === 'sandstorm' && this.storm));
+      && !(e === 'tribeWar' && this.war) && !((e === 'sandstorm' || e === 'bloodMoon') && this.storm) && !(e === 'cursedShrine' && this.shrine));
     return pool[Math.floor(Math.random() * pool.length)] ?? 'ambush';
   }
 
@@ -153,7 +162,11 @@ export class RunEvents {
       case 'tribeWar':
         return this.startWar();
       case 'sandstorm':
-        return this.startStorm();
+        return this.startStorm('sand');
+      case 'bloodMoon':
+        return this.startStorm('blood');
+      case 'cursedShrine':
+        return this.startShrine();
     }
   }
 
@@ -494,14 +507,21 @@ export class RunEvents {
     sc.events.emit('announce', 'A GUERRA ACABOU! UM BAÚ FICOU NO CAMPO');
   }
 
-  // ---------- Tempestade de areia ----------
+  // ---------- Cataclismos com véu: tempestade de areia e lua de sangue ----------
 
-  /** Cataclismo: a areia esconde a vista, o vento empurra o herói e todos (herói e inimigos) se ferem. */
-  private startStorm() {
+  /**
+   * Cataclismo de véu. Tempestade de areia: a areia esconde a vista e o vento empurra o herói. Lua de
+   * sangue: a tela fica vermelha e todos sangram. Nos dois, a cada instante herói e inimigos se ferem.
+   */
+  private startStorm(kind: 'sand' | 'blood' = 'sand') {
     const sc = this.scene;
-    const grains = Array.from({ length: STORM.streaks }, () => ({ u: Math.random(), v: Math.random(), len: 6 + Math.random() * 18, sp: 0.5 + Math.random() * 0.7 }));
+    const grains = kind === 'sand' ? Array.from({ length: STORM.streaks }, () => ({ u: Math.random(), v: Math.random(), len: 6 + Math.random() * 18, sp: 0.5 + Math.random() * 0.7 })) : [];
+    const time = kind === 'sand' ? STORM.time : BLOOD_MOON.time;
     this.storm?.veil.destroy();
-    this.storm = { until: sc.elapsed + STORM.time, next: sc.elapsed + STORM.tick, wind: Math.random() < 0.5 ? -1 : 1, veil: sc.add.graphics().setDepth(LAYER.fx + 5), grains };
+    this.storm = {
+      kind, time, until: sc.elapsed + time, next: sc.elapsed + STORM.tick, wind: Math.random() < 0.5 ? -1 : 1,
+      veil: sc.add.graphics().setDepth(LAYER.fx + 5), grains,
+    };
   }
 
   private updateStorm(dt: number) {
@@ -514,30 +534,93 @@ export class RunEvents {
       this.storm = null;
       return;
     }
-    // véu de areia: entra e sai suave
+    // véu: entra e sai suave
     const left = s.until - t;
-    const k = Math.min(1, (STORM.time - left) / 1.5, left / 1.5);
+    const k = Math.min(1, (s.time - left) / 1.5, left / 1.5);
     const v = sc.cameras.main.worldView;
     const g = s.veil.clear();
-    g.fillStyle(0xc89850, 0.45 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
-    for (const p of s.grains) {
-      p.u += s.wind * p.sp * dt;
-      p.v += Math.sin(t * 2 + p.len) * 0.02 * dt;
-      if (p.u > 1.05) p.u -= 1.1;
-      if (p.u < -0.05) p.u += 1.1;
-      const x = v.x + p.u * v.width;
-      const y = v.y + ((p.v % 1) + 1) % 1 * v.height;
-      g.lineStyle(p.len > 16 ? 2.5 : 1.5, 0xfff0c8, 0.7 * k).lineBetween(x, y, x - s.wind * p.len * 1.6, y + p.len * 0.15);
+    const sand = s.kind === 'sand';
+    if (sand) {
+      g.fillStyle(0xc89850, 0.45 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
+      for (const p of s.grains) {
+        p.u += s.wind * p.sp * dt;
+        p.v += Math.sin(t * 2 + p.len) * 0.02 * dt;
+        if (p.u > 1.05) p.u -= 1.1;
+        if (p.u < -0.05) p.u += 1.1;
+        const x = v.x + p.u * v.width;
+        const y = v.y + ((p.v % 1) + 1) % 1 * v.height;
+        g.lineStyle(p.len > 16 ? 2.5 : 1.5, 0xfff0c8, 0.7 * k).lineBetween(x, y, x - s.wind * p.len * 1.6, y + p.len * 0.15);
+      }
+      // o vento empurra o herói de lado
+      sc.player.x += s.wind * 16 * dt;
+    } else {
+      // lua de sangue: céu vermelho que pulsa e a lua no canto
+      const pulse = 0.85 + Math.sin(t * 3) * 0.15;
+      g.fillStyle(0x8a0a18, 0.3 * k * pulse).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
+      const mx = v.right - v.width * 0.2;
+      const my = v.y + v.height * 0.12;
+      g.fillStyle(0xff3040, 0.18 * k).fillCircle(mx, my, 46);
+      g.fillStyle(0xff4050, 0.3 * k).fillCircle(mx, my, 32);
+      g.fillStyle(0xe8202a, 0.95 * k).fillCircle(mx, my, 24);
+      g.fillStyle(0xb01020, 0.9 * k).fillCircle(mx + 7, my - 5, 6).fillCircle(mx - 8, my + 6, 4);
     }
-    // o vento empurra o herói de lado
-    sc.player.x += s.wind * 16 * dt;
     if (t < s.next) return;
     s.next = t + STORM.tick;
-    // cataclismo: fere o herói e os inimigos (chefes resistem mais)
-    sc.hurtPlayer(Math.max(6, sc.stats.maxHp * 0.05) * sc.stage.difficulty);
+    // cataclismo: fere o herói e os inimigos na tela (chefes perdem só 1%)
+    const hero = sand ? 0.05 : BLOOD_MOON.hero;
+    const foe = sand ? 0.12 : BLOOD_MOON.foe;
+    const color = sand ? '#e8c070' : '#ff3040';
+    sc.hurtPlayer(Math.max(6, sc.stats.maxHp * hero) * sc.stage.difficulty);
     sc.queryEnemies(v.centerX, v.centerY, Math.hypot(v.width, v.height) / 2, (e) => {
-      if (e.active && v.contains(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.01 : Math.max(20, e.maxHp * 0.12), '#e8c070');
+      if (e.active && v.contains(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.01 : Math.max(20, e.maxHp * foe), color);
     });
+  }
+
+  // ---------- Santuário maldito ----------
+
+  /**
+   * Escolha arriscada: fique perto do santuário para ativá-lo. Ele dá poder (+1 nível em duas armas e
+   * cura) e amaldiçoa a floresta: por 45 s os inimigos ficam 30% mais rápidos e ferem 30% a mais.
+   */
+  private startShrine() {
+    const sc = this.scene;
+    const { x, y } = this.away(240, 300);
+    const img = sc.add.image(x, y, 'atlas', frameName('cursed_shrine')).setOrigin(0.5, 0.85).setDepth(y).setScale(1.3);
+    const glow = sc.add.image(x, y - 22, 'atlas', frameName('glow')).setTint(0xb060ff).setDepth(y + 1).setScale(1.4).setAlpha(0.6);
+    sc.tweens.add({ targets: glow, alpha: 0.25, scale: 1.8, duration: 900, yoyo: true, repeat: -1 });
+    const ring = sc.add.graphics().setDepth(LAYER.groundFx);
+    this.shrine = { img, glow, ring, progress: 0 };
+    this.guard(x, y, 6, 52);
+  }
+
+  private updateShrine(dt: number) {
+    const c = this.shrine;
+    if (!c) return;
+    const sc = this.scene;
+    const p = sc.player;
+    const near = (p.x - c.img.x) ** 2 + (p.y - c.img.y) ** 2 < 40 * 40;
+    c.progress = Phaser.Math.Clamp(c.progress + (near ? dt / 1.5 : -dt), 0, 1);
+    c.ring.clear();
+    c.ring.lineStyle(3, 0xffffff, 0.25).strokeCircle(c.img.x, c.img.y, 34);
+    if (c.progress > 0) c.ring.lineStyle(4, 0xb060ff, 1).beginPath().arc(c.img.x, c.img.y, 34, -Math.PI / 2, -Math.PI / 2 + c.progress * Math.PI * 2).strokePath();
+    if (c.progress < 1) return;
+    this.shrine = null;
+    c.ring.destroy();
+    c.glow.destroy();
+    sc.tweens.add({ targets: c.img, alpha: 0.35, duration: 600 });
+    sc.time.delayedCall(8000, () => c.img.destroy());
+    sc.completed.add('cursedShrine');
+    sc.impact(c.img.x, c.img.y - 20, 0xb060ff, 2.4);
+    sc.cameras.main.flash(300, 120, 40, 200);
+    sfx('levelup');
+    // poder
+    const owned = [...sc.ownedWeapons].sort(() => Math.random() - 0.5).slice(0, 2);
+    for (const w of owned) sc.devWeapon(1, w.id);
+    sc.hp = Math.min(sc.stats.maxHp, sc.hp + sc.stats.maxHp * 0.3);
+    sc.floatText(c.img.x, c.img.y - 40, owned.length > 1 ? 'DUAS ARMAS +1 NÍVEL!' : 'PODER!', '#d6a6ff', true);
+    // e a maldição
+    sc.cursedUntil = sc.elapsed + 45;
+    sc.events.emit('announce', 'PODER... E UMA MALDIÇÃO!');
   }
 
   /** Um inimigo de evento morreu: recompensas do goblin dourado e do chefe surpresa. */
@@ -571,6 +654,7 @@ export class RunEvents {
     this.surprises = this.surprises.filter((e) => e.active && e.tag === 'surprise');
     for (const e of this.surprises) list.push({ x: e.x, y: e.y, color: 0xff6a5a });
     if (this.war) list.push({ x: this.war.x, y: this.war.y, color: 0xffa040 });
+    if (this.shrine) list.push({ x: this.shrine.img.x, y: this.shrine.img.y, color: 0xb060ff });
     return list;
   }
 }

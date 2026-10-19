@@ -186,10 +186,13 @@ def with_shadow(im, size=None, cx=None):
     return out
 
 
-def ground(path, contrast=1.0):
+def ground(path, contrast=1.0, soften=0):
     """Ladrilho de grama repetível: desloca meia textura e cobre a emenda com o centro original.
-    `contrast` < 1 suaviza manchas fortes (a repetição fica menos visível)."""
+    `contrast` < 1 suaviza manchas fortes (a repetição fica menos visível); `soften` apaga contornos
+    finos desenhados pela IA (filtro de mediana desse tamanho, seguido de um leve desfoque)."""
     im = Image.open(path).convert('RGB')
+    if soften:
+        im = im.resize((512, 512), Image.LANCZOS).filter(ImageFilter.MedianFilter(soften)).filter(ImageFilter.GaussianBlur(4))
     if contrast != 1:
         im = ImageEnhance.Contrast(im).enhance(contrast)
     w, h = im.size
@@ -439,8 +442,16 @@ def main():
         if not src.exists():
             print('falta', src)
             continue
+        if a.get('tile') and a.get('regrade'):
+            # chão refeito a partir de outro (cor e saturação), sem imagem própria
+            g = a['regrade']
+            im = ImageEnhance.Color(Image.open(OUT / f"{g['from']}.png").convert('RGB')).enhance(g['sat'])
+            im = ImageChops.multiply(im, Image.new('RGB', im.size, tuple(g['tint'])))
+            im.save(OUT / f'{name}.png', optimize=True)
+            index[name] = {'hd': GROUND_HD}
+            continue
         if a.get('tile'):
-            ground(src, a.get('contrast', 1)).save(OUT / f'{name}.png', optimize=True)
+            ground(src, a.get('contrast', 1), a.get('soften', 0)).save(OUT / f'{name}.png', optimize=True)
             index[name] = {'hd': GROUND_HD}
             continue
         hd = a.get('hd', 2)
@@ -460,6 +471,10 @@ def main():
                 slots += [p['slot'] for p in poses[1:]]
             if a.get('flip'):
                 frames = [ImageOps.mirror(f) for f in frames]
+            # quadros que a IA desenhou virados para a esquerda (conferidos na prancha)
+            for slot in a.get('mirror', []):
+                frames[slots.index(slot)] = ImageOps.mirror(frames[slots.index(slot)])
+                print(f'  {name}: quadro {slot} espelhado (manifesto)')
             img = strip(frames, a, hd, len(plan['move']))
             img.save(OUT / f'{name}.png', optimize=True)
             index[name] = {'hd': hd, 'frames': len(frames), 'slots': slots}

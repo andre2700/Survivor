@@ -8,7 +8,8 @@ export type StageId = 'clareira' | 'outono' | 'pantano' | 'dunas' | 'sombria' | 
 export type Mood = 'leve' | 'sério' | 'sombrio' | 'épico';
 
 /** Eventos aleatórios que podem acontecer na fase (ver systems/events.ts). */
-export type RunEventId = 'chest' | 'captive' | 'surpriseBoss' | 'goldenGoblin' | 'meteors' | 'ambush' | 'tribeWar' | 'sandstorm';
+export type RunEventId = 'chest' | 'captive' | 'surpriseBoss' | 'goldenGoblin' | 'meteors' | 'ambush' | 'tribeWar' | 'sandstorm'
+  | 'cursedShrine' | 'bloodMoon';
 
 /** Tribo da guerra de tribos: nome no anúncio e criaturas dela. */
 export interface Tribe {
@@ -45,8 +46,8 @@ export interface StageDef {
   tribes?: [Tribe, Tribe];
   /** textura do chão (padrão: grama da floresta) */
   ground?: string;
-  /** perigo do mapa: névoa que esconde a borda da tela e poças de lama que deixam lento */
-  hazard?: 'fog';
+  /** perigo do mapa: névoa que esconde a borda da tela, ou escuridão (só a área em volta do herói fica clara) */
+  hazard?: 'fog' | 'dark';
   /** criatura das revoadas (padrão: morcego) e do cerco (padrão: esqueleto, orc mais tarde) */
   swarm?: EnemyId;
   ring?: [EnemyId, EnemyId];
@@ -119,6 +120,25 @@ const DUNES_WAVES: Wave[] = [
   { minute: 14, pool: ['scorpion', 'sandworm', 'lizard_shaman', 'cactus_spitter', 'orc', 'vulture'], rate: 9.6, max: 325, event: 'swarm' },
 ];
 
+/** Floresta Sombria: lobisomens com bote, fogos-fátuos, aranhas que prendem com teia e bruxas do raio. */
+const DARK_WAVES: Wave[] = [
+  { minute: 0, pool: ['wisp', 'goblin'], rate: 2.2, max: 55 },
+  { minute: 1, pool: ['wisp', 'spider'], rate: 2.8, max: 70 },
+  { minute: 2, pool: ['spider', 'werewolf', 'skeleton'], rate: 3.4, max: 90 },
+  { minute: 3, pool: ['wisp', 'werewolf', 'spider'], rate: 3.8, max: 110, event: 'swarm' },
+  { minute: 4, pool: ['skeleton', 'witch', 'spider', 'werewolf'], rate: 4.2, max: 130 },
+  { minute: 5, pool: ['werewolf', 'witch', 'spider', 'wolf'], rate: 4.8, max: 150, event: 'ring' },
+  { minute: 6, pool: ['skeleton', 'werewolf', 'witch', 'wisp'], rate: 5.3, max: 170 },
+  { minute: 7, pool: ['wisp', 'spider', 'witch', 'werewolf'], rate: 5.8, max: 190, event: 'swarm' },
+  { minute: 8, pool: ['werewolf', 'orc', 'spider'], rate: 6.4, max: 210, event: 'ring' },
+  { minute: 9, pool: ['werewolf', 'witch', 'spider', 'skeleton', 'wisp'], rate: 7, max: 230, event: 'swarm' },
+  { minute: 10, pool: ['werewolf', 'orc', 'witch'], rate: 7.4, max: 250 },
+  { minute: 11, pool: ['spider', 'witch', 'werewolf', 'skeleton'], rate: 7.9, max: 270, event: 'ring' },
+  { minute: 12, pool: ['wisp', 'werewolf', 'witch', 'spider', 'bat'], rate: 8.4, max: 290, event: 'swarm' },
+  { minute: 13, pool: ['werewolf', 'orc', 'witch'], rate: 8.9, max: 310, event: 'ring' },
+  { minute: 14, pool: ['werewolf', 'witch', 'spider', 'orc', 'wisp', 'skeleton'], rate: 9.8, max: 330, event: 'swarm' },
+];
+
 /** Fase futura: aparece no mapa, ainda sem arte própria. */
 function soon(id: StageId, name: string, subtitle: string, mood: Mood, elements: string, color: number): StageDef {
   return {
@@ -181,7 +201,22 @@ export const STAGES: StageDef[] = [
       { kind: 'kills', n: 4000, text: 'Derrote 4.000 inimigos' },
     ],
   },
-  soon('sombria', 'Floresta Sombria', 'A clareira, anos depois', 'sombrio', 'mistos', 0x4a5a8a),
+  {
+    id: 'sombria', name: 'Floresta Sombria', subtitle: 'A clareira, anos depois', mood: 'sombrio', elements: 'mistos', playable: true,
+    // a arte da floresta reaproveitada fica fria e escura; o chão é a grama da clareira sem cor
+    tint: { ground: 0xffffff, decor: 0x9aa4c8, sky: '#1e2238' }, color: 0x4a5a8a,
+    ground: 'ground_dark', hazard: 'dark', swarm: 'wisp', ring: ['wolf', 'werewolf'],
+    decor: { dead_tree: 6, tree: 2, thorn_bush: 12, gravestone: 7, rock: 6, mushroom: 6, stump: 5, tallgrass: 22 },
+    tall: ['dead_tree', 'tree'], patches: ['cobweb', 'dirt'],
+    tribes: [{ name: 'Lobisomens', pool: ['werewolf', 'wolf'] }, { name: 'Aranhas', pool: ['spider', 'spider', 'wisp'] }],
+    waves: DARK_WAVES, boss: 'ancient_ent', difficulty: 2.3,
+    events: ['chest', 'captive', 'surpriseBoss', 'cursedShrine', 'bloodMoon', 'tribeWar', 'ambush'],
+    objectives: [
+      { kind: 'boss', text: 'Derrote o Ent Ancião Corrompido' },
+      { kind: 'event', event: 'cursedShrine', text: 'Ative o santuário maldito' },
+      { kind: 'hp', min: 0.5, text: 'Vença com metade da vida ou mais' },
+    ],
+  },
   soon('pico', 'Pico Congelado', 'O frio que congela até a coragem', 'sombrio', 'água e ar', 0xa8d8f0),
   soon('vulcao', 'Coração do Vulcão', 'O chão ferve sob seus pés', 'épico', 'fogo', 0xe8502a),
   soon('ruinas', 'Ruínas Malditas', 'Um reino caído e seus fantasmas', 'épico', 'mistos', 0x8a6ab0),

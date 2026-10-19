@@ -1,4 +1,17 @@
 {
+ "ancient_ent": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "axe": {
   "hd": 4
  },
@@ -56,6 +69,9 @@
  "chest": {
   "hd": 2
  },
+ "cobweb": {
+  "hd": 2
+ },
  "coin": {
   "hd": 4
  },
@@ -71,6 +87,12 @@
    "hurt",
    "death"
   ]
+ },
+ "cursed_shrine": {
+  "hd": 2
+ },
+ "dead_tree": {
+  "hd": 2
  },
  "demon": {
   "hd": 3,
@@ -198,7 +220,13 @@
    "death"
   ]
  },
+ "gravestone": {
+  "hd": 2
+ },
  "ground": {
+  "hd": 2
+ },
+ "ground_dark": {
   "hd": 2
  },
  "ground_dunes": {
@@ -554,6 +582,18 @@
    "death"
   ]
  },
+ "spider": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "sporeshroom": {
   "hd": 3,
   "frames": 6,
@@ -573,6 +613,9 @@
   "hd": 2
  },
  "tallgrass": {
+  "hd": 2
+ },
+ "thorn_bush": {
   "hd": 2
  },
  "tree": {
@@ -612,6 +655,44 @@
    "walk_a",
    "walk_mid",
    "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "werewolf": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "wisp": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "witch": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
    "attack",
    "hurt",
    "death"

@@ -12,6 +12,8 @@
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 // ground: efeito apoiado no chão (quadros alinhados pela base, não pelo centro).
 // frames: quantos quadros o efeito tem (padrão 4; mínimo 2).
+// soften: chão com contornos finos da IA, apagados no processamento (tamanho do filtro).
+// mirror: quadros de personagem desenhados virados para a esquerda, espelhados no processamento.
 // facing: efeito com direção; quadros virados para o lado contrário do 1º são espelhados no processamento.
 // wideSheets: folhas em 21:9 sem mudar a quantidade de quadros por folha (asas abertas).
 const CHAR = 'full body, side view facing RIGHT';
@@ -267,6 +269,43 @@ export const ART = {
     poses: {
       idle: 'standing tall, pincers raised, tail curled high', walk_a: 'scuttling, front legs forward', walk_b: 'scuttling, back legs forward',
       windup: 'rearing back with the glowing stinger raised high, about to strike', attack: 'slamming the stinger down into the ground in front, a burst of sand',
+    },
+  },
+  // ---------- Floresta Sombria (a clareira anos depois: escura, corrompida) ----------
+  // a imagem gerada fazia anéis repetidos; o chão é a grama da Clareira, escura e sem cor (a mesma clareira, anos depois)
+  ground_dark: { tile: true, regrade: { from: 'ground', sat: 0.35, tint: [0x70, 0x88, 0x98] }, prompt: `a seamless tileable texture of a dark gloomy forest floor seen from directly above, for a top-down RPG map: deep desaturated blue-green moss with soft large patches of dark brown dead leaves. Very clean and calm: only soft, large, painterly patches. NO individual leaves, NO roots, NO outlines, NO dots, NO objects. Even lighting, fills the whole square image edge to edge` },
+  dead_tree: { h: 74, shadow: true, prompt: `a single cute spooky dead tree with a twisted dark gray trunk, bare crooked branches and a hollow knot like a sad face, front view, like a top-down RPG map object` },
+  thorn_bush: { h: 16, shadow: true, prompt: `a single small dark purple thorny bramble bush with sharp thorns, front view, like a top-down RPG map object` },
+  gravestone: { h: 20, shadow: true, prompt: `a single old cracked rounded stone gravestone with moss and a small crooked cross carved on it, front view, like a top-down RPG map object` },
+  cobweb: { w: 40, prompt: `a flat white spider web stretched between nothing, seen from directly above, round and slightly torn, like a top-down RPG map decal` },
+  cursed_shrine: { h: 40, shadow: true, prompt: `a single small ruined stone shrine altar with a glowing purple cursed crystal on top and cracked pillars, front view, like a top-down RPG map object` },
+  werewolf: {
+    // mirror: o quadro de dano veio com o focinho para a esquerda
+    h: 38, hd: 3, shadow: true, role: 'special', body: 'biped', mirror: ['hurt'],
+    prompt: `a hunched gray werewolf monster standing on two legs, shaggy fur, glowing yellow eyes, big claws, torn purple pants, ${CHAR}`,
+    poses: { windup: 'crouched low on all fours, claws dug in, snarling, about to pounce', attack: 'leaping forward to the RIGHT with claws out and jaws wide open' },
+  },
+  wisp: {
+    h: 20, hd: 3, role: 'monster', body: 'flyer',
+    prompt: `a small cute spooky ghost wisp monster made of pale cyan ghostly flame with a wispy tail, two big hollow eyes, floating, ${CHAR}`,
+    poses: { walk_a: 'floating, tail curled up', walk_mid: 'floating, tail straight behind', walk_b: 'floating, tail curled down', attack: 'lunging forward to the RIGHT with a wide ghostly mouth, flames flaring' },
+  },
+  spider: {
+    h: 22, hd: 3, shadow: true, role: 'monster', body: 'quadruped',
+    prompt: `a chunky dark purple forest spider monster with eight striped legs, a round fuzzy abdomen with a glowing green mark and many shiny eyes, ${CHAR}`,
+    poses: { walk_a: 'scuttling, front legs reaching forward', walk_mid: 'scuttling, legs under the body', walk_b: 'scuttling, back legs pushing', attack: 'rearing up and shooting a glob of sticky white web forward to the RIGHT' },
+  },
+  witch: {
+    h: 36, hd: 3, shadow: true, role: 'special', body: 'biped', hold: 'the gnarled wooden staff with the crackling yellow lightning crystal',
+    prompt: `a creepy old forest witch monster with green skin, a tattered dark purple pointy hat and robe, a long nose, holding a gnarled wooden staff topped with a crackling yellow lightning crystal, ${CHAR}`,
+    poses: { windup: 'raising the staff high, lightning crackling around the crystal', attack: 'pointing the staff forward to the RIGHT, casting a bolt of lightning' },
+  },
+  ancient_ent: {
+    h: 76, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped',
+    prompt: `a giant corrupted ancient tree ent boss monster walking on root legs, dark twisted bark, glowing purple cracks and eyes, crooked branch arms with claws, a few dead leaves, ${CHAR}, menacing`,
+    poses: {
+      idle: 'standing tall, branch arms spread, roaring', walk_a: 'stomping, near root leg forward', walk_b: 'stomping, far root leg forward',
+      windup: 'raising both branch arms high above its head, purple energy gathering', attack: 'slamming both branch arms down into the ground in front, roots bursting up',
     },
   },
   // objetos dos eventos (no lugar dos provisórios desenhados por código)

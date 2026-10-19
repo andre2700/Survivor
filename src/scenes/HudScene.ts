@@ -160,9 +160,12 @@ export class HudScene extends Phaser.Scene {
   }
 
   private announce(msg: string) {
-    this.announceText.setText(msg).setAlpha(1).setScale(1.4);
+    // texto longo encolhe para caber na largura da tela
+    this.announceText.setText(msg).setScale(1);
+    const fit = Math.min(1, (VIEW.screenWidth - 24) / this.announceText.width);
+    this.announceText.setAlpha(1).setScale(1.4 * fit);
     this.tweens.killTweensOf(this.announceText);
-    this.tweens.add({ targets: this.announceText, scale: 1, duration: 260, ease: 'Back.Out' });
+    this.tweens.add({ targets: this.announceText, scale: fit, duration: 260, ease: 'Back.Out' });
     this.tweens.add({ targets: this.announceText, alpha: 0, delay: 2200, duration: 500 });
   }
 

@@ -26,7 +26,7 @@ import {
   applyOption, loadoutModifiers, optionKey, rollOptions, type Loadout, type UpgradeOption,
 } from '../systems/upgrades';
 import { WeaponSystem } from '../systems/weapons';
-import { EnemySkills } from '../systems/enemySkills';
+import { EnemySkills, WEB } from '../systems/enemySkills';
 import { RunEvents } from '../systems/runEvents';
 import { FONT, px } from '../ui/theme';
 
@@ -38,7 +38,7 @@ import { FONT, px } from '../ui/theme';
 /** Aproximação extra da câmera do jogo: personagens maiores na tela do celular. */
 export const WORLD_ZOOM = 1.2;
 /** Decoração de pé (ordem de profundidade pela base), as demais ficam rente ao chão. */
-const UPRIGHT = new Set(['bush', 'stump', 'rock', 'mossy_log', 'cactus', 'desert_rock']);
+const UPRIGHT = new Set(['bush', 'stump', 'rock', 'mossy_log', 'cactus', 'desert_rock', 'thorn_bush', 'gravestone']);
 /** Limites do zoom do jogador: afastar mostra mais da tela (e pesa mais), aproximar mostra o herói maior. */
 export const ZOOM_RANGE = [0.7, 1.8];
 const ZOOM_KEY = 'survivor-zoom';
@@ -106,7 +106,7 @@ export class GameScene extends Phaser.Scene {
   flames!: Phaser.GameObjects.Particles.ParticleEmitter;
   private motes!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dmgTexts: Phaser.GameObjects.Text[] = [];
-  private weapons!: WeaponSystem;
+  weapons!: WeaponSystem;
   elements!: ElementSystem;
 
   char!: CharacterDef;
@@ -172,6 +172,12 @@ export class GameScene extends Phaser.Scene {
   private mud: Phaser.GameObjects.Image[] = [];
   /** névoa do pântano: nuvens nas bordas da tela */
   private fog: { img: Phaser.GameObjects.Image; a: number; r: number; speed: number }[] = [];
+  /** escuridão da floresta: só a área em volta do herói fica clara */
+  private darkness: Phaser.GameObjects.Image | null = null;
+  /** teia da aranha: herói preso (bem mais lento) até este instante (s) */
+  webUntil = 0;
+  /** santuário maldito: inimigos mais fortes e rápidos até este instante (s) */
+  cursedUntil = 0;
 
   constructor() {
     super('Game');
@@ -247,6 +253,9 @@ export class GameScene extends Phaser.Scene {
     this.decor.clear();
     this.fog = [];
     this.mud = [];
+    this.darkness = null;
+    this.webUntil = 0;
+    this.cursedUntil = 0;
 
     const width = this.viewW;
     const height = this.viewH;
@@ -388,6 +397,7 @@ export class GameScene extends Phaser.Scene {
     scrollGround(this.ground, vx - 64, vy - 64);
     this.vignette.setPosition(cam.midPoint.x - this.viewW / 2 - 20, cam.midPoint.y - this.viewH / 2 - 20);
     this.updateFog(cam.midPoint.x, cam.midPoint.y);
+    this.updateDarkness();
     this.motes.setPosition(cam.midPoint.x, cam.midPoint.y);
     this.drawPlayerHp();
     if (this.frame % 15 === 0) this.updateDecor();
@@ -424,7 +434,8 @@ export class GameScene extends Phaser.Scene {
     }
     // poça de lama e areia movediça: o herói anda mais devagar
     const inMud = this.mud.find((m) => ((this.player.x - m.x) / (m.displayWidth * 0.45)) ** 2 + ((this.player.y - m.y) / (m.displayHeight * 0.4)) ** 2 < 1);
-    const speed = moveSpeed(this.stats) * (inMud ? (inMud.getData('mud') as number) : 1);
+    const webbed = this.elapsed < this.webUntil ? WEB.speed : 1;
+    const speed = moveSpeed(this.stats) * (inMud ? (inMud.getData('mud') as number) : 1) * webbed;
     const dt = Math.min(this.game.loop.delta, 50) / 1000;
     this.player.x += x * speed * dt;
     this.player.y += y * speed * dt;
@@ -484,7 +495,8 @@ export class GameScene extends Phaser.Scene {
       this.floatText(this.player.x, this.player.y - 16, 'ESQUIVA', '#a7f070');
       return false;
     }
-    const dmg = damageTaken(amount, this.stats);
+    // maldição do santuário: os golpes inimigos ferem 30% a mais
+    const dmg = damageTaken(amount * (this.elapsed < this.cursedUntil ? 1.3 : 1), this.stats);
     if (!dev.heroImmortal) this.hp -= dmg;
     this.hurtUntil = this.elapsed + 0.25;
     this.cameras.main.shake(80, 0.004);
@@ -609,7 +621,8 @@ export class GameScene extends Phaser.Scene {
       const still = e.boss && t >= e.frozenUntil && this.updateBossAttack(e, d, dx, dy, dt);
       this.elements.update(e, t, dt);
       if (!e.active) continue;
-      const slow = still ? 0 : this.elements.speedFactor(e, t);
+      // maldição do santuário: todos os inimigos 30% mais rápidos
+      const slow = still ? 0 : this.elements.speedFactor(e, t) * (t < this.cursedUntil ? 1.3 : 1);
       let vx = (dx / d) * e.speed * slow;
       let vy = (dy / d) * e.speed * slow;
       // guerra de tribos: com o herói longe, cada guerreiro luta com o rival mais próximo
@@ -645,7 +658,7 @@ export class GameScene extends Phaser.Scene {
         vx = -vx;
         vy = -vy;
       }
-      if (e.def.kind === 'bat' || e.def.kind === 'vulture') {
+      if (e.def.kind === 'bat' || e.def.kind === 'vulture' || e.def.kind === 'wisp') {
         const wob = Math.sin(t * 6 + e.phase) * 25;
         vx += (-dy / d) * wob;
         vy += (dx / d) * wob;
@@ -1271,6 +1284,31 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Escuridão da Floresta Sombria: um véu escuro com um furo em volta do herói (textura de gradiente
+   * criada uma vez, em tamanho de mundo, que cobre a tela em qualquer zoom).
+   */
+  private updateDarkness() {
+    if (this.stage.hazard !== 'dark') return;
+    if (!this.darkness) {
+      if (!this.textures.exists('darkness')) {
+        const tex = this.textures.createCanvas('darkness', 512, 512)!;
+        const ctx = tex.getContext();
+        const g = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+        // centro claro até ~120 px de mundo, escuro a partir de ~300 px (a textura cobre 2400 px)
+        g.addColorStop(0, 'rgba(8,6,20,0)');
+        g.addColorStop(0.1, 'rgba(8,6,20,0)');
+        g.addColorStop(0.25, 'rgba(8,6,20,0.78)');
+        g.addColorStop(1, 'rgba(8,6,20,0.84)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 512, 512);
+        tex.refresh();
+      }
+      this.darkness = this.add.image(0, 0, 'darkness').setDisplaySize(2400, 2400).setDepth(LAYER.fx + 4);
+    }
+    this.darkness.setPosition(this.player.x, this.player.y - 8);
+  }
+
   /** Decoração da fase sorteada pelos pesos dela (r entre 0 e 1). */
   private pickDecor(r: number) {
     const entries = Object.entries(this.stage.decor) as [string, number][];
@@ -1417,6 +1455,7 @@ export class GameScene extends Phaser.Scene {
             // fator de velocidade do herói dentro da mancha
             if (kind === 'mud') patch.setData('mud', 0.6);
             if (kind === 'quicksand') patch.setData('mud', 0.5);
+            if (kind === 'cobweb') patch.setData('mud', 0.7);
             imgs.push(patch);
           }
         }

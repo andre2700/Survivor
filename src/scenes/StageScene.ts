@@ -19,6 +19,7 @@ const MOOD_CHIP: Record<Mood, number> = { leve: 0x9be28a, sério: 0xf0c060, somb
 const EVENT_ICON: Record<RunEventId, [string, number?]> = {
   chest: ['chest'], captive: ['hero_ranger'], surpriseBoss: ['icon_skull', 0xff7a6a], goldenGoblin: ['goblin', 0xffd84a],
   meteors: ['fx_fireball'], ambush: ['icon_skull'], tribeWar: ['scorpion'], sandstorm: ['icon_tornado', 0xe8c070],
+  cursedShrine: ['cursed_shrine'], bloodMoon: ['glow', 0xd02030],
 };
 
 /** Ajusta a imagem para caber em w × h (tamanho lógico, descontando a resolução alta da arte). */
@@ -304,7 +305,7 @@ export class StageScene extends Phaser.Scene {
     });
 
     // perigos e itens do mapa
-    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.patches?.includes('quicksand') ? 'areia movediça' : '—';
+    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão e teias' : st.patches?.includes('quicksand') ? 'areia movediça' : '—';
     add(this.add.text(left + 14, top + 158, `Perigos: ${known ? hazard : '?'}`, { fontFamily: FONT, fontSize: px(10), color: '#ffb08a' }).setOrigin(0, 0.5));
     add(this.add.text(cx + 10, top + 158, 'Itens:', { fontFamily: FONT, fontSize: px(10), color: '#a0e8a0' }).setOrigin(0, 0.5));
     ['icon_magnet', 'bomb', 'heart'].forEach((tex, k) => {

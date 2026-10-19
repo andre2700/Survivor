@@ -377,7 +377,8 @@ export class WeaponSystem {
     return true;
   }
 
-  private drawBolt(x: number, y: number, top: number, awakened: boolean) {
+  /** Raio caindo do alto da tela em (x, y); `color` troca a cor (o raio da bruxa). */
+  drawBolt(x: number, y: number, top: number, awakened: boolean, color?: number) {
     const g = this.scene.add.graphics().setDepth(LAYER.fx + 1);
     const pts: Phaser.Math.Vector2[] = [];
     const segments = 8;
@@ -386,7 +387,7 @@ export class WeaponSystem {
       const jitter = i === 0 || i === segments ? 0 : (Math.random() * 2 - 1) * 8;
       pts.push(new Phaser.Math.Vector2(x + jitter, top + (y - top) * t));
     }
-    const c = awakened ? 0xffcd75 : 0x73eff7;
+    const c = color ?? (awakened ? 0xffcd75 : 0x73eff7);
     g.setBlendMode(Phaser.BlendModes.ADD);
     g.lineStyle(7, c, 0.25).strokePoints(pts);
     g.lineStyle(3, c, 1).strokePoints(pts);
