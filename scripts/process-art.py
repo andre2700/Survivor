@@ -110,6 +110,18 @@ def upright_funnel(im):
     return ImageOps.flip(im) if width(int(h * 0.8), h) > width(0, int(h * 0.2)) else im
 
 
+def funnel_ok(im):
+    """Funil bem formado: largo logo no topo (faixa de 10% a 20% da altura com ao menos 80% da largura
+    máxima). A IA às vezes desenha um quadro com ponta em cima e embaixo."""
+    alpha = im.getchannel('A').point(lambda v: 255 if v > 100 else 0)
+    h = im.height
+    def width(k):
+        b = alpha.crop((0, int(h * k / 10), im.width, int(h * (k + 1) / 10))).getbbox()
+        return b[2] - b[0] if b else 0
+    ws = [width(k) for k in range(10)]
+    return ws[1] >= max(ws) * 0.8
+
+
 def facing(im):
     """Lado para onde a figura aponta: deslocamento (−1 a 1) do centro de massa em relação ao centro
     da caixa. A parte densa (bola de fogo, crista da onda, cabeça do martelo) puxa para o seu lado."""
@@ -407,6 +419,15 @@ def main():
                 if any(f is not g for f, g in zip(frames, fixed)):
                     print(f'  aviso: {name}: quadros de ponta-cabeça desvirados')
                 frames = fixed
+                # quadro com ponta em cima também: vira o espelho de um quadro bom vizinho
+                good = [i for i, f in enumerate(frames) if funnel_ok(f)]
+                if not good:
+                    print(f'  ERRO: {name}: nenhum quadro com forma de funil; gerar de novo')
+                for i, f in enumerate(frames):
+                    if good and i not in good:
+                        j = min(good, key=lambda g: abs(g - i))
+                        print(f'  aviso: {name}: quadro {i + 1} sem forma de funil; trocado pelo espelho do quadro {j + 1}')
+                        frames[i] = ImageOps.mirror(frames[j])
             if a.get('fade'):
                 frames = [fade_bottom(f, a['fade']) for f in frames]
             img = strip(frames, a, a.get('hd', 2), n)
