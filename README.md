@@ -101,3 +101,6 @@ A cada push, o workflow **Build** roda os testes e gera um APK de debug. Para in
 O artefato `survivor-web` contém o jogo em um único `index.html`, que pode ser aberto direto no navegador.
 
 Para publicar nas lojas é preciso gerar builds assinados (keystore no Android; conta Apple Developer no iOS).
+
+## Jogar no navegador (fora do Claude)
+`npm run deploy:pages` compila o jogo num arquivo só e publica na branch `gh-pages`. Com o GitHub Pages ligado nessa branch (Settings → Pages; o repositório precisa ser público no plano grátis), o jogo fica em https://andre2700.github.io/Survivor/. No iPhone, "Compartilhar → Adicionar à Tela de Início" abre em tela cheia.
