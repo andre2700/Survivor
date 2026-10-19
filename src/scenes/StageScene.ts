@@ -1,11 +1,38 @@
 import Phaser from 'phaser';
-import { frameName } from '../art/textures';
-import { STAGES, stageUnlocked, type Mood, type StageDef } from '../data/stages';
+import { frameHd, frameName } from '../art/textures';
+import { ENEMIES, type EnemyId } from '../data/enemies';
+import { STAGES, stageUnlocked, type Mood, type RunEventId, type StageDef } from '../data/stages';
+import { getCharacter } from '../data/characters';
 import { dev } from '../systems/dev';
 import { loadSave, writeSave } from '../systems/save';
 import { sfx } from '../systems/sfx';
 import { FONT, button, goldTitle, panel, px, starIcon, text } from '../ui/theme';
 import { VIEW, WIDE_COL, col, isWide, pointerPos, setupCamera } from '../ui/view';
+
+/** Altura do painel da fase (em pé). */
+const PANEL_H = 292;
+
+/** Cor da etiqueta de clima. */
+const MOOD_CHIP: Record<Mood, number> = { leve: 0x9be28a, sério: 0xf0c060, sombrio: 0x9aa8e8, épico: 0xff7a6a };
+
+/** Ícone de cada mistério (evento) no painel. */
+const EVENT_ICON: Record<RunEventId, [string, number?]> = {
+  chest: ['chest'], captive: ['hero_ranger'], surpriseBoss: ['icon_skull', 0xff7a6a], goldenGoblin: ['goblin', 0xffd84a],
+  meteors: ['fx_fireball'], ambush: ['icon_skull'],
+};
+
+/** Ajusta a imagem para caber em w × h (tamanho lógico, descontando a resolução alta da arte). */
+function fit(img: Phaser.GameObjects.Image, w: number, h: number) {
+  const hd = frameHd(img);
+  img.setScale(Math.min((w * hd) / img.width, (h * hd) / img.height));
+}
+
+/** Inimigos da fase, na ordem em que aparecem (sem o chefe). */
+function stageFoes(st: StageDef): EnemyId[] {
+  const out: EnemyId[] = [];
+  for (const w of st.waves) for (const id of w.pool) if (!out.includes(id) && !ENEMIES[id].boss) out.push(id);
+  return out;
+}
 
 /** Distância vertical entre as fases na trilha. */
 const STEP = 118;
@@ -49,7 +76,7 @@ export class StageScene extends Phaser.Scene {
 
     // céu em faixas, do clima leve (embaixo) ao épico (em cima)
     const mapX = wide ? col(-1) : width / 2;
-    const panelH = wide ? 0 : 214;
+    const panelH = wide ? 0 : PANEL_H + 14;
     const viewH = height - panelH;
     const total = STEP * (STAGES.length - 1) + 160;
     const map = this.add.container(0, 0);
@@ -124,6 +151,26 @@ export class StageScene extends Phaser.Scene {
       map.add(node);
     });
 
+    // o herói escolhido em pé sobre a fase selecionada
+    const sel = this.nodePos(this.selected, mapX, viewH);
+    const heroTex = getCharacter(save.selected).texture;
+    const hero = this.add.image(sel.x + 30, sel.y - 4, 'atlas', frameName(heroTex, 0)).setOrigin(0.5, 1).setScale(0.8);
+    map.add(hero);
+    this.tweens.add({ targets: hero, y: sel.y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    // nuvens passando sobre o mapa
+    const clouds = Array.from({ length: 7 }, (_, i) => {
+      const c = this.add.image(Math.random() * VIEW.screenWidth - VIEW.bleed, this.nodeY(0, viewH) - i * (total / 7), 'atlas', frameName('glow'))
+        .setTint(0xffffff).setAlpha(0.14).setScale(4 + Math.random() * 3, 1.6 + Math.random());
+      map.add(c);
+      return { c, v: 6 + Math.random() * 10 };
+    });
+    this.events.on(Phaser.Scenes.Events.UPDATE, (_t: number, dtMs: number) => {
+      for (const k of clouds) {
+        k.c.x += (k.v * dtMs) / 1000;
+        if (k.c.x > VIEW.width + VIEW.bleed + 120) k.c.x = -VIEW.bleed - 120;
+      }
+    });
+
     // rolagem: começa mostrando a fase escolhida
     const minY = 0;
     const maxY = Math.max(0, total - viewH);
@@ -177,7 +224,7 @@ export class StageScene extends Phaser.Scene {
     return g;
   }
 
-  /** Painel da fase escolhida: nome, clima, elementos, objetivos e o botão de jogar. */
+  /** Painel da fase escolhida: clima, inimigos, chefe, mistérios, perigos, itens, objetivos e o botão de jogar. */
   private renderPanel(unlocked: boolean[]) {
     this.panelObjs.forEach((o) => o.destroy());
     this.panelObjs = [];
@@ -187,31 +234,98 @@ export class StageScene extends Phaser.Scene {
     const save = loadSave();
     const stars = save.stars[st.id] ?? [];
     const on = unlocked[this.selected];
+    const known = on && st.playable;
     const cx = wide ? col(1) : width / 2;
     const pw = wide ? WIDE_COL : width - 20;
-    const ph = 200;
-    const top = wide ? Math.max(56, (height - ph) / 2 + 20) : height - ph - 6;
+    const ph = wide ? Math.min(height - 64, 372) : PANEL_H;
+    const top = wide ? Math.max(52, (height - ph) / 2 + 22) : height - ph - 6;
+    const left = cx - pw / 2;
     const add = <T extends Phaser.GameObjects.GameObject>(o: T) => {
       this.panelObjs.push(o);
       (o as unknown as Phaser.GameObjects.Components.Depth).setDepth?.(10);
       return o;
     };
     add(panel(this, cx, top + ph / 2, pw, ph, 'ui_panel_dark'));
-    add(text(this, cx, top + 20, on ? st.name : '???', 18, '#ffd86a', { bold: true, strokeThickness: 4 }));
-    add(text(this, cx, top + 42, on ? `${st.subtitle} · ${st.elements}` : 'Vença a fase anterior para liberar', 11, '#c8cce0'));
-    st.objectives.forEach((o, k) => {
-      const y = top + 70 + k * 24;
-      add(this.star(cx - pw / 2 + 26, y, 8, !!stars[k], on));
-      const t = this.add.text(cx - pw / 2 + 42, y, on && st.playable ? o.text : '—', { fontFamily: FONT, fontSize: px(12), color: stars[k] ? '#ffe9a0' : '#dfe3f5' }).setOrigin(0, 0.5);
-      add(t);
+    // cabeçalho: nome, clima e elementos
+    add(text(this, left + 14, top + 18, on ? st.name : '???', 17, '#ffd86a', { bold: true, strokeThickness: 4 }).setOrigin(0, 0.5));
+    add(this.add.text(cx + pw / 2 - 14, top + 18, st.mood.toUpperCase(), {
+      fontFamily: FONT, fontSize: px(10), fontStyle: 'bold', color: '#14101e', backgroundColor: `#${MOOD_CHIP[st.mood].toString(16).padStart(6, '0')}`, padding: { x: 6, y: 2 },
+    }).setOrigin(1, 0.5));
+    add(text(this, left + 14, top + 38, on ? `${st.subtitle} · ${st.elements}` : 'Vença a fase anterior para liberar', 10, '#c8cce0').setOrigin(0, 0.5)
+      .setWordWrapWidth(pw - 28));
+
+    // chefe: silhueta com "?" até ser vencido
+    const bossX = cx + pw / 2 - 46;
+    const bossY = top + 98;
+    add(panel(this, bossX, bossY, 72, 80, 'ui_slot'));
+    add(this.add.text(bossX, bossY - 32, 'CHEFE', { fontFamily: FONT, fontSize: px(9), fontStyle: 'bold', color: '#ff9a7a' }).setOrigin(0.5));
+    const bossDef = ENEMIES[st.boss];
+    const beaten = !!stars[0];
+    if (known) {
+      const b = add(this.add.image(bossX, bossY + 34, 'atlas', frameName(bossDef.texture, 0)).setOrigin(0.5, 1));
+      fit(b, 60, 60);
+      if (!beaten) b.setTintFill(0x0b0a14).setAlpha(0.85);
+      this.tweens.add({ targets: b, y: bossY + 32, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      if (!beaten) add(this.add.text(bossX, bossY - 4, '?', { fontFamily: '"Lilita One"', fontSize: px(26), color: '#ff9a7a', stroke: '#14101e', strokeThickness: 4 }).setOrigin(0.5));
+      else add(this.add.text(bossX, bossY + 42, bossDef.name, { fontFamily: FONT, fontSize: px(8), color: '#ffe9a0' }).setOrigin(0.5, 0));
+    } else {
+      add(this.add.text(bossX, bossY, '?', { fontFamily: '"Lilita One"', fontSize: px(26), color: '#6a6c80' }).setOrigin(0.5));
+    }
+
+    // inimigos da fase (silhuetas enquanto a fase está bloqueada)
+    const rowW = pw - 110;
+    add(this.add.text(left + 14, top + 58, 'INIMIGOS', { fontFamily: FONT, fontSize: px(9), fontStyle: 'bold', color: '#8cc8ff' }).setOrigin(0, 0.5));
+    const foes = stageFoes(st).slice(0, 8);
+    const cell = Math.min(34, rowW / Math.max(1, foes.length));
+    foes.forEach((id, k) => {
+      const def = ENEMIES[id];
+      const fx = left + 14 + cell * k + cell / 2;
+      const img = add(this.add.image(fx, top + 96, 'atlas', frameName(def.texture, 0)).setOrigin(0.5, 1));
+      fit(img, cell - 4, 28);
+      if (!known) img.setTintFill(0x14101e).setAlpha(0.7);
+      this.tweens.add({ targets: img, y: top + 94, duration: 500 + k * 70, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     });
+
+    // mistérios: eventos já encontrados aparecem; os outros, "?"
+    const seen = save.seen[st.id] ?? [];
+    add(this.add.text(left + 14, top + 114, 'MISTÉRIOS', { fontFamily: FONT, fontSize: px(9), fontStyle: 'bold', color: '#d6a6ff' }).setOrigin(0, 0.5));
+    st.events.forEach((ev, k) => {
+      const ex = left + 22 + k * 26;
+      const ey = top + 134;
+      add(this.add.circle(ex, ey, 11, 0x14101e, 0.8).setStrokeStyle(1.5, known && seen.includes(ev) ? 0xd6a6ff : 0x4a4a5a));
+      if (known && seen.includes(ev)) {
+        const [tex, tint] = EVENT_ICON[ev];
+        const ic = add(this.add.image(ex, ey, 'atlas', frameName(tex, 0)));
+        fit(ic, 18, 18);
+        if (tint) ic.setTint(tint);
+      } else {
+        add(this.add.text(ex, ey, '?', { fontFamily: '"Lilita One"', fontSize: px(12), color: '#8a8ca0' }).setOrigin(0.5));
+      }
+    });
+
+    // perigos e itens do mapa
+    const hazard = st.hazard === 'fog' ? 'névoa e lama' : '—';
+    add(this.add.text(left + 14, top + 158, `Perigos: ${known ? hazard : '?'}`, { fontFamily: FONT, fontSize: px(10), color: '#ffb08a' }).setOrigin(0, 0.5));
+    add(this.add.text(cx + 10, top + 158, 'Itens:', { fontFamily: FONT, fontSize: px(10), color: '#a0e8a0' }).setOrigin(0, 0.5));
+    ['icon_magnet', 'bomb', 'heart'].forEach((tex, k) => {
+      const ic = add(this.add.image(cx + 48 + k * 20, top + 158, 'atlas', frameName(tex, 0)));
+      fit(ic, 14, 14);
+    });
+
+    // objetivos (estrelas)
+    st.objectives.forEach((o, k) => {
+      const y = top + 182 + k * 20;
+      add(this.star(left + 22, y, 7, !!stars[k], on));
+      add(this.add.text(left + 36, y, known ? o.text : '—', { fontFamily: FONT, fontSize: px(11), color: stars[k] ? '#ffe9a0' : '#dfe3f5' }).setOrigin(0, 0.5));
+    });
+
     const can = on && st.playable;
     const bw = (pw - 36) / 2;
-    add(button(this, cx - bw / 2 - 6, top + ph - 30, 'VOLTAR', () => {
+    add(button(this, cx - bw / 2 - 6, top + ph - 26, 'VOLTAR', () => {
       sfx('select');
       this.scene.start('Menu');
-    }, { width: bw, height: 38, size: 14 }));
-    add(button(this, cx + bw / 2 + 6, top + ph - 30, can ? 'JOGAR' : on ? 'EM BREVE' : 'BLOQUEADA', () => {
+    }, { width: bw, height: 36, size: 14 }));
+    add(button(this, cx + bw / 2 + 6, top + ph - 26, can ? 'JOGAR' : on ? 'EM BREVE' : 'BLOQUEADA', () => {
       if (!can) return;
       sfx('select');
       const s = loadSave();
@@ -219,6 +333,6 @@ export class StageScene extends Phaser.Scene {
       writeSave(s);
       this.cameras.main.fadeOut(220, 11, 10, 20);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Game'));
-    }, { width: bw, height: 38, size: 15, variant: can ? 'primary' : 'normal', disabled: !can }));
+    }, { width: bw, height: 36, size: 15, variant: can ? 'primary' : 'normal', disabled: !can }));
   }
 }

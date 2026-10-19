@@ -147,7 +147,7 @@ export const ART = {
     f3: 'the same wave, foam spraying forward with more droplets', f4: 'the same wave, foam churning, crest slightly lower' }, prompt: `${FX}a big cartoon ocean wave crest seen from the side, curling over to the RIGHT, white foam on top and splash droplets` },
   fx_spike: { h: 28, frames: 2, ground: true, role: 'vfx', effect: 'this same rock spike (same style as the reference)', poses: {
     f1: 'the rock spike just bursting out of the ground: short, with dust and flying debris', f2: 'the rock spike fully emerged, tall and sharp, a few debris chunks falling' }, prompt: `${FX}a sharp brown rock spike erupting from the ground with small flying debris chunks` },
-  fx_tornado: { h: 64, ground: true, role: 'vfx', effect: 'this same tornado funnel (same shape, size and colors as the reference), spinning', poses: {
+  fx_tornado: { h: 64, ground: true, wide_top: true, role: 'vfx', effect: 'this same tornado funnel (same shape, size and colors as the reference), spinning', poses: {
     f1: 'the funnel with swirl stripes and leaves in one position', f2: 'the same funnel, swirl stripes rotated a quarter turn, leaves moved around it',
     f3: 'the same funnel, swirl stripes rotated half a turn, leaves on the other side', f4: 'the same funnel, swirl stripes rotated three quarters, leaves moved again' }, prompt: `${FX}a cartoon tornado whirlwind funnel of pale green and white swirling wind with a few small leaves` },
   // efeitos animados (4 quadros): effect descreve o efeito; poses, cada quadro

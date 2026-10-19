@@ -190,12 +190,13 @@ export class HudScene extends Phaser.Scene {
     this.updateIcons();
     this.updateArrows();
 
-    const boss = g.boss;
+    // chefe da fase; sem ele, o chefe surpresa vivo
+    const boss = g.boss ?? (g.miniBoss?.active ? g.miniBoss : null);
     const showBoss = !!boss && boss.active;
     this.bossPanel.setVisible(showBoss);
     this.bossText.setVisible(showBoss);
     if (showBoss && boss) {
-      this.bossText.setText(boss.def.name.toUpperCase());
+      this.bossText.setText(`${boss.def.name.toUpperCase()}${boss.tag === 'surprise' ? ' GIGANTE' : ''}`);
       const bw = Math.min(width, 400) - 60;
       drawBar(this.bars, (width - bw) / 2, 130, bw, 8, boss.hp / boss.maxHp, COLORS.hp, COLORS.hpBack);
     }

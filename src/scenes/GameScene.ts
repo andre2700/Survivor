@@ -138,6 +138,8 @@ export class GameScene extends Phaser.Scene {
   private spawnAcc = 0;
   private eventsDone = new Set<number>();
   boss: Enemy | null = null;
+  /** chefe surpresa vivo (barra de vida na HUD quando não há chefe da fase) */
+  miniBoss: Enemy | null = null;
   /** fase da partida (escolhida no mapa-múndi) */
   stage!: StageDef;
   /** habilidades dos inimigos à distância, conjuradores e explosivos */
@@ -223,6 +225,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnAcc = 0;
     this.eventsDone.clear();
     this.boss = null;
+    this.miniBoss = null;
     this.bossSpawned = false;
     this.endless = false;
     this.endlessStart = 0;

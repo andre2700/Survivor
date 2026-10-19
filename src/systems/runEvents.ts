@@ -6,12 +6,15 @@ import { walkPose } from '../art/motion';
 import { frameName, slotsOf } from '../art/textures';
 import { CHARACTERS, type CharacterDef } from '../data/characters';
 import { ENEMIES, type EnemyId } from '../data/enemies';
+import { WEAPONS, weaponStatsAt } from '../data/weapons';
+import { damageMult } from '../core/stats';
 import type { RunEventId } from '../data/stages';
 import { waveAt } from '../data/waves';
 import type { Enemy } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
 import { moveSpeed } from '../core/stats';
 import { waveClock } from './dev';
+import { loadSave, writeSave } from './save';
 import { sfx } from './sfx';
 
 /** Ponto de interesse: a HUD mostra uma seta na borda da tela quando ele está fora da vista. */
@@ -105,6 +108,13 @@ export class RunEvents {
 
   start(id: RunEventId) {
     this.done.add(id);
+    // o mapa-múndi passa a mostrar este mistério da fase
+    const save = loadSave();
+    const seen = (save.seen[this.scene.stage.id] ??= []);
+    if (!seen.includes(id)) {
+      seen.push(id);
+      writeSave(save);
+    }
     this.scene.events.emit('announce', TITLES[id]);
     sfx('boss');
     switch (id) {
@@ -263,20 +273,32 @@ export class RunEvents {
     if (a.cooldown > 0) return;
     const target = sc.nearestEnemies(a.img.x, a.img.y, 1, 170)[0];
     if (!target) return;
-    a.cooldown = 0.6;
-    const dmg = 6 + sc.level * 1.5;
+    // força relevante: a arma inicial dele num nível que acompanha o seu, com os seus bônus de dano
+    const w = WEAPONS[a.hero.weapon];
+    const lvl = Math.max(3, Math.ceil(sc.level * 0.7) + sc.stageIndex * 2);
+    const st = weaponStatsAt(w, lvl);
+    const dmg = st.damage * damageMult(sc.stats) * 1.3;
+    a.cooldown = Math.max(0.3, st.cooldown * 0.6);
     const ang = Math.atan2(target.y - a.img.y, target.x - a.img.x);
     a.img.setFlipX(Math.cos(ang) < 0);
     const ranged = a.hero.weapon === 'wand' || a.hero.weapon === 'knives';
     if (ranged) {
-      const pr = sc.projectiles.get();
-      if (!pr) return;
-      const tex = a.hero.weapon === 'wand' ? 'proj_bolt' : 'proj_knife';
-      pr.fire(a.hero.weapon === 'wand' ? 'bolt' : 'knife', tex, a.img.x, a.img.y - 6, Math.cos(ang) * 280, Math.sin(ang) * 280, dmg, 1, 1.2, 1, a.hero.weapon === 'wand' ? 'light' : 'physical', 0.5);
-      pr.owner = null;
-    } else if (Math.hypot(target.x - a.img.x, target.y - a.img.y) < 40) {
-      sc.hitEnemy(target, dmg * 1.6, 1, 'physical', true, 0.5);
-      sc.impact(target.x, target.y - 4, 0xffffff, 0.6);
+      // leque de projéteis (a quantidade da arma no nível dele)
+      const n = Math.min(6, Math.floor(st.amount) + 1);
+      for (let i = 0; i < n; i++) {
+        const pr = sc.projectiles.get();
+        if (!pr) break;
+        const ai = ang + (i - (n - 1) / 2) * 0.18;
+        const tex = a.hero.weapon === 'wand' ? 'proj_bolt' : 'proj_knife';
+        pr.fire(a.hero.weapon === 'wand' ? 'bolt' : 'knife', tex, a.img.x, a.img.y - 6, Math.cos(ai) * 300, Math.sin(ai) * 300, dmg, 2 + Math.floor(st.pierce), 1.2, 1, w.element, 0.6);
+        pr.owner = null;
+      }
+    } else if (Math.hypot(target.x - a.img.x, target.y - a.img.y) < 44) {
+      // golpe em área em volta do alvo
+      sc.queryEnemies(target.x, target.y, 56, (o) => {
+        if (o.active && (o.x - target.x) ** 2 + (o.y - target.y) ** 2 < 46 * 46) sc.hitEnemy(o, dmg * 1.4, 1.2, w.element, true, 0.6);
+      });
+      sc.impact(target.x, target.y - 4, 0xffffff, 1.2);
     } else {
       a.cooldown = 0.1;
       // corre até o alvo
@@ -294,12 +316,21 @@ export class RunEvents {
     const { x, y } = this.away(180, 220);
     const e = sc.spawnEnemy(ENEMIES[id], x, y, true);
     if (!e) return;
+    // desafiador: um elite gigante com vida de chefe, golpe de chefe (pancada com aviso no chão),
+    // dano dobrado e Resistência alta
     e.tag = 'surprise';
-    e.baseScale *= 1.5;
-    e.radius *= 1.5;
-    e.maxHp *= 3;
+    e.boss = true;
+    e.baseScale *= 1.8;
+    e.radius *= 1.8;
+    e.maxHp *= 8;
     e.hp = e.maxHp;
+    e.damage *= 2;
+    e.speed *= 1.1;
+    e.resist = Math.max(e.resist, 0.6);
+    e.attackPhase = 'walk';
+    e.attackTimer = 2;
     e.setTint(0xff9a8a);
+    sc.miniBoss = e;
     this.surprises.push(e);
     sc.events.emit('announce', `CHEFE SURPRESA: ${ENEMIES[id].name.toUpperCase()} GIGANTE!`);
   }
@@ -349,9 +380,10 @@ export class RunEvents {
         sc.elements.vfx('vfx_explosion', x, y + r * 0.5, r * 2.1, [[0, 0.04], [1, 0.06], [2, 0.12], [3, 0.28]]);
         sfx('boom');
         const p = sc.player;
-        if ((p.x - x) ** 2 + ((p.y - y) / 0.75) ** 2 < (r + 6) ** 2) sc.hurtPlayer(20 * sc.stage.difficulty);
+        // cataclismo: fere o herói e os inimigos igualmente (todo cataclismo segue esta regra)
+        if ((p.x - x) ** 2 + ((p.y - y) / 0.75) ** 2 < (r + 6) ** 2) sc.hurtPlayer(Math.max(15, sc.stats.maxHp * 0.12) * sc.stage.difficulty);
         sc.queryEnemies(x, y, r + 16, (e) => {
-          if (e.active && (e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.radius) ** 2) sc.elementalDamage(e, 60 + sc.level * 8, '#ff9a5a');
+          if (e.active && (e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.radius) ** 2) sc.elementalDamage(e, Math.max(80, e.maxHp * 0.35), '#ff9a5a');
         });
       },
     });

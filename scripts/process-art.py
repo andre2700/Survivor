@@ -100,6 +100,16 @@ def body_center(im):
     return sorted(xs)[len(xs) // 2] if xs else w / 2
 
 
+def upright_funnel(im):
+    """Desvira o quadro se a base (20% de baixo) for mais larga que o topo."""
+    alpha = im.getchannel('A').point(lambda v: 255 if v > 100 else 0)
+    h = im.height
+    def width(y0, y1):
+        b = alpha.crop((0, y0, im.width, y1)).getbbox()
+        return b[2] - b[0] if b else 0
+    return ImageOps.flip(im) if width(int(h * 0.8), h) > width(0, int(h * 0.2)) else im
+
+
 def fade_bottom(im, frac):
     """Base que some aos poucos (efeitos que encostam no chão, como a onda)."""
     ramp = Image.new('L', im.size, 255)
@@ -354,6 +364,12 @@ def main():
             frames = slice_sheet(sheet, n)
             if a.get('flip'):
                 frames = [ImageOps.mirror(f) for f in frames]
+            if a.get('wide_top'):
+                # funil (tornado): largo em cima; quadro que veio de ponta-cabeça é desvirado
+                fixed = [upright_funnel(f) for f in frames]
+                if any(f is not g for f, g in zip(frames, fixed)):
+                    print(f'  aviso: {name}: quadros de ponta-cabeça desvirados')
+                frames = fixed
             if a.get('fade'):
                 frames = [fade_bottom(f, a['fade']) for f in frames]
             img = strip(frames, a, a.get('hd', 2), n)

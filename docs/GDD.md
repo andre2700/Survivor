@@ -70,6 +70,7 @@ Dados em `src/data/elements.ts`; lógica em `src/systems/elements.ts`.
 **Comportamentos de inimigo:** corpo a corpo (o atual); à distância (mantém distância e atira, com aviso); conjurador (usa uma habilidade do herói com nível, que cresce com a fase e o tempo — ex.: Bola de Fogo nv 3); explosivo (corre, pisca e explode); depois: escudeiro, invocador/totem, divisor, escavador.
 
 **Eventos aleatórios na partida:** baú guardado por elites; prisioneiro numa jaula (libertar = aliado temporário que luta com você); chefe surpresa; goblin dourado que foge com tesouro; chuva de meteoros; emboscada de elites; depois: guerra entre tribos (criaturas brigando entre si e contra o herói), santuário (escolha arriscada), mercador, totens que enfraquecem o chefe, ninhos.
+- **Regras dos eventos:** cataclismos (chuva de meteoros, tempestade de areia...) ferem o herói **e** os inimigos (herói: 12% da vida máx.; inimigos: 35% da vida). Aliados têm força relevante: usam a arma inicial deles num nível que acompanha o do herói (70% do nível + 2 por fase) com os bônus de dano do herói. Chefes surpresa são desafiadores: elite gigante com 8× a vida de elite, dano dobrado, Resistência alta, pancada de chefe com aviso e barra de vida na tela.
 
 **Exploração:** itens pelo mapa (cura, ímã, bomba, relíquias); setas na borda da tela apontam para eventos e pontos de interesse.
 
