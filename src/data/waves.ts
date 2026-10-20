@@ -43,9 +43,19 @@ export function waveAt(seconds: number, waves: Wave[] = WAVES): Wave {
   return current;
 }
 
-/** Vida dos inimigos cresce com o tempo da partida padrão. */
+/**
+ * Vida dos inimigos ao longo da partida padrão: cresce cada vez mais rápido (×11 aos 15 min), para
+ * acompanhar a força que o herói ganha subindo de nível. Sem isso, uma partida que "decola" passava
+ * por todos os chefes de uma vez.
+ */
 export function hpMultiplier(seconds: number): number {
-  return 1 + (Math.min(seconds, RUN_DURATION) / 60) * 0.35;
+  const m = Math.min(seconds, RUN_DURATION) / 60;
+  return 1 + m * 0.3 + m * m * 0.025;
+}
+
+/** Dano dos inimigos ao longo da partida padrão (×1,75 aos 15 min). */
+export function damageMultiplier(seconds: number): number {
+  return 1 + (Math.min(seconds, RUN_DURATION) / 60) * 0.05;
 }
 
 /** Multiplicadores do modo infinito por ciclo (exponenciais, sem teto). */

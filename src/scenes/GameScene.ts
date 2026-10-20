@@ -17,7 +17,7 @@ import { metaModifiers } from '../data/meta';
 import { tierName, tierScaling } from '../data/difficulty';
 import { ELEMENT_COLORS, WEAPON_IDS, type Element, type WeaponId } from '../data/weapons';
 import {
-  ENDLESS_CYCLE, MAX_ENEMIES, RUN_DURATION, endlessScaling, hpMultiplier, isEliteTime, waveAt, xpToNext,
+  ENDLESS_CYCLE, MAX_ENEMIES, RUN_DURATION, damageMultiplier, endlessScaling, hpMultiplier, isEliteTime, waveAt, xpToNext,
 } from '../data/waves';
 import { Enemy, Pickup, Pool, Projectile, type PickupKind } from '../entities';
 import { loadSave, writeSave } from '../systems/save';
@@ -588,9 +588,10 @@ export class GameScene extends Phaser.Scene {
 
   /** Multiplicadores da partida: tempo, fase, dificuldade escolhida e ciclo do modo infinito. */
   private difficulty() {
-    const k = stageScaling(this.stage);
+    const clock = waveClock(this.elapsed);
+    const k = stageScaling(this.stage, this.endless ? 1 : clock / RUN_DURATION);
     const tier = tierScaling(this.tier);
-    if (!this.endless) return { hp: hpMultiplier(waveClock(this.elapsed)) * k.hp * tier.hp, damage: k.damage * tier.damage, reward: k.reward * tier.reward };
+    if (!this.endless) return { hp: hpMultiplier(clock) * k.hp * tier.hp, damage: damageMultiplier(clock) * k.damage * tier.damage, reward: k.reward * tier.reward };
     const s = endlessScaling(this.cycle);
     return { hp: hpMultiplier(RUN_DURATION) * s.hp * k.hp * tier.hp, damage: s.damage * k.damage * tier.damage, reward: s.reward * k.reward * tier.reward };
   }
@@ -984,7 +985,9 @@ export class GameScene extends Phaser.Scene {
     const def = ENEMIES[this.stage.bosses[index]];
     const e = this.spawnEnemy(def);
     if (e) {
-      e.maxHp = Math.round(def.hp * scale * stageScaling(this.stage).hp * tierScaling(this.tier).hp);
+      // a vida do chefe acompanha o momento em que ele chega (meio e final bem mais fortes)
+      const at = Math.sqrt(hpMultiplier((RUN_DURATION / 3) * (index + 1)));
+      e.maxHp = Math.round(def.hp * scale * at * stageScaling(this.stage).hp * tierScaling(this.tier).hp);
       e.hp = e.maxHp;
       this.bossAI.start(e);
       this.mainBosses.push(e);

@@ -228,10 +228,14 @@ export const STAGES: StageDef[] = [
   soon('cidadela', 'Cidadela Demoníaca', 'O fim da jornada', 'épico', 'todos', 0xb0202a),
 ];
 
-/** Multiplicadores da fase: vida cheia, dano e recompensa crescem um pouco menos. */
-export function stageScaling(st: StageDef) {
-  const d = st.difficulty;
-  return { hp: d, damage: Math.pow(d, 0.75), reward: Math.pow(d, 0.85) };
+/**
+ * Multiplicadores da fase: vida cheia, dano e recompensa crescem um pouco menos. `progress` (0 a 1,
+ * o andamento da partida) suaviza o começo: a força da fase entra aos poucos (75% do expoente no
+ * início, tudo no fim), para a fase nova derrotar rápido sem matar no primeiro minuto.
+ */
+export function stageScaling(st: StageDef, progress = 1) {
+  const d = Math.pow(st.difficulty, 0.75 + 0.25 * Math.min(1, Math.max(0, progress)));
+  return { hp: d, damage: Math.pow(d, 0.75), reward: Math.pow(st.difficulty, 0.85) };
 }
 
 /** Chefe final da fase (o que vale a estrela de vencer e libera a próxima). */
