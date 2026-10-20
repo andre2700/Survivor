@@ -183,7 +183,7 @@ export const STAGES: StageDef[] = [
     ground: 'ground_swamp', hazard: 'fog', swarm: 'mosquito', ring: ['frog', 'croc'],
     decor: { swamp_tree: 6, reeds: 34, mossy_log: 8, glowshroom: 14, rock: 6, bush: 8, tallgrass: 20 },
     tall: ['swamp_tree'], patches: ['lilypond', 'mud', 'mud'],
-    waves: SWAMP_WAVES, bosses: ['croc_king', 'grand_frog_shaman', 'frog_king'], difficulty: 7,
+    waves: SWAMP_WAVES, bosses: ['croc_king', 'grand_frog_shaman', 'frog_king'], difficulty: 4.5,
     events: ['chest', 'captive', 'surpriseBoss', 'goldenGoblin', 'meteors', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Rei Sapo' },
@@ -198,7 +198,7 @@ export const STAGES: StageDef[] = [
     decor: { cactus: 10, palm: 3, desert_rock: 10, bones: 8, dry_bush: 16 },
     tall: ['palm'], patches: ['quicksand'],
     tribes: [{ name: 'Escorpiões', pool: ['scorpion', 'scorpion', 'sandworm'] }, { name: 'Lagartos', pool: ['lizard_shaman', 'goblin_earth'] }],
-    waves: DUNES_WAVES, bosses: ['colossal_worm', 'lizard_elder', 'scorpion_emperor'], difficulty: 16,
+    waves: DUNES_WAVES, bosses: ['colossal_worm', 'lizard_elder', 'scorpion_emperor'], difficulty: 7,
     events: ['chest', 'captive', 'surpriseBoss', 'tribeWar', 'sandstorm', 'goldenGoblin', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Imperador Escorpião' },
@@ -214,7 +214,7 @@ export const STAGES: StageDef[] = [
     decor: { dead_tree: 6, tree: 2, thorn_bush: 12, gravestone: 7, rock: 6, mushroom: 6, stump: 5, tallgrass: 22 },
     tall: ['dead_tree', 'tree'], patches: ['cobweb', 'dirt'],
     tribes: [{ name: 'Lobisomens', pool: ['werewolf', 'wolf'] }, { name: 'Aranhas', pool: ['spider', 'spider', 'wisp'] }],
-    waves: DARK_WAVES, bosses: ['werewolf_alpha', 'elder_witch', 'ancient_ent'], difficulty: 35,
+    waves: DARK_WAVES, bosses: ['werewolf_alpha', 'elder_witch', 'ancient_ent'], difficulty: 11,
     events: ['chest', 'captive', 'surpriseBoss', 'cursedShrine', 'bloodMoon', 'tribeWar', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Ent Ancião Corrompido' },
