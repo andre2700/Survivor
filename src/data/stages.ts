@@ -230,11 +230,11 @@ export const STAGES: StageDef[] = [
 
 /**
  * Multiplicadores da fase: vida cheia, dano e recompensa crescem um pouco menos. `progress` (0 a 1,
- * o andamento da partida) suaviza o começo: a força da fase entra aos poucos (75% do expoente no
- * início, tudo no fim), para a fase nova derrotar rápido sem matar no primeiro minuto.
+ * o andamento da partida) suaviza um pouco o começo (90% do expoente no início, tudo no fim),
+ * para a fase nova derrotar rápido sem matar no primeiro minuto.
  */
 export function stageScaling(st: StageDef, progress = 1) {
-  const d = Math.pow(st.difficulty, 0.75 + 0.25 * Math.min(1, Math.max(0, progress)));
+  const d = Math.pow(st.difficulty, 0.9 + 0.1 * Math.min(1, Math.max(0, progress)));
   return { hp: d, damage: Math.pow(d, 0.75), reward: Math.pow(st.difficulty, 0.85) };
 }
 
