@@ -41,11 +41,14 @@ interface BossState {
   baseSpeed: number;
 }
 
-/** Números gerais dos golpes. */
+/**
+ * Números gerais dos golpes. Regra: toda área marcada dá tempo de fugir andando (o herói anda
+ * 60 px/s sem melhorias): raio ≤ velocidade × tempo de aviso.
+ */
 const MOVES = {
-  slam: { windup: 0.9, reach: 40, radius: 56, recover: 0.45 },
-  leap: { windup: 0.45, again: 0.3, air: 0.85, height: 90, recover: 0.5 },
-  charge: { windup: 0.6, again: 0.35, speed: 430, overshoot: 70, recover: 0.6 },
+  slam: { windup: 1, reach: 40, radius: 50, maxRadius: 62, recover: 0.45 },
+  leap: { windup: 0.5, again: 0.4, air: 1.1, height: 90, radius: 55, maxRadius: 72, recover: 0.5 },
+  charge: { windup: 0.75, again: 0.5, speed: 430, overshoot: 70, halfWidth: 30, recover: 0.6 },
   volley: { windup: 0.7, recover: 0.45 },
   nova: { windup: 0.9, recover: 0.5 },
   rain: { windup: 0.5, recover: 0.7 },
@@ -214,10 +217,17 @@ export class BossAI {
         st.until = t + MOVES.slam.windup;
         break;
       }
-      case 'leap':
+      case 'leap': {
+        // o círculo de pouso aparece já na preparação, onde o herói está agora
+        st.tx = p.x;
+        st.ty = p.y;
         st.until = t + (again ? MOVES.leap.again : MOVES.leap.windup);
+        const r = this.landRadius(e);
+        g.fillStyle(0xff3020, 0.22).fillEllipse(st.tx, st.ty, r * 2, r * 1.6);
+        g.lineStyle(3, 0xff3020, 0.9).strokeEllipse(st.tx, st.ty, r * 2, r * 1.6);
         sc.tweens.add({ targets: e, scaleY: e.baseScale * 0.82, duration: (st.until - t) * 900, yoyo: true });
         break;
+      }
       case 'charge': {
         // faixa no chão até um pouco depois do herói
         const len = Math.hypot(p.x - e.x, p.y - e.y) + MOVES.charge.overshoot;
@@ -225,7 +235,7 @@ export class BossAI {
         st.sy = e.y;
         st.tx = e.x + Math.cos(a) * len;
         st.ty = e.y + Math.sin(a) * len;
-        const half = e.radius * 0.9;
+        const half = Math.min(e.radius * 0.8, MOVES.charge.halfWidth);
         const nx = -Math.sin(a) * half;
         const ny = Math.cos(a) * half;
         g.fillStyle(0xff5a2a, 0.22).fillPoints([{ x: e.x + nx, y: e.y + ny }, { x: st.tx + nx, y: st.ty + ny }, { x: st.tx - nx, y: st.ty - ny }, { x: e.x - nx, y: e.y - ny }] as Phaser.Math.Vector2[], true);
@@ -335,19 +345,17 @@ export class BossAI {
         return this.recover(e, st, MOVES.slam.recover);
       }
       case 'leap': {
-        // pula até onde o herói está agora; o círculo de pouso aparece já
+        // pula até o círculo marcado na preparação (o aviso continua até o pouso)
         st.sx = e.x;
         st.sy = e.y;
-        st.tx = p.x;
-        st.ty = p.y;
         st.t0 = t;
         st.dur = MOVES.leap.air;
         e.intangible = true;
         const r = this.landRadius(e);
         const g = sc.add.graphics().setDepth(LAYER.groundFx + 1);
-        g.fillStyle(0xff3020, 0.22).fillEllipse(st.tx, st.ty, r * 2, r * 1.6);
-        g.lineStyle(3, 0xff3020, 0.9).strokeEllipse(st.tx, st.ty, r * 2, r * 1.6);
-        sc.tweens.add({ targets: g, alpha: { from: 0.4, to: 1 }, duration: st.dur * 1000, onComplete: () => g.destroy() });
+        g.fillStyle(0xff3020, 0.3).fillEllipse(st.tx, st.ty, r * 2, r * 1.6);
+        g.lineStyle(3, 0xff3020, 1).strokeEllipse(st.tx, st.ty, r * 2, r * 1.6);
+        sc.tweens.add({ targets: g, alpha: { from: 0.5, to: 1 }, duration: st.dur * 1000, onComplete: () => g.destroy() });
         sfx('whoosh');
         return;
       }
@@ -450,10 +458,10 @@ export class BossAI {
   }
 
   slamRadius(e: Enemy) {
-    return Math.max(MOVES.slam.radius, e.radius * 1.5);
+    return Phaser.Math.Clamp(e.radius * 1.3, MOVES.slam.radius, MOVES.slam.maxRadius);
   }
 
   private landRadius(e: Enemy) {
-    return Math.max(60, e.radius * 1.9);
+    return Phaser.Math.Clamp(e.radius * 1.6, MOVES.leap.radius, MOVES.leap.maxRadius);
   }
 }
