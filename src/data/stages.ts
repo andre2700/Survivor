@@ -1,5 +1,6 @@
 // Fases do mundo (Marco 3, ver docs/GDD.md). Cada fase tem aparência, ondas, chefe, eventos e três
 // objetivos (estrelas). As primeiras são coloridas e leves; o mundo fica mais sombrio e épico.
+import type { TierProgress } from './difficulty';
 import type { EnemyId } from './enemies';
 import { WAVES, type Wave } from './waves';
 
@@ -52,7 +53,8 @@ export interface StageDef {
   swarm?: EnemyId;
   ring?: [EnemyId, EnemyId];
   waves: Wave[];
-  boss: EnemyId;
+  /** os três chefes da fase: início (5 min), meio (10 min) e final (15 min, com fase 2) */
+  bosses: [EnemyId, EnemyId, EnemyId];
   /** multiplicador de vida e dano dos inimigos */
   difficulty: number;
   events: RunEventId[];
@@ -144,7 +146,7 @@ function soon(id: StageId, name: string, subtitle: string, mood: Mood, elements:
   return {
     id, name, subtitle, mood, elements, playable: false, color,
     tint: { ground: 0xffffff, decor: 0xffffff, sky: '#2f6a3a' }, decor: FOREST_DECOR,
-    waves: WAVES, boss: 'demon', difficulty: 1, events: [],
+    waves: WAVES, bosses: ['king_slime', 'alpha_wolf', 'demon'], difficulty: 1, events: [],
     objectives: [{ kind: 'boss', text: 'Derrote o chefe' }, { kind: 'boss', text: '—' }, { kind: 'boss', text: '—' }],
   };
 }
@@ -153,7 +155,7 @@ export const STAGES: StageDef[] = [
   {
     id: 'clareira', name: 'Clareira Ensolarada', subtitle: 'Onde toda lenda começa', mood: 'leve', elements: 'neutro', playable: true,
     tint: { ground: 0xffffff, decor: 0xffffff, sky: '#2f6a3a' }, decor: FOREST_DECOR, color: 0x7fd36a,
-    waves: WAVES, boss: 'demon', difficulty: 1,
+    waves: WAVES, bosses: ['king_slime', 'alpha_wolf', 'demon'], difficulty: 1,
     events: ['chest', 'captive', 'goldenGoblin', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Demônio Ancestral' },
@@ -164,7 +166,7 @@ export const STAGES: StageDef[] = [
   {
     id: 'outono', name: 'Bosque Outonal', subtitle: 'As folhas caem, os slimes cospem', mood: 'leve', elements: 'fogo e terra', playable: true,
     tint: { ground: 0xffa860, decor: 0xff9a50, sky: '#6a4a2a' }, decor: { ...FOREST_DECOR, flowers: 6, mushroom: 16, stump: 8 }, color: 0xf0a040,
-    waves: AUTUMN_WAVES, boss: 'orc_chief', difficulty: 1.3,
+    waves: AUTUMN_WAVES, bosses: ['magma_lord', 'goblin_warlord', 'orc_chief'], difficulty: 1.3,
     events: ['chest', 'captive', 'surpriseBoss', 'goldenGoblin', 'meteors', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Chefe Orc' },
@@ -178,7 +180,7 @@ export const STAGES: StageDef[] = [
     ground: 'ground_swamp', hazard: 'fog', swarm: 'mosquito', ring: ['frog', 'croc'],
     decor: { swamp_tree: 6, reeds: 34, mossy_log: 8, glowshroom: 14, rock: 6, bush: 8, tallgrass: 20 },
     tall: ['swamp_tree'], patches: ['lilypond', 'mud', 'mud'],
-    waves: SWAMP_WAVES, boss: 'frog_king', difficulty: 1.6,
+    waves: SWAMP_WAVES, bosses: ['croc_king', 'grand_frog_shaman', 'frog_king'], difficulty: 1.6,
     events: ['chest', 'captive', 'surpriseBoss', 'goldenGoblin', 'meteors', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Rei Sapo' },
@@ -193,7 +195,7 @@ export const STAGES: StageDef[] = [
     decor: { cactus: 10, palm: 3, desert_rock: 10, bones: 8, dry_bush: 16 },
     tall: ['palm'], patches: ['quicksand'],
     tribes: [{ name: 'Escorpiões', pool: ['scorpion', 'scorpion', 'sandworm'] }, { name: 'Lagartos', pool: ['lizard_shaman', 'goblin_earth'] }],
-    waves: DUNES_WAVES, boss: 'scorpion_emperor', difficulty: 1.9,
+    waves: DUNES_WAVES, bosses: ['colossal_worm', 'lizard_elder', 'scorpion_emperor'], difficulty: 1.9,
     events: ['chest', 'captive', 'surpriseBoss', 'tribeWar', 'sandstorm', 'goldenGoblin', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Imperador Escorpião' },
@@ -209,7 +211,7 @@ export const STAGES: StageDef[] = [
     decor: { dead_tree: 6, tree: 2, thorn_bush: 12, gravestone: 7, rock: 6, mushroom: 6, stump: 5, tallgrass: 22 },
     tall: ['dead_tree', 'tree'], patches: ['cobweb', 'dirt'],
     tribes: [{ name: 'Lobisomens', pool: ['werewolf', 'wolf'] }, { name: 'Aranhas', pool: ['spider', 'spider', 'wisp'] }],
-    waves: DARK_WAVES, boss: 'ancient_ent', difficulty: 2.3,
+    waves: DARK_WAVES, bosses: ['werewolf_alpha', 'elder_witch', 'ancient_ent'], difficulty: 2.3,
     events: ['chest', 'captive', 'surpriseBoss', 'cursedShrine', 'bloodMoon', 'tribeWar', 'ambush'],
     objectives: [
       { kind: 'boss', text: 'Derrote o Ent Ancião Corrompido' },
@@ -223,11 +225,17 @@ export const STAGES: StageDef[] = [
   soon('cidadela', 'Cidadela Demoníaca', 'O fim da jornada', 'épico', 'todos', 0xb0202a),
 ];
 
+/** Chefe final da fase (o que vale a estrela de vencer e libera a próxima). */
+export const finalBoss = (st: StageDef) => st.bosses[2];
+
+/** Nome de cada terço da partida, na ordem dos chefes. */
+export const BOSS_STAGES = ['início', 'meio', 'final'] as const;
+
 export function getStage(id: string | undefined): StageDef {
   return STAGES.find((s) => s.id === id) ?? STAGES[0];
 }
 
-/** Fase liberada: a primeira sempre; as outras quando o chefe da anterior foi vencido. */
-export function stageUnlocked(i: number, stars: Partial<Record<StageId, boolean[]>>, all = false): boolean {
-  return all || i === 0 || !!stars[STAGES[i - 1].id]?.[0];
+/** Fase liberada: a primeira sempre; as outras quando o chefe final da anterior foi vencido (no Normal). */
+export function stageUnlocked(i: number, tiers: Partial<Record<StageId, TierProgress[]>>, all = false): boolean {
+  return all || i === 0 || !!tiers[STAGES[i - 1].id]?.[0]?.stars[0];
 }

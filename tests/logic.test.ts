@@ -218,8 +218,10 @@ describe('ondas e progressão', () => {
   });
   it('melhorias permanentes sem teto têm preço crescente', () => {
     const def = META_UPGRADES.find((d) => d.id === 'power')!;
-    expect(def.maxLevel).toBeUndefined();
     expect(metaCost(def, 50)).toBeGreaterThan(metaCost(def, 49));
+    // as que podem quebrar o jogo ficam caríssimas rápido
+    const revival = META_UPGRADES.find((d) => d.id === 'revival')!;
+    expect(metaCost(revival, 5)).toBeGreaterThan(100000);
     const mods = metaModifiers({ power: 10 });
     expect(mods[0].flat).toBeCloseTo(0.5);
   });
@@ -232,6 +234,11 @@ describe('ondas e progressão', () => {
     expect(s.meta.defense).toBe(1);
     expect(s.meta.reroll).toBe(1);
     expect(s.gold).toBe(50);
+  });
+  it('estrelas antigas viram o progresso da dificuldade Normal', () => {
+    const s = migrate({ version: 2, stars: { clareira: [true, false, true] } });
+    expect(s.tiers.clareira?.[0]).toEqual({ stars: [true, false, true], bosses: 3 });
+    expect((s as unknown as { stars?: unknown }).stars).toBeUndefined();
   });
 });
 
@@ -265,13 +272,13 @@ describe('fases', () => {
   it('a próxima fase libera ao vencer o chefe da anterior', () => {
     expect(stageUnlocked(0, {})).toBe(true);
     expect(stageUnlocked(1, {})).toBe(false);
-    expect(stageUnlocked(1, { clareira: [true, false, false] })).toBe(true);
-    expect(stageUnlocked(2, { clareira: [true, false, false] })).toBe(false);
+    expect(stageUnlocked(1, { clareira: [{ stars: [true, false, false], bosses: 3 }] })).toBe(true);
+    expect(stageUnlocked(2, { clareira: [{ stars: [true, false, false], bosses: 3 }] })).toBe(false);
     expect(stageUnlocked(5, {}, true)).toBe(true);
   });
   it('fases jogáveis têm chefe, ondas com inimigos existentes e o evento do objetivo', () => {
     for (const st of STAGES.filter((s) => s.playable)) {
-      expect(ENEMIES[st.boss].boss, st.id).toBe(true);
+      for (const b of st.bosses) expect(ENEMIES[b].boss, `${st.id}:${b}`).toBe(true);
       for (const w of st.waves) for (const id of w.pool) expect(ENEMIES[id], `${st.id}:${id}`).toBeDefined();
       for (const o of st.objectives) if (o.kind === 'event') expect(st.events).toContain(o.event);
     }

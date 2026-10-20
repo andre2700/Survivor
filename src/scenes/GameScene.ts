@@ -14,18 +14,20 @@ import {
 import { getCharacter, type CharacterDef } from '../data/characters';
 import { DEATH_TINT, ENEMIES, controlRoll, type EnemyDef, type EnemyId } from '../data/enemies';
 import { metaModifiers } from '../data/meta';
+import { tierName, tierScaling } from '../data/difficulty';
 import { ELEMENT_COLORS, WEAPON_IDS, type Element, type WeaponId } from '../data/weapons';
 import {
   ENDLESS_CYCLE, MAX_ENEMIES, RUN_DURATION, endlessScaling, hpMultiplier, isEliteTime, waveAt, xpToNext,
 } from '../data/waves';
 import { Enemy, Pickup, Pool, Projectile, type PickupKind } from '../entities';
 import { loadSave, writeSave } from '../systems/save';
-import { STAGES, getStage, type RunEventId, type StageDef, type StageId } from '../data/stages';
+import { STAGES, finalBoss, getStage, type RunEventId, type StageDef, type StageId } from '../data/stages';
 import { sfx } from '../systems/sfx';
 import {
   applyOption, loadoutModifiers, optionKey, rollOptions, type Loadout, type UpgradeOption,
 } from '../systems/upgrades';
 import { WeaponSystem } from '../systems/weapons';
+import { BossAI } from '../systems/bossAI';
 import { EnemySkills, WEB } from '../systems/enemySkills';
 import { RunEvents } from '../systems/runEvents';
 import { FONT, px } from '../ui/theme';
@@ -62,8 +64,8 @@ export const LAYER = {
   overlay: 2e9,
 };
 
-/** Pancada do chefe: perto do herói, para, avisa no chão e golpeia a área à frente. */
-const BOSS_SLAM = { range: 120, reach: 40, radius: 56, windup: 0.9, recover: 0.45, cooldown: 4, damage: 1.5 };
+/** Ouro de fim de partida: por minuto sobrevivido e por chefe da fase vencido. */
+const RUN_GOLD = { perMinute: 8, perBoss: 40 };
 /** Chefes: intervalo mínimo (s) entre os sinais de golpe (tom avermelhado e quadro de dano). */
 const BOSS_FLASH = { every: 0.9 };
 /** Corpos caídos visíveis ao mesmo tempo (os demais inimigos só somem). */
@@ -72,9 +74,13 @@ const MAX_CORPSES = 60;
 export interface RunResult {
   victory: boolean;
   stage: StageId;
+  /** dificuldade (0 = Normal) */
+  tier: number;
+  /** chefes da fase vencidos (0 a 3) */
+  bosses: number;
   /** objetivos da fase cumpridos nesta partida (estrelas) */
   stars: boolean[];
-  /** a vitória liberou esta fase */
+  /** o que a vitória liberou (próxima fase, próxima dificuldade) */
   unlocked?: string;
   endless: boolean;
   cycle: number;
@@ -139,13 +145,23 @@ export class GameScene extends Phaser.Scene {
   private corpses: { img: Phaser.GameObjects.Image; life: number; total: number }[] = [];
   private spawnAcc = 0;
   private eventsDone = new Set<number>();
+  /** chefe da fase com a barra grande na tela (o mais antigo vivo) */
   boss: Enemy | null = null;
-  /** chefe surpresa vivo (barra de vida na HUD quando não há chefe da fase) */
+  /** chefes da fase vivos (o do início pode ainda estar vivo quando chega o do meio) */
+  private mainBosses: Enemy[] = [];
+  /** chefes da fase já chamados (0 a 3) e vencidos nesta partida */
+  private bossesCalled = 0;
+  bossesDown = 0;
+  /** dificuldade da partida (0 = Normal) */
+  tier = 0;
+  private bonusPaid = false;
+  /** chefe surpresa vivo (barra pequena sobre a cabeça) */
   miniBoss: Enemy | null = null;
   /** fase da partida (escolhida no mapa-múndi) */
   stage!: StageDef;
   /** habilidades dos inimigos à distância, conjuradores e explosivos */
   enemySkills!: EnemySkills;
+  bossAI!: BossAI;
   /** eventos aleatórios, aliado e itens do mapa */
   runEvents!: RunEvents;
 
@@ -155,8 +171,9 @@ export class GameScene extends Phaser.Scene {
   }
   /** eventos aleatórios concluídos (objetivos de estrela) */
   completed = new Set<RunEventId>();
-  /** o chefe da fase foi vencido nesta partida */
+  /** o chefe final da fase foi vencido nesta partida */
   private bossDown = false;
+  /** o chefe final já foi chamado */
   bossSpawned = false;
   endless = false;
   private endlessStart = 0;
@@ -233,6 +250,11 @@ export class GameScene extends Phaser.Scene {
     this.spawnAcc = 0;
     this.eventsDone.clear();
     this.boss = null;
+    this.mainBosses = [];
+    this.bossesCalled = 0;
+    this.bossesDown = 0;
+    this.bonusPaid = false;
+    this.tier = save.tier[this.stage.id] ?? 0;
     this.miniBoss = null;
     this.bossSpawned = false;
     this.endless = false;
@@ -320,6 +342,7 @@ export class GameScene extends Phaser.Scene {
 
     this.weapons = new WeaponSystem(this);
     this.enemySkills = new EnemySkills(this);
+    this.bossAI = new BossAI(this);
     this.runEvents = new RunEvents(this);
     this.elements = new ElementSystem(this);
     this.weapons.sync(this.loadout.weapons);
@@ -465,6 +488,15 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0x4a1424, 1).fillRect(x, y, w, 3);
     g.fillStyle(frac > 0.35 ? 0x4fd06a : 0xe8463a, 1).fillRect(x, y, Math.round(w * frac), 3);
     g.fillStyle(0xffffff, 0.35).fillRect(x, y, Math.round(w * frac), 1);
+    // chefe surpresa: barra pequena sobre a cabeça (a barra grande da tela é só dos chefes da fase)
+    const m = this.miniBoss;
+    if (m?.active && m.tag === 'surprise') {
+      const mw = 34;
+      const mx = Math.round(m.x - mw / 2);
+      const my = Math.round(m.y - m.displayHeight * 0.75 - 6);
+      g.fillStyle(0x140c1c, 0.85).fillRect(mx - 1, my - 1, mw + 2, 5);
+      g.fillStyle(0xff6a5a, 1).fillRect(mx, my, Math.round(mw * Phaser.Math.Clamp(m.hp / m.maxHp, 0, 1)), 3);
+    }
   }
 
   private checkContact() {
@@ -474,7 +506,7 @@ export class GameScene extends Phaser.Scene {
     let touched: Enemy | null = null;
     this.grid.query(px, py, 40, (e) => {
       // o verme enterrado passa por baixo sem ferir (só fere ao irromper)
-      if (!e.active || e.burrowed) return;
+      if (!e.active || e.burrowed || e.intangible) return;
       const r = e.radius + 8;
       if ((e.x - px) ** 2 + (e.y - py) ** 2 < r * r) {
         touched = e;
@@ -554,11 +586,18 @@ export class GameScene extends Phaser.Scene {
     return list.slice(0, count).map((l) => l.e);
   }
 
+  /** Multiplicadores da partida: tempo, fase, dificuldade escolhida e ciclo do modo infinito. */
   private difficulty() {
     const k = this.stage.difficulty;
-    if (!this.endless) return { hp: hpMultiplier(waveClock(this.elapsed)) * k, damage: k, reward: k };
+    const tier = tierScaling(this.tier);
+    if (!this.endless) return { hp: hpMultiplier(waveClock(this.elapsed)) * k * tier.hp, damage: k * tier.damage, reward: k * tier.reward };
     const s = endlessScaling(this.cycle);
-    return { hp: hpMultiplier(RUN_DURATION) * s.hp * k, damage: s.damage * k, reward: s.reward * k };
+    return { hp: hpMultiplier(RUN_DURATION) * s.hp * k * tier.hp, damage: s.damage * k * tier.damage, reward: s.reward * k * tier.reward };
+  }
+
+  /** Nome do chefe na barra da HUD. */
+  bossLabel(e: Enemy) {
+    return this.bossAI.label(e);
   }
 
   /** Ciclo atual do modo infinito (1 = primeiros 5 min após a vitória). */
@@ -620,7 +659,7 @@ export class GameScene extends Phaser.Scene {
       }
       const d = Math.hypot(dx, dy) || 1;
       // congelado, o chefe também não ataca
-      const still = e.boss && t >= e.frozenUntil && this.updateBossAttack(e, d, dx, dy, dt);
+      const still = e.boss && t >= e.frozenUntil && this.bossAI.update(e, d, dt);
       this.elements.update(e, t, dt);
       if (!e.active) continue;
       // maldição do santuário: todos os inimigos 30% mais rápidos
@@ -692,45 +731,6 @@ export class GameScene extends Phaser.Scene {
     }
     list.length = w;
     this.separate(list);
-  }
-
-  /** Ataque do chefe; devolve true enquanto ele está parado preparando ou golpeando. */
-  private updateBossAttack(e: Enemy, d: number, dx: number, dy: number, dt: number) {
-    e.attackTimer -= dt;
-    if (e.attackPhase === 'walk') {
-      if (e.attackTimer > 0 || d > Math.max(BOSS_SLAM.range, e.radius + 70)) return false;
-      e.attackPhase = 'windup';
-      e.attackTimer = BOSS_SLAM.windup;
-      // chefes maiores alcançam e acertam uma área maior
-      const reach = Math.max(BOSS_SLAM.reach, e.radius + 10);
-      e.attackX = e.x + (dx / d) * reach;
-      e.attackY = e.y + (dy / d) * reach;
-      // aviso no chão: o anel vermelho cresce até a hora do golpe
-      const ring = this.add.image(e.attackX, e.attackY, 'atlas', frameName('aura')).setTint(0xff3020).setDepth(LAYER.groundFx);
-      const s = (this.slamRadius(e) * 2) / 96;
-      ring.setScale(s * 0.3, s * 0.24).setAlpha(0.4);
-      this.tweens.add({ targets: ring, scaleX: s, scaleY: s * 0.8, alpha: 0.95, duration: BOSS_SLAM.windup * 1000, onComplete: () => ring.destroy() });
-      return true;
-    }
-    if (e.attackTimer > 0) return true;
-    if (e.attackPhase === 'windup') {
-      e.attackPhase = 'attack';
-      e.attackTimer = BOSS_SLAM.recover;
-      this.impact(e.attackX, e.attackY, 0xff6a2a, 2.5);
-      this.flames.explode(30, e.attackX, e.attackY);
-      this.cameras.main.shake(220, 0.012);
-      sfx('boss');
-      const r = this.slamRadius(e);
-      if ((this.player.x - e.attackX) ** 2 + ((this.player.y - e.attackY) / 0.8) ** 2 < r * r) this.onPlayerTouched(e, BOSS_SLAM.damage);
-      return true;
-    }
-    e.attackPhase = 'walk';
-    e.attackTimer = BOSS_SLAM.cooldown * (0.8 + Math.random() * 0.4);
-    return false;
-  }
-
-  private slamRadius(e: Enemy) {
-    return Math.max(BOSS_SLAM.radius, e.radius * 1.5);
   }
 
   /** Corpo caído no quadro de morte, que some em seguida. */
@@ -825,6 +825,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private damage(e: Enemy, dmg: number, label: string, color: string, big: boolean) {
+    // chefe se transformando para a fase 2: não leva dano
+    if (e.boss && this.bossAI.invulnerable(e)) return;
     e.hp -= dmg;
     if (e.boss) {
       // chefe leva golpes o tempo todo: só um leve tom avermelhado e o quadro de dano de vez em quando,
@@ -842,6 +844,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
     if (e.hp <= 0 && dev.enemiesImmortal) e.hp = e.maxHp;
+    // o chefe final "morre", se transforma e volta para a fase 2
+    if (e.hp <= 0 && e.boss && this.bossAI.intercept(e)) return;
     if (e.hp <= 0) this.killEnemy(e, true);
   }
 
@@ -863,6 +867,7 @@ export class GameScene extends Phaser.Scene {
   /** Cor de base do inimigo: congelado, elite ou natural. */
   restoreTint(e: Enemy) {
     if (e.frozenUntil > this.elapsed) e.setTint(0x9fe8ff);
+    else if (e.baseTint) e.setTint(e.baseTint);
     else if (e.elite) e.setTint(0xffcd75);
     else e.clearTint();
   }
@@ -878,14 +883,24 @@ export class GameScene extends Phaser.Scene {
     sfx('kill');
     const reward = this.difficulty().reward;
     if (e.tag) this.runEvents.onKill(e);
-    if (e === this.boss) {
-      this.boss = null;
-      this.bossDown = true;
+    if (e.boss) this.bossAI.end(e);
+    if (this.mainBosses.includes(e)) {
+      this.mainBosses = this.mainBosses.filter((b) => b !== e);
+      this.boss = this.mainBosses[0] ?? null;
+      this.bossesDown++;
       this.cameras.main.flash(600, 255, 205, 117);
-      for (let i = 0; i < 30; i++) this.dropPickup('coin', x + Phaser.Math.Between(-30, 30), y + Phaser.Math.Between(-30, 30), 3 * reward);
+      const final = e.def.id === finalBoss(this.stage);
+      const coins = final ? 30 : 16;
+      for (let i = 0; i < coins; i++) this.dropPickup('coin', x + Phaser.Math.Between(-30, 30), y + Phaser.Math.Between(-30, 30), (final ? 3 : 2) * reward);
       this.dropPickup('gem', x, y, e.xp * reward);
-      if (!this.endless) {
+      if (final && !this.endless) {
+        this.bossDown = true;
         this.time.delayedCall(1500, () => this.openVictory());
+      } else if (!final) {
+        // chefe do início ou do meio: baú de recompensa e um respiro de vida
+        this.runEvents.placeChest(x, y);
+        this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.maxHp * 0.3);
+        this.events.emit('announce', 'CHEFE DERROTADO! UM BAÚ FICOU PARA TRÁS');
       } else {
         this.events.emit('announce', 'CHEFE DERROTADO!');
       }
@@ -896,7 +911,7 @@ export class GameScene extends Phaser.Scene {
     if (e.elite) {
       for (let i = 0; i < 8; i++) this.dropPickup('coin', x + Phaser.Math.Between(-16, 16), y + Phaser.Math.Between(-16, 16), 2 * reward);
       this.dropPickup('heart', x + 10, y, 30);
-    } else if (Math.random() < 0.05) {
+    } else if (Math.random() < 0.08) {
       this.dropPickup('coin', x + 4, y + 2, reward);
     } else if (Math.random() < 0.006) {
       this.dropPickup('heart', x + 4, y + 2, 20);
@@ -905,17 +920,18 @@ export class GameScene extends Phaser.Scene {
 
   private updateSpawns(prev: number, dt: number) {
     const t = this.elapsed;
-    // chefe da partida padrão
-    if (!this.endless && t >= runDuration() && !this.bossSpawned) {
-      this.bossSpawned = true;
-      this.spawnBoss();
+    // três chefes por partida: no fim de cada terço (início, meio e final)
+    while (!this.endless && this.bossesCalled < 3 && t >= (runDuration() / 3) * (this.bossesCalled + 1)) {
+      this.spawnBoss(this.bossesCalled);
+      this.bossesCalled++;
+      this.bossSpawned = this.bossesCalled >= 3;
     }
     // chefes do modo infinito: um no fim de cada ciclo
     if (this.endless) {
       const due = Math.floor((t - this.endlessStart) / ENDLESS_CYCLE);
       if (due > this.bossesSpawned) {
         this.bossesSpawned = due;
-        this.spawnBoss();
+        this.spawnBoss(2);
         this.events.emit('announce', `CICLO ${this.cycle}: INIMIGOS MAIS FORTES!`);
       }
     }
@@ -928,10 +944,16 @@ export class GameScene extends Phaser.Scene {
       wave = this.stage.waves[this.stage.waves.length - 1];
       rate = wave.rate * s.rate;
       max = s.max;
+    } else if (this.bossSpawned) {
+      rate = 2;
+      max = 120;
     } else {
-      rate = this.bossSpawned ? 2 : wave.rate;
-      max = this.bossSpawned ? 120 : wave.max;
+      // com um chefe na tela, menos inimigos chegando (o chefe é o foco)
+      const fight = this.mainBosses.length ? 0.5 : 1;
+      rate = wave.rate * fight;
+      max = Math.round(wave.max * (fight < 1 ? 0.6 : 1));
     }
+    rate *= tierScaling(this.tier).rate;
     rate *= 1 + this.stats.curse;
     max = Math.min(MAX_ENEMIES, Math.round(max * (1 + this.stats.curse)));
     this.spawnAcc += rate * dt;
@@ -955,18 +977,21 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private spawnBoss() {
+  /** Chama o chefe do início (0), do meio (1) ou o final (2). */
+  private spawnBoss(index: number) {
     const scale = this.endless ? endlessScaling(this.cycle).hp : 1;
-    const def = ENEMIES[this.stage.boss];
+    const def = ENEMIES[this.stage.bosses[index]];
     const e = this.spawnEnemy(def);
     if (e) {
-      e.maxHp = Math.round(def.hp * scale * this.stage.difficulty);
+      e.maxHp = Math.round(def.hp * scale * this.stage.difficulty * tierScaling(this.tier).hp);
       e.hp = e.maxHp;
-      this.boss = e;
+      this.bossAI.start(e);
+      this.mainBosses.push(e);
+      this.boss = this.mainBosses[0];
     }
     this.cameras.main.shake(500, 0.01);
     sfx('boss');
-    this.events.emit('announce', 'O CHEFE CHEGOU!');
+    this.events.emit('announce', `${['CHEFE DO INÍCIO', 'CHEFE DO MEIO', 'CHEFE FINAL'][index]}: ${def.name.toUpperCase()}!`);
   }
 
   private runEvent(kind: 'swarm' | 'ring') {
@@ -1233,7 +1258,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   devBoss() {
-    this.spawnBoss();
+    this.spawnBoss(Math.min(2, this.bossesCalled++));
   }
 
   devKillAll() {
@@ -1264,6 +1289,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.state = 'victory';
+    this.payRunBonus();
     this.joy.x = this.joy.y = 0;
     this.setPlayerSlot('victory');
     this.player.setScale(1).setRotation(0);
@@ -1350,14 +1376,21 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Guarda as estrelas no save (somando às de partidas anteriores); devolve a fase liberada, se houver. */
+  /**
+   * Guarda estrelas e chefes vencidos na dificuldade da partida (somando às partidas anteriores).
+   * Devolve o que a vitória liberou pela primeira vez: a próxima fase (no Normal) e a próxima dificuldade.
+   */
   private recordStars(stars: boolean[]): string | undefined {
     const save = loadSave();
-    const before = save.stars[this.stage.id] ?? [false, false, false];
-    save.stars[this.stage.id] = before.map((b, i) => b || stars[i]);
+    const list = (save.tiers[this.stage.id] ??= []);
+    const before = list[this.tier] ?? { stars: [false, false, false], bosses: 0 };
+    list[this.tier] = { stars: before.stars.map((b, i) => b || stars[i]), bosses: Math.max(before.bosses, this.bossesDown) };
     writeSave(save);
+    if (before.stars[0] || !stars[0]) return undefined;
     const i = STAGES.findIndex((s) => s.id === this.stage.id);
-    return !before[0] && stars[0] && STAGES[i + 1] ? STAGES[i + 1].name : undefined;
+    const parts = [`dificuldade ${tierName(this.tier + 1)}`];
+    if (this.tier === 0 && STAGES[i + 1]) parts.unshift(STAGES[i + 1].name);
+    return parts.join(' e ');
   }
 
   result(victory: boolean): RunResult {
@@ -1366,6 +1399,8 @@ export class GameScene extends Phaser.Scene {
     return {
       victory,
       stage: this.stage.id,
+      tier: this.tier,
+      bosses: this.bossesDown,
       stars,
       unlocked,
       endless: this.endless,
@@ -1380,9 +1415,26 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
+  /**
+   * Ouro de fim de partida: um tanto por minuto sobrevivido e por chefe vencido. Mesmo perdendo, a
+   * partida rende melhorias (o ciclo de tentar de novo, mais forte, até vencer a fase).
+   */
+  private runBonus() {
+    const reward = this.stage.difficulty * tierScaling(this.tier).reward;
+    return Math.round(((this.elapsed / 60) * RUN_GOLD.perMinute + this.bossesDown * RUN_GOLD.perBoss) * reward);
+  }
+
+  /** Paga o ouro de fim de partida uma vez só (na vitória, antes do modo infinito, ou no fim). */
+  private payRunBonus() {
+    if (this.bonusPaid) return;
+    this.bonusPaid = true;
+    this.gold += this.runBonus();
+  }
+
   endRun(victory: boolean) {
     if (this.state === 'over') return;
     this.state = 'over';
+    this.payRunBonus();
     const result = this.result(victory);
     this.time.delayedCall(victory ? 0 : 600, () => {
       this.scene.pause();

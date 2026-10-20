@@ -3,6 +3,7 @@
 // toca (o verme se enterra e irrompe sob o herói). Todo ataque tem aviso antes, para o jogador poder desviar.
 import Phaser from 'phaser';
 import { frameName, loopFrame } from '../art/textures';
+import type { BossShot } from '../data/bosses';
 import type { EnemySkill } from '../data/enemies';
 import type { Enemy } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
@@ -33,14 +34,28 @@ interface Shot {
 /** Tiros inimigos ao mesmo tempo (desempenho). */
 const MAX_SHOTS = 120;
 
-/** Raio da bruxa marcado no chão: cai em `at` (s). */
+/** Golpe do céu marcado no chão (raio da bruxa, chuva dos chefes): cai em `at` (s). */
 interface Strike {
   x: number;
   y: number;
   at: number;
   r: number;
   damage: number;
+  look: StrikeLook;
 }
+
+/** Aparência do golpe do céu: raio, meteoro ou espinho de pedra brotando do chão. */
+export type StrikeLook = 'bolt' | 'meteor' | 'spike';
+const STRIKE_COLOR: Record<StrikeLook, number> = { bolt: 0xffe066, meteor: 0xff5a2a, spike: 0xc08040 };
+
+/** Tiros dos chefes: os mesmos dos inimigos, um pouco maiores. */
+const BOSS_SHOTS: Record<BossShot, EnemySkill> = {
+  spit: { kind: 'spit', damage: 1, cooldown: 0, range: 220, windup: 0, speed: 150, radius: 9, level: 1 },
+  web: { kind: 'web', damage: 1, cooldown: 0, range: 220, windup: 0, speed: 170, radius: 9, level: 1 },
+  fireball: { kind: 'fireball', damage: 1, cooldown: 0, range: 260, windup: 0, speed: 140, radius: 28, level: 1 },
+  wave: { kind: 'wave', damage: 1, cooldown: 0, range: 260, windup: 0, speed: 150, radius: 26, level: 1 },
+  tornado: { kind: 'tornado', damage: 1, cooldown: 0, range: 220, windup: 0, speed: 80, radius: 20, level: 1 },
+};
 
 /** Quanto tempo a teia prende o herói (s) e a velocidade dele preso. */
 export const WEB = { time: 1.6, speed: 0.45 };
@@ -231,7 +246,7 @@ export class EnemySkills {
         const d = i ? 40 + Math.random() * 40 : 0;
         const x = tx + Math.cos(a) * d;
         const y = ty + Math.sin(a) * d * 0.8;
-        this.strikes.push({ x, y, at: at + i * 0.12, r, damage: e.damage * skill.damage });
+        this.strikes.push({ x, y, at: at + i * 0.12, r, damage: e.damage * skill.damage, look: 'bolt' });
         this.ring(x, y, r, 0xffe066, skill.windup + i * 0.12);
       }
     } else if (skill.kind === 'tornado') {
@@ -263,14 +278,28 @@ export class EnemySkills {
     sfx(skill.kind === 'fireball' || skill.kind === 'tornado' ? 'whoosh' : 'splash');
   }
 
-  private fire(e: Enemy, skill: EnemySkill, angle: number, dist: number, dmg: number, lvl: number) {
+  /** Tiro de chefe no ângulo dado; a bola de fogo explode a `dist` (padrão: até o herói). */
+  bossShot(e: Enemy, shot: BossShot, angle: number, dmg: number, color?: number, dist?: number) {
+    const p = this.scene.player;
+    const d = dist ?? Math.max(80, Math.min(300, Math.hypot(p.x - e.x, p.y - e.y)));
+    this.fire(e, BOSS_SHOTS[shot], angle, d, dmg, 1 + this.scene.stageIndex, color);
+  }
+
+  /** Golpe do céu: o círculo aparece agora e o golpe cai depois de `delay` + 1 s de aviso. */
+  strikeAt(x: number, y: number, delay: number, r: number, damage: number, look: StrikeLook) {
+    const warn = 1 + delay;
+    this.strikes.push({ x, y, at: this.scene.elapsed + warn, r, damage, look });
+    this.ring(x, y, r, STRIKE_COLOR[look], warn);
+  }
+
+  private fire(e: Enemy, skill: EnemySkill, angle: number, dist: number, dmg: number, lvl: number, tint?: number) {
     if (this.shots.length >= MAX_SHOTS) return;
     const fireball = skill.kind === 'fireball';
     const wave = skill.kind === 'wave';
     const tornado = skill.kind === 'tornado';
     const area = skill.radius * (1 + (lvl - 1) * 0.1);
     // esporos verdes do cogumelo; espinhos amarelos do cacto; teia branca da aranha; gosma roxa do slime
-    const color = e.def.kind === 'sporeshroom' ? 0x9ad050 : e.def.kind === 'cactus_spitter' ? 0xe8e070 : skill.kind === 'web' ? 0xf4f4ff : 0xb060e0;
+    const color = tint ?? (e.def.kind === 'sporeshroom' ? 0x9ad050 : e.def.kind === 'cactus_spitter' ? 0xe8e070 : skill.kind === 'web' ? 0xf4f4ff : 0xb060e0);
     let img: Phaser.GameObjects.Image;
     if (tornado) img = this.scene.add.image(e.x, e.y, 'atlas', frameName('fx_tornado')).setOrigin(0.5, 0.92).setTint(0xe8d8a0).setScale((area * 2.4) / 60);
     else if (fireball) img = this.scene.add.image(e.x, e.y - 6, 'atlas', frameName('fx_fireball')).setTint(0xffb08a).setScale(0.9).setRotation(angle);
@@ -378,8 +407,17 @@ export class EnemySkills {
     const p = sc.player;
     this.strikes = this.strikes.filter((s) => {
       if (t < s.at) return true;
-      sc.weapons.drawBolt(s.x, s.y, sc.cameras.main.worldView.y - 10, false, 0xffe066);
-      sfx('zap');
+      if (s.look === 'bolt') {
+        sc.weapons.drawBolt(s.x, s.y, sc.cameras.main.worldView.y - 10, false, 0xffe066);
+        sfx('zap');
+      } else if (s.look === 'meteor') {
+        sc.elements.vfx('vfx_explosion', s.x, s.y + s.r * 0.5, s.r * 2.1, [[0, 0.04], [1, 0.06], [2, 0.12], [3, 0.28]]);
+        sfx('boom');
+      } else {
+        sc.weapons.spike(s.x, s.y + 6, (s.r * 2) / 40);
+        sc.impact(s.x, s.y, 0xc08040, 1.2);
+        sfx('boom');
+      }
       if ((p.x - s.x) ** 2 + ((p.y - s.y) / 0.8) ** 2 < (s.r + 6) ** 2) sc.hurtPlayer(s.damage);
       return false;
     });

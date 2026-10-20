@@ -9,6 +9,7 @@ import { DEV_TOOLS } from '../systems/dev';
 import { sfx } from '../systems/sfx';
 import { RARITIES, describeOption } from '../systems/upgrades';
 import { FONT, button, goldTitle, panel, starIcon, text, px } from '../ui/theme';
+import { tierName } from '../data/difficulty';
 import { getStage } from '../data/stages';
 import type { GameScene, RunResult } from './GameScene';
 import { formatTime } from './HudScene';
@@ -277,7 +278,7 @@ export class VictoryScene extends Phaser.Scene {
     this.tweens.add({ targets: t, scale: { from: 0.4, to: 1 }, duration: 500, ease: 'Back.Out' });
     text(this, lx, ty + 42, `${formatTime(result.time)} · ${formatNumber(result.kills)} abates · nível ${result.level}`, 13, '#e8e2d0', { shadow: true });
     starsRow(this, result, lx, ty + 72);
-    if (result.unlocked) text(this, lx, ty + 112, `Nova fase liberada: ${result.unlocked}!`, 14, '#8cf08a', { bold: true, strokeThickness: 3 });
+    if (result.unlocked) text(this, lx, ty + 112, `Liberado: ${result.unlocked}!`, 14, '#8cf08a', { bold: true, strokeThickness: 3 });
 
     const py = wide ? height * 0.36 : height * 0.5;
     const pw = wide ? WIDE_COL : width - 36;
@@ -330,10 +331,11 @@ export class GameOverScene extends Phaser.Scene {
       ? goldTitle(this, lx, 48, title, 32)
       : text(this, lx, 48, title, 32, '#ff6a5a', { bold: true, stroke: '#2a0608', strokeThickness: 6 });
     this.tweens.add({ targets: t, scale: { from: 0.5, to: 1 }, duration: 420, ease: 'Back.Out' });
-    text(this, lx, 76, `${getCharacter(result.character).name} · ${getStage(result.stage).name}`, 13, '#c8cce0');
+    text(this, lx, 76, `${getCharacter(result.character).name} · ${getStage(result.stage).name} · ${tierName(result.tier)}`, 13, '#c8cce0');
 
     const rows: [string, string][] = [
       ['Tempo', formatTime(result.time) + (newRecord ? '  · recorde!' : '')],
+      ['Chefes vencidos', `${result.bosses}/3`],
       ...(result.endless ? [['Ciclo infinito', String(result.cycle)] as [string, string]] : []),
       ['Abates', formatNumber(result.kills)],
       ['Nível', String(result.level)],

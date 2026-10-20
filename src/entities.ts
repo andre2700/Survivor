@@ -29,6 +29,10 @@ export class Enemy extends Phaser.GameObjects.Image {
   flashUntil = 0;
   /** último sinal de golpe num chefe (s) */
   flashAt = -99;
+  /** não encosta no herói (chefe no ar ou sumindo) */
+  intangible = false;
+  /** cor própria (chefe furioso ou na fase 2): volta a ela depois de piscar */
+  baseTint = 0;
   /** último instante (s) em que foi atingido por orbe/aura */
   orbHitAt = -99;
   auraHitAt = -99;
@@ -82,6 +86,8 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.kbX = this.kbY = 0;
     this.flashUntil = 0;
     this.flashAt = -99;
+    this.intangible = false;
+    this.baseTint = 0;
     this.orbHitAt = this.auraHitAt = -99;
     this.phase = Math.random() * Math.PI * 2;
     const scale = def.scale * (elite ? 1.6 : 1);

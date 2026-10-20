@@ -9,8 +9,6 @@ export interface MetaDef {
   name: string;
   icon: string;
   description: string;
-  /** undefined = sem teto */
-  maxLevel?: number;
   baseCost: number;
   /** crescimento do preço por nível */
   costGrowth: number;
@@ -18,7 +16,7 @@ export interface MetaDef {
   stat?: { id: StatId; flat?: number; pct?: number };
 }
 
-/** Melhorias permanentes compradas com ouro. As de atributo não têm teto. */
+/** Melhorias permanentes compradas com ouro. Nenhuma tem teto: o preço cresce a cada nível. */
 export const META_UPGRADES: MetaDef[] = [
   { id: 'maxHp', name: 'Vitalidade', icon: 'heart', description: '+5% de vida máxima', baseCost: 40, costGrowth: 1.22, stat: { id: 'maxHp', pct: 0.05 } },
   { id: 'power', name: 'Poder', icon: 'icon_potion', description: '+5% de dano', baseCost: 60, costGrowth: 1.22, stat: { id: 'power', flat: 0.05 } },
@@ -33,8 +31,9 @@ export const META_UPGRADES: MetaDef[] = [
   { id: 'reroll', name: 'Rolar', icon: 'icon_dice', description: '+1 troca de opções por partida', baseCost: 80, costGrowth: 1.6 },
   { id: 'banish', name: 'Banir', icon: 'icon_cross', description: '+1 banimento por partida', baseCost: 120, costGrowth: 1.6 },
   { id: 'lock', name: 'Fixar', icon: 'icon_shield', description: '+1 carta fixada por partida', baseCost: 120, costGrowth: 1.6 },
-  { id: 'choices', name: 'Visão', icon: 'gem_red', description: '+1 opção por nível', maxLevel: 3, baseCost: 400, costGrowth: 2.5 },
-  { id: 'revival', name: 'Renascer', icon: 'icon_cross', description: '+1 renascimento por partida', maxLevel: 3, baseCost: 300, costGrowth: 2.2 },
+  // sem teto: as que podem "quebrar o jogo" ficam caríssimas (o preço multiplica a cada nível)
+  { id: 'choices', name: 'Visão', icon: 'gem_red', description: '+1 opção por nível', baseCost: 600, costGrowth: 3.2 },
+  { id: 'revival', name: 'Renascer', icon: 'icon_cross', description: '+1 renascimento por partida', baseCost: 500, costGrowth: 3.5 },
 ];
 
 export function metaCost(def: MetaDef, level: number): number {

@@ -1,6 +1,6 @@
 # Survivor
 
-RPG 2D de sobrevivência em estilo cartoon para Android e iOS (e navegador). Escolha um herói, sobreviva às hordas de inimigos por 10 minutos, suba de nível escolhendo armas e melhorias, e derrote o chefe no final. O ouro coletado compra melhorias permanentes e novos heróis.
+RPG 2D de sobrevivência em estilo cartoon para Android e iOS (e navegador). Escolha um herói, sobreviva às hordas de inimigos por 15 minutos, suba de nível escolhendo armas e melhorias, e derrote os três chefes da fase (aos 5, 10 e 15 minutos). O ouro coletado compra melhorias permanentes e novos heróis.
 
 ## Como jogar
 
@@ -21,10 +21,11 @@ O design completo está em [docs/GDD.md](docs/GDD.md).
 - **Atributos globais sem teto** (`src/core/stats.ts`): dano, vel. de ataque, quantidade, área, crítico (acima de 100% vira supercrítico), defesa e esquiva com retorno decrescente, sorte, maldição etc.
 - **Cartas com raridade:** Comum (+1), Rara (+2), Épica (+3), Lendária (+5); a Sorte aumenta a chance das raras. Cada carta mostra o antes e depois.
 - **Rolar, Banir e Fixar** liberados na loja de melhorias.
-- **Partida de 15 min + chefe**; ao vencer, dá para continuar no **modo infinito** (ciclos de 5 min, cada um com chefe e inimigos mais fortes; morrer ali não é derrota).
-- **Melhorias permanentes sem teto** na loja (com rolagem).
+- **Partida de 15 min com 3 chefes** (início, meio e final; o final tem fase 2), golpes variados com aviso (salto, investida, tiros, chuva do céu, invocação, teletransporte) e fúria com pouca vida (`src/data/bosses.ts`, `src/systems/bossAI.ts`); ao vencer, dá para continuar no **modo infinito** (ciclos de 5 min, cada um com chefe e inimigos mais fortes; morrer ali não é derrota).
+- **Melhorias permanentes sem teto** na loja (com rolagem); as que quebram o jogo (Renascer, Visão) ficam caríssimas a cada nível. Toda partida rende ouro, mesmo perdendo (por minuto sobrevivido e por chefe vencido).
+- **Dificuldades** por fase: Normal, Difícil, Muito Difícil, Pesadelo e Pesadelo+N sem fim (`src/data/difficulty.ts`).
 - **Estatísticas pós-partida:** dano causado por arma.
-- **Fases e mapa-múndi** (`src/data/stages.ts`, Marco 3): trilha de 9 fases, das leves às épicas; cada uma com aparência, ondas, chefe, eventos e 3 objetivos (estrelas). Vencer o chefe libera a próxima. Jogáveis hoje: Clareira Ensolarada, Bosque Outonal (chefe: Chefe Orc) e Pântano Enevoado (chefe: Rei Sapo; névoa nas bordas da tela e lama que deixa lento; Sapo, Jacaré com bote, Mosquito, Cogumelo de Esporos e Xamã Sapo, que lança a Onda) e Dunas Escaldantes (chefe: Imperador Escorpião; areia movediça; Escorpião, Abutre, Cacto Atirador, Verme da Areia que se enterra e irrompe, e Xamã Lagarto, que lança o Tornado; eventos de guerra de tribos e tempestade de areia) e Floresta Sombria (chefe: Ent Ancião Corrompido; escuridão e teias; Lobisomem, Fogo-Fátuo, Aranha Sombria que prende com teia e Bruxa, que lança o Raio; eventos de santuário maldito e lua de sangue).
+- **Fases** (`src/data/stages.ts`, Marco 3): 9 fases, das leves às épicas; cada uma com aparência, ondas, 3 chefes, eventos e 3 objetivos (estrelas). Vencer o chefe final libera a próxima. A seleção mostra uma fase por página, com a própria fase de fundo. Jogáveis hoje: Clareira Ensolarada, Bosque Outonal (chefe: Chefe Orc) e Pântano Enevoado (chefe: Rei Sapo; névoa nas bordas da tela e lama que deixa lento; Sapo, Jacaré com bote, Mosquito, Cogumelo de Esporos e Xamã Sapo, que lança a Onda) e Dunas Escaldantes (chefe: Imperador Escorpião; areia movediça; Escorpião, Abutre, Cacto Atirador, Verme da Areia que se enterra e irrompe, e Xamã Lagarto, que lança o Tornado; eventos de guerra de tribos e tempestade de areia) e Floresta Sombria (chefe: Ent Ancião Corrompido; escuridão e teias; Lobisomem, Fogo-Fátuo, Aranha Sombria que prende com teia e Bruxa, que lança o Raio; eventos de santuário maldito e lua de sangue).
 - **Inimigos com habilidade** (`src/systems/enemySkills.ts`): Slime Cuspidor (atira de longe), Slime de Magma (lança a Bola de Fogo, com nível que cresce com a fase e o tempo) e Slime Bomba (pisca e explode, ferindo também os inimigos). Todo ataque tem aviso antes.
 - **Eventos aleatórios** (`src/systems/runEvents.ts`): baú guardado, prisioneiro que vira aliado, chefe surpresa, goblin dourado, chuva de meteoros, emboscada, guerra de tribos, tempestade de areia, santuário maldito e lua de sangue (cataclismos ferem herói e inimigos). Itens pelo mapa (ímã, bomba, cura) e setas na borda da tela apontando para os eventos.
 - **Resistência a controle:** chefes e elites ignoram ou sofrem menos empurrões, congelamento e lentidão.
@@ -62,6 +63,7 @@ npm run build        # build web em dist/
 npm run build:single # um único dist-single/index.html com tudo embutido
 npm run smoke        # abre o jogo num Chromium headless, passa por todas as telas e salva screenshots
 npm run stress       # 2.000 inimigos + build grande; mede FPS e tempo de lógica por frame
+npm run balance -- clareira 20   # robô joga partidas seguidas comprando melhorias: quantas partidas até cada chefe
 ```
 
 ### Estrutura

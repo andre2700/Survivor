@@ -99,3 +99,28 @@ Todo inimigo tem **Resistência** (0 a 1) contra controles: empurrão, congelame
 - Todo efeito animado tem ao menos 2 quadros (onda e tornado: 4).
 
 **Chefes (19/10/2026):** os chefes de fase têm cerca de 120 px de altura (quase 3× o herói) e o chefe surpresa é 2,2× o monstro original. Chefes não ficam brancos ao levar golpes (levam golpes o tempo todo e ficariam brancos direto): só um leve tom avermelhado e o quadro de dano, no máximo a cada 0,9 s. A pancada com aviso no chão cresce com o tamanho do chefe.
+
+## Ritmo de cada fase, chefes e dificuldades (20/10/2026)
+
+**Três chefes por fase**, no fim de cada terço da partida de 15 min: o do **início** (5:00), o do **meio** (10:00) e o **final** (15:00). Os do início e do meio são criaturas da própria fase em versão gigante (arte reaproveitada, ampliada); o final é o chefe da fase e tem **fase 2**: quando a vida acaba, ele se transforma (fica invulnerável por 2,4 s, cresce, muda de cor, a vida volta a 75%) e luta com golpes novos. Vencer o do início ou do meio deixa um baú e devolve 30% da vida; com um chefe na tela chegam menos inimigos. Se o do início ainda estiver vivo aos 10:00, os dois lutam juntos.
+
+| Fase | Início | Meio | Final (fase 2) |
+|---|---|---|---|
+| Clareira | Rei Slime | Lobo Alfa | Demônio Ancestral (Demônio Desperto) |
+| Bosque Outonal | Magma Primordial | Senhor da Guerra Goblin | Chefe Orc (Enfurecido) |
+| Pântano | Jacaré Rei | Grão-Xamã Sapo | Rei Sapo (Furioso) |
+| Dunas | Verme Colossal | Ancião Lagarto | Imperador Escorpião (Venenoso) |
+| Floresta Sombria | Lobisomem Alfa | Bruxa Anciã | Ent Ancião (Desperto) |
+
+**Golpes de chefe** (`src/data/bosses.ts`, `src/systems/bossAI.ts`), todos com aviso: pancada (anel no chão), **salto** até o herói (círculo de pouso; o pouso fere, empurra e levanta pedras), **investida** em linha (faixa no chão, até 4 seguidas), **leque de tiros** mirados (gosma, bola de fogo, onda, tornado, teia), **anel de tiros** para todos os lados, **chuva** do céu (raios, meteoros ou espinhos de pedra em círculos marcados), **invocação** de ajudantes e **teletransporte** (some e reaparece perto do herói). Cada chefe escolhe pelo repertório dele e pela distância. Abaixo de uma fração da vida fica **FURIOSO**: avermelhado, mais rápido, golpes mais seguidos e com mais tiros. A barra grande na tela é só dos chefes da fase (alerta máximo); o chefe surpresa tem uma barra pequena sobre a cabeça.
+
+**Dificuldades** por fase (`src/data/difficulty.ts`): Normal, Difícil, Muito Difícil, Pesadelo, Pesadelo+1, +2... sem fim. Cada uma se libera vencendo o chefe final da anterior na mesma fase. Vida dos inimigos ×1,8 e dano ×1,35 por nível; ouro e experiência +80% por nível; um pouco mais de inimigos. Estrelas e chefes vencidos são guardados por dificuldade.
+
+**Ritmo desejado (Normal):** a fase nova encanta e derrota rápido; o jogador tenta de novo, compra melhorias, chega ao chefe do início, perde, melhora, vence o do início, perde no meio... até vencer o chefe final. Para isso cada partida rende ouro mesmo na derrota: **8 de ouro por minuto sobrevivido e 40 por chefe vencido** (vezes a dificuldade da fase e a recompensa da dificuldade escolhida), além das moedas.
+
+**Melhorias permanentes sem limite:** nenhuma tem teto. As que podem quebrar o jogo ficam caríssimas: Renascer (500 de ouro, ×3,5 a cada nível) e Visão (+1 opção por nível; 600, ×3,2).
+
+**Seleção de fase:** uma fase por página, aberta na próxima fase a vencer. O fundo é a própria fase (chão, decoração e as criaturas andando); embaixo: dificuldade (‹ Normal ›), os três chefes (vencidos aparecem, o próximo em silhueta, os outros "?"), mistérios, perigos, tesouros e objetivos. Setas ou arrastar para o lado trocam de fase. Fase bloqueada mostra só um vislumbre: nome, frase, clima e o que falta para liberar.
+
+**Simulador de equilíbrio** (`npm run balance -- <fase> <partidas> <herói> <dificuldade>`): um robô joga partidas aceleradas, sem desenhar a tela, guarda o ouro, compra melhorias e joga de novo; mostra em quantas partidas chegou e venceu cada chefe. O robô não desvia dos avisos, então é um piso: uma pessoa vai melhor.
+

@@ -107,15 +107,20 @@ await wait(300);
 await shot('07-pause');
 await run(() => window.__game.scene.getScene('Game').resumeFromPause());
 
-// chefe aos 15:00, derrota do chefe e tela de vitória
+// os três chefes (5, 10 e 15 min): vence um por um; o final se transforma (fase 2) antes de cair
 await run(() => { window.__game.scene.getScene('Game').elapsed = 900; });
 await until(() => !!window.__game.scene.getScene('Game').boss);
 await wait(1500);
 await shot('08-boss');
-await run(() => {
-  const g = window.__game.scene.getScene('Game');
-  g.hitEnemy(g.boss, 1e15);
-});
+for (let i = 0; i < 10 && !(await run(() => window.__game.scene.isActive('Victory'))); i++) {
+  await run(() => {
+    const g = window.__game.scene.getScene('Game');
+    if (g.boss && g.state === 'playing') g.hitEnemy(g.boss, 1e15);
+  });
+  if (i === 3) await shot('08b-boss-phase2');
+  await wait(2800);
+}
+console.log('chefes vencidos:', await run(() => window.__game.scene.getScene('Game').bossesDown));
 await until(() => window.__game.scene.isActive('Victory'), 8000);
 await wait(500);
 await shot('09-victory');

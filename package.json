@@ -17,7 +17,8 @@
     "stress": "node scripts/stress.mjs",
     "artsheet": "node scripts/artsheet.mjs",
     "styletest": "node scripts/style-test.mjs",
-    "deploy:pages": "bash scripts/deploy-pages.sh"
+    "deploy:pages": "bash scripts/deploy-pages.sh",
+    "balance": "node scripts/balance.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

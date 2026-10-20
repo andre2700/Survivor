@@ -590,8 +590,8 @@ export class WeaponSystem {
     });
   }
 
-  /** Espinho de pedra que brota do chão e afunda. */
-  private spike(x: number, y: number, scale: number) {
+  /** Espinho de pedra que brota do chão e afunda (também usado pelos chefes). */
+  spike(x: number, y: number, scale: number) {
     const img = this.scene.add.image(x, y, 'atlas', frameName('fx_spike')).setOrigin(0.5, 0.9).setDepth(y).setScale(scale * 0.3, 0);
     this.scene.tweens.add({ targets: img, scaleX: scale, scaleY: scale, duration: 90, ease: 'Back.Out' });
     // brota (quadro 1) e fica de pé (quadro 2)

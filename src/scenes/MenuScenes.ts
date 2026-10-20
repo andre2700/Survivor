@@ -250,26 +250,24 @@ export class ShopScene extends Phaser.Scene {
     const list = this.add.container(0, top);
     META_UPGRADES.forEach((def, i) => {
       const lvl = save.meta[def.id] ?? 0;
-      const maxed = def.maxLevel !== undefined && lvl >= def.maxLevel;
       const cost = metaCost(def, lvl);
       const y = i * rowH + rowH / 2;
-      const can = !maxed && save.gold >= cost;
+      const can = save.gold >= cost;
       const row = this.add.container(0, y);
       row.add(panel(this, width / 2, 0, width - 20, rowH - 6, 'ui_panel'));
       row.add(panel(this, 36, 0, 36, 36, 'ui_slot'));
       row.add(this.add.image(36, 0, def.icon).setScale(1.5));
       row.add(this.add.text(62, -13, def.name, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: '#f4f4f4' }).setOrigin(0, 0.5));
       row.add(this.add.text(62, 3, def.description, { fontFamily: FONT, fontSize: px(11), color: '#b8bdd8' }).setOrigin(0, 0.5));
-      const lvlText = def.maxLevel !== undefined ? `Nível ${lvl}/${def.maxLevel}` : `Nível ${lvl}`;
-      row.add(this.add.text(62, 17, lvlText, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: lvl > 0 ? '#ffd86a' : '#6a6e88' }).setOrigin(0, 0.5));
-      row.add(button(this, width - 62, 0, maxed ? 'MÁX' : formatNumber(cost), () => {
+      row.add(this.add.text(62, 17, `Nível ${lvl}`, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: lvl > 0 ? '#ffd86a' : '#6a6e88' }).setOrigin(0, 0.5));
+      row.add(button(this, width - 62, 0, formatNumber(cost), () => {
         if (this.dragged || !can) return;
         save.gold -= cost;
         save.meta[def.id] = lvl + 1;
         writeSave(save);
         sfx('levelup');
         this.scene.restart();
-      }, { width: 84, height: 34, size: 13, variant: maxed ? 'normal' : 'primary', disabled: !can && !maxed, icon: maxed ? undefined : 'coin', color: maxed ? '#4fd06a' : undefined }));
+      }, { width: 84, height: 34, size: 13, variant: 'primary', disabled: !can, icon: 'coin' }));
       list.add(row);
     });
 

@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { walkPose } from '../art/motion';
 import { frameName, slotsOf } from '../art/textures';
 import { CHARACTERS, type CharacterDef } from '../data/characters';
+import { SURPRISE_BOSS } from '../data/bosses';
 import { ENEMIES, type EnemyId } from '../data/enemies';
 import { WEAPONS, weaponStatsAt } from '../data/weapons';
 import { damageMult } from '../core/stats';
@@ -203,7 +204,8 @@ export class RunEvents {
     }
   }
 
-  private placeChest(x: number, y: number) {
+  /** Baú no chão (abre ao encostar): eventos e chefes do início e do meio. */
+  placeChest(x: number, y: number) {
     const img = this.scene.add.image(x, y, 'atlas', frameName('chest')).setOrigin(0.5, 0.9).setDepth(y).setScale(1.2);
     this.scene.tweens.add({ targets: img, y: y - 3, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.chests.push({ img });
@@ -364,9 +366,9 @@ export class RunEvents {
     e.damage *= 2;
     e.speed *= 1.1;
     e.resist = Math.max(e.resist, 0.6);
-    e.attackPhase = 'walk';
-    e.attackTimer = 2;
-    e.setTint(0xff9a8a);
+    e.baseTint = 0xff9a8a;
+    e.setTint(e.baseTint);
+    sc.bossAI.start(e, SURPRISE_BOSS);
     sc.miniBoss = e;
     this.surprises.push(e);
     sc.events.emit('announce', `CHEFE SURPRESA: ${ENEMIES[id].name.toUpperCase()} GIGANTE!`);
@@ -633,6 +635,7 @@ export class RunEvents {
       this.golden = null;
     } else if (e.tag === 'surprise') {
       sc.completed.add('surpriseBoss');
+      if (sc.miniBoss === e) sc.miniBoss = null;
       this.placeChest(e.x, e.y);
     }
   }
