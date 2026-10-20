@@ -21,7 +21,7 @@ import {
 } from '../data/waves';
 import { Enemy, Pickup, Pool, Projectile, type PickupKind } from '../entities';
 import { loadSave, writeSave } from '../systems/save';
-import { STAGES, finalBoss, getStage, type RunEventId, type StageDef, type StageId } from '../data/stages';
+import { STAGES, finalBoss, getStage, stageScaling, type RunEventId, type StageDef, type StageId } from '../data/stages';
 import { sfx } from '../systems/sfx';
 import {
   applyOption, loadoutModifiers, optionKey, rollOptions, type Loadout, type UpgradeOption,
@@ -588,11 +588,11 @@ export class GameScene extends Phaser.Scene {
 
   /** Multiplicadores da partida: tempo, fase, dificuldade escolhida e ciclo do modo infinito. */
   private difficulty() {
-    const k = this.stage.difficulty;
+    const k = stageScaling(this.stage);
     const tier = tierScaling(this.tier);
-    if (!this.endless) return { hp: hpMultiplier(waveClock(this.elapsed)) * k * tier.hp, damage: k * tier.damage, reward: k * tier.reward };
+    if (!this.endless) return { hp: hpMultiplier(waveClock(this.elapsed)) * k.hp * tier.hp, damage: k.damage * tier.damage, reward: k.reward * tier.reward };
     const s = endlessScaling(this.cycle);
-    return { hp: hpMultiplier(RUN_DURATION) * s.hp * k * tier.hp, damage: s.damage * k * tier.damage, reward: s.reward * k * tier.reward };
+    return { hp: hpMultiplier(RUN_DURATION) * s.hp * k.hp * tier.hp, damage: s.damage * k.damage * tier.damage, reward: s.reward * k.reward * tier.reward };
   }
 
   /** Nome do chefe na barra da HUD. */
@@ -984,7 +984,7 @@ export class GameScene extends Phaser.Scene {
     const def = ENEMIES[this.stage.bosses[index]];
     const e = this.spawnEnemy(def);
     if (e) {
-      e.maxHp = Math.round(def.hp * scale * this.stage.difficulty * tierScaling(this.tier).hp);
+      e.maxHp = Math.round(def.hp * scale * stageScaling(this.stage).hp * tierScaling(this.tier).hp);
       e.hp = e.maxHp;
       this.bossAI.start(e);
       this.mainBosses.push(e);
@@ -1421,7 +1421,7 @@ export class GameScene extends Phaser.Scene {
    * partida rende melhorias (o ciclo de tentar de novo, mais forte, até vencer a fase).
    */
   private runBonus() {
-    const reward = this.stage.difficulty * tierScaling(this.tier).reward;
+    const reward = stageScaling(this.stage).reward * tierScaling(this.tier).reward;
     return Math.round(((this.elapsed / 60) * RUN_GOLD.perMinute + this.bossesDown * RUN_GOLD.perBoss) * reward);
   }
 

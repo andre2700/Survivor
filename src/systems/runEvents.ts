@@ -11,7 +11,7 @@ import { SURPRISE_BOSS } from '../data/bosses';
 import { ENEMIES, type EnemyId } from '../data/enemies';
 import { WEAPONS, weaponStatsAt } from '../data/weapons';
 import { damageMult } from '../core/stats';
-import type { RunEventId, Tribe } from '../data/stages';
+import { stageScaling, type RunEventId, type Tribe } from '../data/stages';
 import { waveAt } from '../data/waves';
 import type { Enemy } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
@@ -382,7 +382,7 @@ export class RunEvents {
     const e = sc.spawnEnemy(ENEMIES.goblin, x, y);
     if (!e) return;
     e.tag = 'golden';
-    e.maxHp = e.hp = ENEMIES.goblin.hp * 40 * sc.stage.difficulty;
+    e.maxHp = e.hp = ENEMIES.goblin.hp * 40 * stageScaling(sc.stage).hp;
     // um pouco mais lento que o herói: dá para alcançar, mas exige perseguir
     e.speed = moveSpeed(sc.stats) * 0.92;
     e.setTint(0xffd84a);
@@ -422,7 +422,7 @@ export class RunEvents {
         sfx('boom');
         const p = sc.player;
         // cataclismo: fere o herói e os inimigos igualmente (todo cataclismo segue esta regra)
-        if ((p.x - x) ** 2 + ((p.y - y) / 0.75) ** 2 < (r + 6) ** 2) sc.hurtPlayer(Math.max(15, sc.stats.maxHp * 0.12) * sc.stage.difficulty);
+        if ((p.x - x) ** 2 + ((p.y - y) / 0.75) ** 2 < (r + 6) ** 2) sc.hurtPlayer(sc.stats.maxHp * 0.12);
         sc.queryEnemies(x, y, r + 16, (e) => {
           if (e.active && (e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.radius) ** 2) sc.elementalDamage(e, Math.max(80, e.maxHp * 0.35), '#ff9a5a');
         });
@@ -574,7 +574,7 @@ export class RunEvents {
     const hero = sand ? 0.05 : BLOOD_MOON.hero;
     const foe = sand ? 0.12 : BLOOD_MOON.foe;
     const color = sand ? '#e8c070' : '#ff3040';
-    sc.hurtPlayer(Math.max(6, sc.stats.maxHp * hero) * sc.stage.difficulty);
+    sc.hurtPlayer(sc.stats.maxHp * hero);
     sc.queryEnemies(v.centerX, v.centerY, Math.hypot(v.width, v.height) / 2, (e) => {
       if (e.active && v.contains(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.01 : Math.max(20, e.maxHp * foe), color);
     });
