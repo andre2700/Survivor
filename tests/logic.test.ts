@@ -1,3 +1,5 @@
+import { BAG_SIZE, forgeCost, itemPower, lootCount, makeItem, rollRarity as rollItemRarity } from '../src/data/items';
+import { addItems, equip, equipmentModifiers, nextUid } from '../src/systems/inventory';
 import { describe, expect, it } from 'vitest';
 import SPRITES from '../src/art/sprites.json';
 import { ART, FRAME_TEMPLATES } from '../art/manifest.mjs';
@@ -305,5 +307,68 @@ describe('fases', () => {
   it('as fases ficam mais difíceis ao longo do mapa', () => {
     const playable = STAGES.filter((s) => s.playable);
     for (let i = 1; i < playable.length; i++) expect(playable[i].difficulty).toBeGreaterThan(playable[i - 1].difficulty);
+  });
+});
+
+describe('itens', () => {
+  it('raridade define quantos atributos e se tem efeito único', () => {
+    const rnd = () => 0.3;
+    expect(makeItem(1, 0, 1, rnd).rolls.length).toBe(0);
+    expect(makeItem(2, 0, 1, rnd).effect).toBeUndefined();
+    const raro = makeItem(3, 2, 1, rnd);
+    expect(raro.rolls.length).toBe(2);
+    expect(raro.effect).toBeDefined();
+    expect(makeItem(4, 5, 1, rnd).rolls.length).toBe(4);
+  });
+  it('item mais raro, de nível maior ou forjado é mais forte', () => {
+    const a = makeItem(1, 1, 1, () => 0.5, 'boots');
+    const b = { ...a, rarity: 3 };
+    const c = { ...a, ilvl: 10 };
+    const d = { ...a, forge: 5 };
+    for (const x of [b, c, d]) expect(itemPower(x)).toBeGreaterThan(itemPower(a));
+  });
+  it('forja não tem teto e fica mais cara', () => {
+    const it = makeItem(1, 2, 3, () => 0.5);
+    const c1 = forgeCost(it);
+    const c2 = forgeCost({ ...it, forge: 20 });
+    expect(c2.gold).toBeGreaterThan(c1.gold);
+    expect(c2.dust).toBeGreaterThan(c1.dust);
+  });
+  it('mochila cheia desmancha os mais fracos e nunca o equipado', () => {
+    const save = migrate({ version: 2 });
+    const weak = makeItem(nextUid(save), 0, 1, () => 0.5, 'ring');
+    addItems(save, [weak]);
+    equip(save, weak.uid);
+    const many = Array.from({ length: BAG_SIZE + 5 }, () => makeItem(nextUid(save), 2, 5, Math.random));
+    addItems(save, many);
+    expect(save.items.length).toBe(BAG_SIZE);
+    expect(save.items.some((i) => i.uid === weak.uid)).toBe(true);
+    expect(save.dust).toBeGreaterThan(0);
+  });
+  it('dois anéis ocupam os dois espaços de anel', () => {
+    const save = migrate({ version: 2 });
+    const r1 = makeItem(nextUid(save), 1, 1, Math.random, 'ring');
+    const r2 = makeItem(nextUid(save), 1, 1, Math.random, 'signet');
+    addItems(save, [r1, r2]);
+    equip(save, r1.uid);
+    equip(save, r2.uid);
+    expect(save.equipped.ring1).toBe(r1.uid);
+    expect(save.equipped.ring2).toBe(r2.uid);
+    expect(equipmentModifiers(save).length).toBeGreaterThanOrEqual(4);
+  });
+  it('baú: 1 item por sobreviver, +1 por chefe, +1 na vitória', () => {
+    expect(lootCount(60, 0, false)).toBe(0);
+    expect(lootCount(200, 0, false)).toBe(1);
+    expect(lootCount(900, 3, true)).toBe(5);
+  });
+  it('sorte e bônus deixam itens mais raros em média', () => {
+    let s = 1;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const avg = (luck: number, bonus: number) => {
+      let t = 0;
+      for (let i = 0; i < 2000; i++) t += rollItemRarity(luck, bonus, 0, rnd);
+      return t / 2000;
+    };
+    expect(avg(100, 0.5)).toBeGreaterThan(avg(0, 0));
   });
 });

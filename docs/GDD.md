@@ -144,3 +144,25 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 
 **Loja de melhorias por abas:** Ataque, Defesa, Exploração e Cartas, com o total comprado em cada aba e um ponto verde quando há algo que dá para comprar.
 
+
+## Itens equipáveis (20/10/2026)
+
+**Espaços:** arma, mão secundária, elmo, armadura, botas, capa, anel ×2, amuleto e relíquia. Os itens aparecem como ícones e efeitos; as peças no corpo do herói ficam para as skins pagas.
+
+**Raridades:** Comum, Incomum, Raro, Épico, Lendário e Mítico, com 0–4 atributos extras e força ×1 a ×4,3. Do Raro para cima, o item ganha um **efeito único** visível na partida: Carrasco, Espelho, Sopro do Dragão, Explosão de Espinhos, Passos Ígneos, Manto da Tempestade, Vampiro, Caos, Nova de Gelo, Ímã Ancestral e Segundo Fôlego. Dois itens com o mesmo efeito somam a força. O dano dos efeitos acompanha o dano do herói e a força da fase.
+
+**Baú da partida:** 1 item depois de 3 min, +1 por chefe vencido e +1 na vitória (a vitória garante um Raro ou melhor). O nível do item sobe com a fase e a dificuldade, e a chance de raridade sobe com a sorte, a fase, a dificuldade e os chefes vencidos.
+
+**Forja e pó:** forjar dá +10% de força ao item (custo em ouro e pó, crescente). Desmanchar transforma o item em pó. A mochila guarda 80 itens; o excedente mais fraco vira pó sozinho.
+
+**Nunca à venda:** itens, ovos e energia não se compram com dinheiro real (só atalhos de tempo e cosméticos).
+
+## Plano até o lançamento (20/10/2026)
+
+1. Itens equipáveis ✅
+2. Pets com 3 evoluções (ovos de elites e chefes)
+3. Montarias (no lançamento ou na 1ª atualização)
+4. Mais 3 fases: Vulcão, Ruínas e Cidadela (Demônio Ancestral como chefe final): 9 no total
+5. Acabamento: música e sons, tutorial, configurações, inglês e português, missões diárias e conquistas
+6. Monetização: anúncios com recompensa (ouro em dobro, reviver 1 vez, rolar de novo; limite por dia), VIP de compra única, cosméticos e pacotes de ouro; AdMob com consentimento, RevenueCat, salvamento na nuvem
+7. Lançamento: métricas, relatório de erros, desempenho em aparelho fraco, imagens da loja e lançamento em teste

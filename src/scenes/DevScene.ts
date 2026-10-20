@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { RARITIES, makeItem } from '../data/items';
+import { addItems, nextUid } from '../systems/inventory';
 import { WEAPONS, WEAPON_IDS } from '../data/weapons';
 import { INFINITE_GOLD, RUN_OPTIONS, SPEED_OPTIONS, cycle, dev, setDev } from '../systems/dev';
 import { loadSave, writeSave } from '../systems/save';
@@ -60,6 +62,14 @@ export class DevScene extends Phaser.Scene {
       [`Velocidade: ${dev.speed}×`, () => {
         setDev({ speed: cycle(SPEED_OPTIONS, dev.speed) });
         if (inRun) game.applyDevSpeed();
+      }],
+      ['Ganhar 10 itens (todas as raridades)', () => {
+        const save = loadSave();
+        const items = Array.from({ length: 10 }, (_, i) => makeItem(nextUid(save), i % RARITIES.length, 1 + i));
+        addItems(save, items);
+        save.dust += 200;
+        save.newItems = (save.newItems ?? 0) + items.length;
+        writeSave(save);
       }],
     ];
     let y = 78;

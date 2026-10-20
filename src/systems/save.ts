@@ -1,5 +1,6 @@
 import type { CharacterId } from '../data/characters';
 import type { TierProgress } from '../data/difficulty';
+import type { EquipSlot, ItemInstance } from '../data/items';
 import type { MetaId } from '../data/meta';
 import type { RunEventId, StageId } from '../data/stages';
 import { INFINITE_GOLD, dev } from './dev';
@@ -24,6 +25,13 @@ export interface SaveData {
   tiers: Partial<Record<StageId, TierProgress[]>>;
   /** dificuldade escolhida em cada fase */
   tier: Partial<Record<StageId, number>>;
+  /** mochila de itens, o que está equipado (uid por espaço), pó de forja e o próximo uid */
+  items: ItemInstance[];
+  equipped: Partial<Record<EquipSlot, number>>;
+  dust: number;
+  nextItem: number;
+  /** itens ganhos desde a última visita ao equipamento (selo no menu) */
+  newItems: number;
   /** eventos já encontrados em cada fase (o mapa mostra "?" nos que faltam) */
   seen: Partial<Record<StageId, RunEventId[]>>;
 }
@@ -45,6 +53,11 @@ export function defaultSave(): SaveData {
     stage: 'clareira',
     tiers: {},
     tier: {},
+    items: [],
+    equipped: {},
+    dust: 0,
+    nextItem: 1,
+    newItems: 0,
     seen: {},
   };
 }

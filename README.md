@@ -29,6 +29,7 @@ O design completo está em [docs/GDD.md](docs/GDD.md).
 - **Inimigos com habilidade** (`src/systems/enemySkills.ts`): Slime Cuspidor (atira de longe), Slime de Magma (lança a Bola de Fogo, com nível que cresce com a fase e o tempo) e Slime Bomba (pisca e explode, ferindo também os inimigos). Todo ataque tem aviso antes.
 - **Eventos aleatórios** (`src/systems/runEvents.ts`): baú guardado, prisioneiro que vira aliado, chefe surpresa, goblin dourado, chuva de meteoros, emboscada, guerra de tribos, tempestade de areia, santuário maldito e lua de sangue (cataclismos ferem herói e inimigos). Itens pelo mapa (ímã, bomba, cura) e setas na borda da tela apontando para os eventos.
 - **Resistência a controle:** chefes e elites ignoram ou sofrem menos empurrões, congelamento e lentidão.
+- **Itens equipáveis** (`src/data/items.ts`, `src/systems/inventory.ts`, tela EQUIPAMENTO): 10 espaços (arma, mão secundária, elmo, armadura, botas, capa, 2 anéis, amuleto, relíquia), 6 raridades (Comum a Mítico) e efeitos únicos a partir do Raro, que se veem na partida (rastro de fogo, sopro do dragão, nova de gelo, espinhos, raios, vampiro, carrasco, espelho, caos, ímã, segundo fôlego; `src/systems/itemEffects.ts`). Todo fim de partida abre um baú de itens (mais itens por tempo, chefes e vitória; fases e dificuldades altas dão itens melhores). Forja (+nível com ouro e pó) e desmanche (vira pó).
 - Heróis: Cavaleiro, Maga, Caçadora (300 de ouro), Bárbaro (600 de ouro).
 
 ### Arte

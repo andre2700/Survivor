@@ -181,11 +181,26 @@ export class MenuScene extends Phaser.Scene {
     button(this, heroX + arrow, cy + 30, '>', () => cycle(1), { width: 40, height: 44, size: 20 });
     refresh();
 
-    button(this, infoX, cardY + 156, 'MELHORIAS', () => {
+    button(this, infoX - 78, cardY + 156, 'MELHORIAS', () => {
       unlockAudio();
       sfx('select');
       this.scene.start('Shop');
-    }, { width: 200, height: 38, size: 14, icon: 'icon_star' });
+    }, { width: 148, height: 38, size: 13, icon: 'icon_star' });
+    button(this, infoX + 78, cardY + 156, 'EQUIPAMENTO', () => {
+      unlockAudio();
+      sfx('select');
+      const s = loadSave();
+      s.newItems = 0;
+      writeSave(s);
+      this.scene.start('Equip');
+    }, { width: 148, height: 38, size: 12, icon: 'item_helm' });
+    // itens novos desde a última visita
+    if (save.newItems) {
+      const badge = this.add.container(infoX + 78 + 66, cardY + 140);
+      badge.add(this.add.circle(0, 0, 10, 0xff4a5a).setStrokeStyle(2, 0xffffff));
+      badge.add(text(this, 0, 0, String(save.newItems), 10, '#ffffff', { bold: true }));
+      this.tweens.add({ targets: badge, scale: 1.15, duration: 500, yoyo: true, repeat: -1 });
+    }
 
     if (save.bestTime > 0) {
       const cycleTxt = save.bestCycle ? ` · ciclo ${save.bestCycle}` : '';

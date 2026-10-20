@@ -345,6 +345,9 @@
  "ice_patch": {
   "hd": 2
  },
+ "icon_anvil": {
+  "hd": 4
+ },
  "icon_bolt": {
   "hd": 4
  },
@@ -358,6 +361,9 @@
   "hd": 4
  },
  "icon_dice": {
+  "hd": 4
+ },
+ "icon_dust": {
   "hd": 4
  },
  "icon_element": {
@@ -406,6 +412,57 @@
   "hd": 4
  },
  "icon_water": {
+  "hd": 4
+ },
+ "item_amulet": {
+  "hd": 4
+ },
+ "item_blade": {
+  "hd": 4
+ },
+ "item_boots": {
+  "hd": 4
+ },
+ "item_cape": {
+  "hd": 4
+ },
+ "item_dagger": {
+  "hd": 4
+ },
+ "item_helm": {
+  "hd": 4
+ },
+ "item_hood": {
+  "hd": 4
+ },
+ "item_idol": {
+  "hd": 4
+ },
+ "item_plate": {
+  "hd": 4
+ },
+ "item_relic": {
+  "hd": 4
+ },
+ "item_ring": {
+  "hd": 4
+ },
+ "item_robe": {
+  "hd": 4
+ },
+ "item_shield": {
+  "hd": 4
+ },
+ "item_signet": {
+  "hd": 4
+ },
+ "item_staff": {
+  "hd": 4
+ },
+ "item_tome": {
+  "hd": 4
+ },
+ "item_warhammer": {
   "hd": 4
  },
  "knife": {

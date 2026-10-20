@@ -385,6 +385,20 @@ export class EnemySkills {
         s.img.destroy();
         continue;
       }
+      if (hitPlayer && this.scene.itemFx.reflects()) {
+        // Espelho (item): o tiro volta e acerta o inimigo mais próximo
+        const sc = this.scene;
+        const foe = sc.nearestEnemies(p.x, p.y, 1, 260)[0];
+        sc.floatText(p.x, p.y - 22, 'REFLETIDO!', '#bff0ff', false);
+        if (foe) {
+          const line = sc.add.graphics().setDepth(LAYER.fx);
+          line.lineStyle(3, 0xbff0ff, 0.9).lineBetween(p.x, p.y - 8, foe.x, foe.y - 8);
+          sc.tweens.add({ targets: line, alpha: 0, duration: 220, onComplete: () => line.destroy() });
+          sc.elementalDamage(foe, sc.itemFx.reflectDamage(80), '#bff0ff');
+        }
+        s.img.destroy();
+        continue;
+      }
       if (hitPlayer) {
         // teia: prende o herói mesmo quando o dano é esquivado
         if (s.chill) this.chill();

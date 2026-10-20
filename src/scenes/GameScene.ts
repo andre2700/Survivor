@@ -31,6 +31,9 @@ import { BossAI } from '../systems/bossAI';
 import { EnemySkills, WEB } from '../systems/enemySkills';
 import { RunEvents } from '../systems/runEvents';
 import { MapHazards, TRAP, trapTexture } from '../systems/mapHazards';
+import { ItemEffects } from '../systems/itemEffects';
+import { activeEffects, addItems, equipmentModifiers, nextUid } from '../systems/inventory';
+import { dropLevel, lootCount, makeItem, rollRarity, EFFECT_RARITY, type ItemInstance } from '../data/items';
 import { FONT, px } from '../ui/theme';
 
 /**
@@ -81,6 +84,8 @@ export interface RunResult {
   tier: number;
   /** chefes da fase vencidos (0 a 3) */
   bosses: number;
+  /** itens do baú de fim de partida */
+  loot: ItemInstance[];
   /** objetivos da fase cumpridos nesta partida (estrelas) */
   stars: boolean[];
   /** o que a vitória liberou (próxima fase, próxima dificuldade) */
@@ -140,7 +145,7 @@ export class GameScene extends Phaser.Scene {
   currentOptions: UpgradeOption[] = [];
   private revivesLeft = 0;
   private pendingLevels = 0;
-  private invulnUntil = 0;
+  invulnUntil = 0;
   private attackUntil = 0;
   private hurtUntil = 0;
   private playerFrame = 0;
@@ -165,6 +170,10 @@ export class GameScene extends Phaser.Scene {
   /** habilidades dos inimigos à distância, conjuradores e explosivos */
   enemySkills!: EnemySkills;
   bossAI!: BossAI;
+  /** efeitos únicos dos itens equipados */
+  itemFx!: ItemEffects;
+  /** itens ganhos no baú de fim de partida */
+  private loot: ItemInstance[] = [];
   /** árvores bravas e armadilhas */
   private mapHazards!: MapHazards;
   /** eventos aleatórios, aliado e itens do mapa */
@@ -247,7 +256,7 @@ export class GameScene extends Phaser.Scene {
     this.stage = stage.playable ? stage : STAGES[0];
     this.completed = new Set();
     this.bossDown = false;
-    this.baseMods = [...this.char.mods, ...metaModifiers(save.meta)];
+    this.baseMods = [...this.char.mods, ...metaModifiers(save.meta), ...equipmentModifiers(save)];
     this.loadout = { weapons: { [this.char.weapon]: 1 }, stats: {} };
     this.recomputeStats();
     this.hp = this.stats.maxHp;
@@ -279,7 +288,11 @@ export class GameScene extends Phaser.Scene {
     this.rerolls = save.meta.reroll ?? 0;
     this.banishes = save.meta.banish ?? 0;
     this.locks = save.meta.lock ?? 0;
-    this.numOptions = 3 + (save.meta.choices ?? 0);
+    const fx = activeEffects(save);
+    this.itemFx = new ItemEffects(this, fx);
+    this.loot = [];
+    // Caos (item): +1 opção a cada nível
+    this.numOptions = 3 + (save.meta.choices ?? 0) + (fx.chaos ? 1 : 0);
     this.banned = new Set();
     this.lockedNext = [];
     this.currentOptions = [];
@@ -425,6 +438,7 @@ export class GameScene extends Phaser.Scene {
     this.updateEnemies(dt);
     this.weapons.update(dt);
     this.enemySkills.update(dt);
+    this.itemFx.update(dt);
     this.runEvents.update(dt);
     this.updateProjectiles(dt);
     this.checkContact();
@@ -568,6 +582,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setTintFill(0xffffff);
     this.time.delayedCall(80, () => this.player.clearTint());
     sfx('hurt');
+    this.itemFx.onHurt();
     if (this.hp <= 0) this.onPlayerDeath();
     return true;
   }
@@ -886,6 +901,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
     if (e.hp <= 0 && dev.enemiesImmortal) e.hp = e.maxHp;
+    // Carrasco (item): inimigo comum com pouca vida morre na hora
+    if (this.itemFx.executes(e)) {
+      e.hp = 0;
+      this.floatText(e.x, e.y - 24 * e.baseScale, 'EXECUTADO!', '#ff5a5a', true);
+    }
     // o chefe final "morre", se transforma e volta para a fase 2
     if (e.hp <= 0 && e.boss && this.bossAI.intercept(e)) return;
     if (e.hp <= 0) this.killEnemy(e, true);
@@ -925,6 +945,7 @@ export class GameScene extends Phaser.Scene {
     sfx('kill');
     const reward = this.difficulty().reward;
     if (e.tag) this.runEvents.onKill(e);
+    this.itemFx.onKill();
     if (e.boss) this.bossAI.end(e);
     if (this.mainBosses.includes(e)) {
       this.mainBosses = this.mainBosses.filter((b) => b !== e);
@@ -1446,6 +1467,7 @@ export class GameScene extends Phaser.Scene {
       stage: this.stage.id,
       tier: this.tier,
       bosses: this.bossesDown,
+      loot: this.loot,
       stars,
       unlocked,
       endless: this.endless,
@@ -1474,6 +1496,27 @@ export class GameScene extends Phaser.Scene {
     if (this.bonusPaid) return;
     this.bonusPaid = true;
     this.gold += this.runBonus();
+    this.grantLoot();
+  }
+
+  /**
+   * Baú de fim de partida: 1 item por sobreviver 3 min, +1 por chefe, +1 na vitória. Fase,
+   * dificuldade, Sorte e chefes vencidos melhoram a raridade; vencer garante pelo menos um Raro.
+   */
+  private grantLoot() {
+    const save = loadSave();
+    const n = lootCount(this.elapsed, this.bossesDown, this.bossDown);
+    const ilvl = dropLevel(this.stageIndex, this.tier);
+    const bonus = this.stageIndex * 0.08 + this.tier * 0.15 + this.bossesDown * 0.1;
+    this.loot = Array.from({ length: n }, (_, i) => makeItem(nextUid(save), rollRarity(this.stats.luck, bonus, this.bossDown && i === 0 ? EFFECT_RARITY : 0), ilvl));
+    addItems(save, this.loot);
+    save.newItems = (save.newItems ?? 0) + this.loot.length;
+    writeSave(save);
+  }
+
+  /** Puxa todas as gemas do mapa (item Ímã Ancestral). */
+  pullAllGems() {
+    for (const g of this.pickups.items) if (g.active && g.kind === 'gem') g.magnet = true;
   }
 
   endRun(victory: boolean) {

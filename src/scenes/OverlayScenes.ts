@@ -10,6 +10,8 @@ import { sfx } from '../systems/sfx';
 import { RARITIES, describeOption } from '../systems/upgrades';
 import { FONT, button, goldTitle, panel, starIcon, text, px } from '../ui/theme';
 import { tierName } from '../data/difficulty';
+import { RARITIES as ITEM_RARITIES, itemName } from '../data/items';
+import { itemCard, rarityHex } from '../ui/items';
 import { getStage } from '../data/stages';
 import type { GameScene, RunResult } from './GameScene';
 import { formatTime } from './HudScene';
@@ -247,6 +249,40 @@ function statsPanel(scene: Phaser.Scene, game: GameScene, y0: number, cx = VIEW.
   if (tags.length) text(scene, cx, y0 + h + 16, `Tags: ${tags.join(' · ')}`, 11, '#8a8ea8', { wrap: pw - 4 });
 }
 
+/**
+ * Baú da partida: os itens ganhos aparecem um a um, com um clarão na cor da raridade. Devolve a
+ * altura usada.
+ */
+function lootRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number, w: number): number {
+  const loot = result.loot ?? [];
+  text(scene, cx, y, loot.length ? `BAÚ DA PARTIDA · ${loot.length} ${loot.length > 1 ? 'ITENS' : 'ITEM'}` : 'BAÚ DA PARTIDA', 13, '#ffd86a', { bold: true });
+  if (!loot.length) {
+    text(scene, cx, y + 22, 'Sobreviva 3 minutos ou vença chefes para ganhar itens', 11, '#a8acc4', { wrap: w });
+    return 44;
+  }
+  const size = 42;
+  const per = Math.max(1, Math.floor(w / (size + 8)));
+  loot.forEach((it, i) => {
+    const row = Math.floor(i / per);
+    const inRow = Math.min(per, loot.length - row * per);
+    const x = cx + ((i % per) - (inRow - 1) / 2) * (size + 8);
+    const iy = y + 34 + row * (size + 8);
+    const card = itemCard(scene, x, iy, it, size).setScale(0);
+    scene.tweens.add({ targets: card, scale: 1, duration: 260, delay: 400 + i * 220, ease: 'Back.Out', onStart: () => {
+      sfx('pickup');
+      if (it.rarity >= 2) {
+        const flash = scene.add.circle(x, iy, size * 0.7, ITEM_RARITIES[it.rarity].color, 0.6);
+        scene.tweens.add({ targets: flash, scale: 2, alpha: 0, duration: 450, onComplete: () => flash.destroy() });
+      }
+    } });
+  });
+  const rows = Math.ceil(loot.length / per);
+  const best = loot.reduce((a, b) => (b.rarity > a.rarity ? b : a));
+  const by = y + 34 + rows * (size + 8) - 8;
+  text(scene, cx, by, `Melhor: ${itemName(best)} (${ITEM_RARITIES[best.rarity].name})`, 11, rarityHex(best.rarity), { bold: true, wrap: w });
+  return by - y + 18;
+}
+
 /** Estrelas da fase nesta partida, com o texto de cada objetivo cumprido. */
 function starsRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number) {
   const stage = getStage(result.stage);
@@ -279,6 +315,7 @@ export class VictoryScene extends Phaser.Scene {
     text(this, lx, ty + 42, `${formatTime(result.time)} · ${formatNumber(result.kills)} abates · nível ${result.level}`, 13, '#e8e2d0', { shadow: true });
     starsRow(this, result, lx, ty + 72);
     if (result.unlocked) text(this, lx, ty + 112, `Liberado: ${result.unlocked}!`, 14, '#8cf08a', { bold: true, strokeThickness: 3 });
+    if (!wide) lootRow(this, result, lx, ty + 138, width - 40);
 
     const py = wide ? height * 0.36 : height * 0.5;
     const pw = wide ? WIDE_COL : width - 36;
@@ -350,11 +387,13 @@ export class GameOverScene extends Phaser.Scene {
       this.add.text(lx + pw / 2 - 16, y, v, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: k === 'Ouro' ? '#ffd86a' : '#ffffff' }).setOrigin(1, 0.5);
     });
 
+    // baú de itens da partida
+    const lootH = lootRow(this, result, lx, y0 + rowsH + 22, pw);
     // dano por arma: ajuda a entender o que funcionou
     const reactions = [...result.reactions].sort((a, b) => b.dealt - a.dealt);
-    const weapons = [...result.weapons].sort((a, b) => b.dealt - a.dealt).slice(0, reactions.length || wide ? 5 : 6);
+    const weapons = [...result.weapons].sort((a, b) => b.dealt - a.dealt).slice(0, wide ? 5 : reactions.length ? 3 : 4);
     const total = weapons.reduce((s, w) => s + w.dealt, 0) || 1;
-    let y = wide ? 40 : y0 + rowsH + 26;
+    let y = wide ? 40 : y0 + rowsH + 26 + lootH + 6;
     const left = rx - pw / 2;
     text(this, rx, y, 'DANO POR ARMA', 13, '#ffd86a', { bold: true });
     y += 22;
