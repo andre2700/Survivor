@@ -973,7 +973,8 @@ export class GameScene extends Phaser.Scene {
     const event = this.endless ? (minute % 2 === 0 ? 'swarm' : 'ring') : wave.minute === minute ? wave.event : undefined;
     if (event && !this.eventsDone.has(minute) && clock - minute * 60 > 5) {
       this.eventsDone.add(minute);
-      this.runEvent(event);
+      // revoada e cerco não acontecem durante a luta com um chefe da fase
+      if (!this.mainBosses.length) this.runEvent(event);
     }
   }
 

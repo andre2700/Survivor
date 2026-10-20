@@ -101,6 +101,8 @@ export class RunEvents {
 
   update(dt: number) {
     const sc = this.scene;
+    // com um chefe da fase na tela, os eventos esperam (o chefe já é o desafio do momento)
+    if (sc.boss?.active && this.clock >= this.next) this.next = this.clock + 10;
     if (!sc.endless && !sc.bossSpawned && this.clock >= this.next) {
       this.next = this.clock + 60 + Math.random() * 40;
       this.start(this.pick());
