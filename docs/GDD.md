@@ -118,6 +118,10 @@ Todo inimigo tem **Resistência** (0 a 1) contra controles: empurrão, congelame
 
 **Ritmo desejado (Normal):** a fase nova encanta e derrota rápido; o jogador tenta de novo, compra melhorias, chega ao chefe do início, perde, melhora, vence o do início, perde no meio... até vencer o chefe final. Para isso cada partida rende ouro mesmo na derrota: **8 de ouro por minuto sobrevivido e 40 por chefe vencido** (vezes a dificuldade da fase e a recompensa da dificuldade escolhida), além das moedas.
 
+**Números do ritmo** (ajustados com o simulador): força das fases 1 / 2,8 / 4,5 / 7 / 11 (vida dos inimigos; dano ^0,75; recompensa ^0,85), entrando com 90% no início da partida. Ao longo da partida a vida dos inimigos cresce até ×11 aos 15 min e o dano até ×1,75. Chefes: início 1.400–1.500, meio 3.500–3.700, final 9.000–9.500 de vida base, vezes a raiz do crescimento do momento em que chegam (×1,8 / ×2,6 / ×3,3) e a força da fase. Eventos de cerco e revoada não acontecem na chegada nem durante a luta com um chefe. Golpes de chefe sempre dão tempo de fugir andando (60 px/s): raio do pouso ≤ 72 px com 1,6 s de aviso, pancada ≤ 62 px com 1 s.
+
+Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clareira do zero, chega ao 1º chefe na 2ª partida e vence a fase na 16ª; Bosque Outonal com as melhorias da Clareira, morre entre 2:40 e 5:00 nas primeiras, chega ao 1º chefe na 4ª, vence-o na 17ª e vence a fase na 20ª.
+
 **Melhorias permanentes sem limite:** nenhuma tem teto. As que podem quebrar o jogo ficam caríssimas: Renascer (500 de ouro, ×3,5 a cada nível) e Visão (+1 opção por nível; 600, ×3,2).
 
 **Seleção de fase:** uma fase por página, aberta na próxima fase a vencer. O fundo é a própria fase (chão, decoração e as criaturas andando); embaixo: dificuldade (‹ Normal ›), os três chefes (vencidos aparecem, o próximo em silhueta, os outros "?"), mistérios, perigos, tesouros e objetivos. Setas ou arrastar para o lado trocam de fase. Fase bloqueada mostra só um vislumbre: nome, frase, clima e o que falta para liberar.
