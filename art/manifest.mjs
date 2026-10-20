@@ -308,6 +308,59 @@ export const ART = {
       windup: 'raising both branch arms high above its head, purple energy gathering', attack: 'slamming both branch arms down into the ground in front, roots bursting up',
     },
   },
+  // ---------- Clareira: chefe final (o Demônio Ancestral fica para fases avançadas) ----------
+  goblin_king: {
+    h: 64, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped', hold: 'the huge spiked wooden club in one hand',
+    prompt: `a fat cartoon goblin king boss with green skin, a big golden crown, a red royal cape with white fur trim, a pot belly and a huge spiked wooden club, ${CHAR}, menacing but fun`,
+    poses: {
+      idle: 'standing proud, club resting on the shoulder', walk_a: 'stomping, near foot forward', walk_b: 'stomping, far foot forward',
+      windup: 'raising the club high over the head with both hands', attack: 'smashing the club down on the ground in front, a burst of dust',
+    },
+  },
+  // ---------- Pico Congelado (frio, sombrio) ----------
+  ground_snow: { tile: true, contrast: 0.45, prompt: `a seamless tileable texture of soft fresh snow ground seen from directly above, for a top-down RPG map: white snow with soft large pale blue shadows. Very clean and calm: only soft, large, painterly patches. NO footprints, NO rocks, NO outlines, NO dots, NO objects. Even lighting, fills the whole square image edge to edge` },
+  snow_pine: { h: 76, shadow: true, prompt: `a single cute pine tree covered in thick snow, front view, like a top-down RPG map object` },
+  ice_crystal: { h: 26, shadow: true, prompt: `a single cluster of glowing pale blue ice crystals sticking out of the snow, front view, like a top-down RPG map object` },
+  snow_rock: { h: 20, shadow: true, prompt: `a single gray boulder with a cap of snow on top, front view, like a top-down RPG map object` },
+  snowdrift: { h: 14, prompt: `a small soft mound of snow with a few tiny ice sparkles, like a top-down RPG map decoration` },
+  frozen_log: { h: 16, shadow: true, prompt: `a single fallen log covered in frost and small icicles, front view, like a top-down RPG map object` },
+  ice_patch: { w: 76, prompt: `a flat irregular patch of slippery smooth blue ice with white glints and thin cracks, seen from directly above, organic blob shape, like a top-down RPG map decal` },
+  yeti: {
+    h: 38, hd: 3, shadow: true, role: 'monster', body: 'biped',
+    prompt: `a big furry white yeti monster with blue face, small horns, long arms and big fists, ${CHAR}`,
+    poses: { attack: 'swinging a huge fist forward to the RIGHT, roaring' },
+  },
+  snow_golem: {
+    h: 34, hd: 3, shadow: true, role: 'monster', body: 'biped',
+    prompt: `a chunky snow golem monster made of packed snowballs with ice chunk arms, coal eyes and a carrot nose, ${CHAR}`,
+    poses: { attack: 'throwing a big snowball forward to the RIGHT with one arm' },
+  },
+  frost_wraith: {
+    h: 36, hd: 3, shadow: true, role: 'special', body: 'biped', hold: 'the icy staff topped with a glowing blue snowflake',
+    prompt: `a floating frost wraith monster in a tattered pale blue hooded robe, glowing cyan eyes, icy wisps instead of legs, holding an icy staff topped with a glowing blue snowflake, ${CHAR}`,
+    poses: {
+      walk_a: 'floating, robe swaying back', walk_mid: 'floating, robe hanging straight', walk_b: 'floating, robe swaying forward',
+      windup: 'raising the staff high, frost swirling around it', attack: 'pointing the staff forward to the RIGHT, casting a wave of frost',
+    },
+  },
+  penguin: {
+    h: 24, hd: 3, shadow: true, role: 'monster', body: 'biped',
+    prompt: `a small angry cartoon penguin warrior monster wearing a little iron helmet and holding a tiny ice spear, ${CHAR}`,
+    poses: { attack: 'jabbing the ice spear forward to the RIGHT' },
+  },
+  snow_owl: {
+    h: 22, hd: 3, role: 'monster', body: 'flyer', wideSheets: true,
+    prompt: `a fierce cartoon white snow owl monster with big yellow eyes and spread wings, flying, ${CHAR}`,
+    poses: { attack: 'diving forward to the RIGHT with talons out' },
+  },
+  ice_dragon: {
+    h: 72, hd: 3, shadow: true, wide: true, role: 'boss', body: 'quadruped',
+    prompt: `a majestic pale blue ice dragon boss monster with crystal spikes on its back, frosty wings folded, glowing icy eyes, ${CHAR}, menacing`,
+    poses: {
+      idle: 'standing tall, wings half open, frost breath curling from the mouth', walk_a: 'prowling, front leg forward', walk_b: 'prowling, back leg forward',
+      windup: 'rearing up with wings spread wide, inhaling, mouth glowing blue', attack: 'breathing a blast of icy frost forward to the RIGHT',
+    },
+  },
   // objetos dos eventos (no lugar dos provisórios desenhados por código)
   chest: { h: 22, shadow: true, prompt: `a single closed wooden treasure chest with gold trim and a golden lock, front view, like a top-down RPG map object` },
   bomb: { h: 16, prompt: `a single round black cartoon bomb with a short lit fuse sparkling, like a top-down RPG map item` },

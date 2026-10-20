@@ -80,6 +80,13 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
       { speed: 1.25, pause: 0.9, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'fireball', count: 10, damage: 1.2 }, { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 10, damage: 1.4 }, leap(2, 2), summon(['bat', 'bat_air'], 8)] },
     ],
   },
+  goblin_king: {
+    enrageAt: 0.35, phase2Name: 'Rei Goblin Furioso', phase2Tint: 0xff9a7a,
+    phases: [
+      { speed: 1, pause: 1.5, moves: [leap(3), slam(2), charge(2, 1), summon(['goblin'], 6)] },
+      { speed: 1.25, pause: 1, moves: [leap(3, 2), charge(3, 3), { kind: 'rain', weight: 2, cooldown: 7, look: 'spike', count: 7, damage: 1.3 }, summon(['goblin', 'wolf'], 6)] },
+    ],
+  },
   // ---------- Bosque Outonal ----------
   magma_lord: {
     enrageAt: 0.4,
@@ -92,7 +99,7 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
   orc_chief: {
     enrageAt: 0.35, phase2Name: 'Chefe Orc Enfurecido', phase2Tint: 0xff8a6a,
     phases: [
-      { speed: 1, pause: 1.4, moves: [leap(3), charge(2, 2), slam(2), summon(['orc', 'goblin'], 4)] },
+      { speed: 1, pause: 1.4, moves: [leap(3), charge(2, 2), slam(2), summon(['orc', 'goblin_earth'], 4)] },
       { speed: 1.3, pause: 0.8, moves: [leap(3, 3), charge(3, 4), { kind: 'rain', weight: 2, cooldown: 7, look: 'spike', count: 8, damage: 1.4 }, summon(['orc'], 5)] },
     ],
   },
@@ -131,7 +138,7 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
   // ---------- Floresta Sombria ----------
   werewolf_alpha: {
     enrageAt: 0.5,
-    phases: [{ speed: 1, pause: 1.2, moves: [leap(4, 2), charge(2, 2), summon(['wolf', 'werewolf'], 4)] }],
+    phases: [{ speed: 1, pause: 1.2, moves: [leap(4, 2), charge(2, 2), summon(['werewolf'], 4)] }],
   },
   elder_witch: {
     enrageAt: 0.5,
@@ -142,6 +149,22 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
     phases: [
       { speed: 1, pause: 1.4, moves: [{ kind: 'rain', weight: 3, cooldown: 5, look: 'spike', count: 8, damage: 1.4 }, slam(2), summon(['spider', 'wisp'], 5), leap(1)] },
       { speed: 1.25, pause: 0.9, moves: [{ kind: 'rain', weight: 3, cooldown: 4, look: 'spike', count: 12, damage: 1.4 }, { kind: 'nova', weight: 3, cooldown: 5, shot: 'spit', count: 16, color: 0x9a50d0, damage: 1.1 }, leap(2, 2), summon(['werewolf', 'spider'], 5)] },
+    ],
+  },
+  // ---------- Pico Congelado ----------
+  yeti_elder: {
+    enrageAt: 0.45,
+    phases: [{ speed: 1, pause: 1.4, moves: [leap(3, 2), slam(2), charge(1, 2), summon(['penguin'], 6)] }],
+  },
+  frost_queen: {
+    enrageAt: 0.5,
+    phases: [{ speed: 1, pause: 1.3, moves: [{ kind: 'volley', weight: 3, cooldown: 4, shot: 'wave', count: 3, damage: 1.1 }, { kind: 'nova', weight: 2, cooldown: 7, shot: 'spit', count: 14, color: 0xbff0ff, damage: 1 }, { kind: 'rain', weight: 2, cooldown: 6, look: 'spike', count: 7, damage: 1.3 }, summon(['snow_owl'], 6), { kind: 'blink', weight: 1, cooldown: 7 }] }],
+  },
+  ice_dragon: {
+    enrageAt: 0.35, phase2Name: 'Dragão de Gelo Ancestral', phase2Tint: 0x8ab8ff,
+    phases: [
+      { speed: 1, pause: 1.4, moves: [{ kind: 'volley', weight: 3, cooldown: 4, shot: 'spit', count: 7, color: 0xbff0ff, damage: 1.1 }, leap(2), charge(2, 2), { kind: 'rain', weight: 2, cooldown: 7, look: 'spike', count: 8, damage: 1.3 }] },
+      { speed: 1.25, pause: 0.9, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'spit', count: 18, color: 0xbff0ff, damage: 1.1 }, { kind: 'volley', weight: 2, cooldown: 4, shot: 'wave', count: 5, damage: 1.2 }, leap(2, 2), summon(['yeti', 'snow_golem'], 5)] },
     ],
   },
 };

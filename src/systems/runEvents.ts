@@ -59,6 +59,8 @@ const TITLES: Record<RunEventId, string> = {
   sandstorm: 'TEMPESTADE DE AREIA!',
   cursedShrine: 'UM SANTUÁRIO MALDITO!',
   bloodMoon: 'LUA DE SANGUE!',
+  blizzard: 'NEVASCA!',
+  avalanche: 'AVALANCHE! SAIA DA FAIXA!',
 };
 
 /** Tribos da guerra quando a fase não define as suas. */
@@ -69,6 +71,9 @@ const DEFAULT_TRIBES: [Tribe, Tribe] = [
 
 /** Tempestade de areia: dura isto (s) e fere todos a cada `tick` (s). */
 const STORM = { time: 16, tick: 2, streaks: 110 };
+
+/** Avalanche: aviso (s), meia altura da faixa, velocidade da neve e dano no herói (fração da vida). */
+const AVALANCHE = { warn: 2.6, half: 46, speed: 520, hero: 0.35 };
 
 /** Lua de sangue: dura isto (s); fração da vida que herói e inimigos perdem a cada `STORM.tick`. */
 const BLOOD_MOON = { time: 20, hero: 0.04, foe: 0.1 };
@@ -86,11 +91,13 @@ export class RunEvents {
   private done = new Set<RunEventId>();
   /** guerreiros vivos de cada tribo, o campo de batalha e o fim da guerra */
   private tribes: [Enemy[], Enemy[]] = [[], []];
+  /** avalanche: faixa (centro e meia altura), direção, início, frente da neve e se acertou o herói */
+  private avalanche: { y: number; half: number; dir: number; start: number; x: number; g: Phaser.GameObjects.Graphics; hit: boolean; left: number; right: number } | null = null;
   /** santuário maldito esperando o herói */
   private shrine: { img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Graphics; progress: number } | null = null;
   private war: { x: number; y: number; until: number } | null = null;
   /** tempestade de areia: fim, próximo dano, lado do vento, véu e grãos (posição na tela, 0 a 1) */
-  private storm: { kind: 'sand' | 'blood'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[] } | null = null;
+  private storm: { kind: 'sand' | 'blood' | 'snow'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[] } | null = null;
 
   constructor(private scene: GameScene) {}
 
@@ -117,12 +124,13 @@ export class RunEvents {
     this.updateWar();
     this.updateStorm(dt);
     this.updateShrine(dt);
+    this.updateAvalanche(dt);
     if (this.golden && (!this.golden.active || sc.elapsed > this.goldenUntil)) {
       if (this.golden.active) {
         // escapou: some numa nuvem
         sc.impact(this.golden.x, this.golden.y, 0xffd86a, 1.2);
         this.golden.kill();
-        sc.events.emit('announce', 'O GOBLIN DOURADO FUGIU...');
+        sc.events.emit('announce', `${this.goldenName()} FUGIU...`);
       }
       this.golden = null;
     }
@@ -134,7 +142,7 @@ export class RunEvents {
     const goal = st.objectives.find((o) => o.kind === 'event');
     if (goal && goal.kind === 'event' && !this.done.has(goal.event)) return goal.event;
     const pool = st.events.filter((e) => !(e === 'captive' && (this.captive || this.ally)) && !(e === 'goldenGoblin' && this.golden)
-      && !(e === 'tribeWar' && this.war) && !((e === 'sandstorm' || e === 'bloodMoon') && this.storm) && !(e === 'cursedShrine' && this.shrine));
+      && !(e === 'tribeWar' && this.war) && !((e === 'sandstorm' || e === 'bloodMoon' || e === 'blizzard') && this.storm) && !(e === 'avalanche' && this.avalanche) && !(e === 'cursedShrine' && this.shrine));
     return pool[Math.floor(Math.random() * pool.length)] ?? 'ambush';
   }
 
@@ -147,7 +155,7 @@ export class RunEvents {
       seen.push(id);
       writeSave(save);
     }
-    this.scene.events.emit('announce', TITLES[id]);
+    this.scene.events.emit('announce', id === 'goldenGoblin' ? `UM ${this.goldenName()}! PEGUE-O!` : TITLES[id]);
     sfx('boss');
     switch (id) {
       case 'chest':
@@ -168,6 +176,10 @@ export class RunEvents {
         return this.startStorm('sand');
       case 'bloodMoon':
         return this.startStorm('blood');
+      case 'blizzard':
+        return this.startStorm('snow');
+      case 'avalanche':
+        return this.startAvalanche();
       case 'cursedShrine':
         return this.startShrine();
     }
@@ -257,7 +269,7 @@ export class RunEvents {
     cage.lineStyle(3, 0x4a3a2a, 1).strokeRect(x - 16, y - 34, 32, 40);
     for (let i = 1; i < 5; i++) cage.lineStyle(2, 0x6a5a4a, 1).lineBetween(x - 16 + i * 6.4, y - 34, x - 16 + i * 6.4, y + 6);
     cage.fillStyle(0x4a3a2a, 1).fillRect(x - 18, y - 37, 36, 5);
-    const ring = sc.add.graphics().setDepth(LAYER.groundFx);
+    const ring = sc.add.graphics().setDepth(LAYER.warn);
     this.captive = { hero, img, cage, ring, progress: 0 };
     this.guard(x, y, 9, 56);
   }
@@ -361,8 +373,8 @@ export class RunEvents {
     // dano dobrado e Resistência alta
     e.tag = 'surprise';
     e.boss = true;
-    e.baseScale *= 2.2;
-    e.radius *= 2.2;
+    e.baseScale *= 1.8;
+    e.radius *= 1.8;
     e.maxHp *= 8;
     e.hp = e.maxHp;
     e.damage *= 2;
@@ -376,13 +388,23 @@ export class RunEvents {
     sc.events.emit('announce', `CHEFE SURPRESA: ${ENEMIES[id].name.toUpperCase()} GIGANTE!`);
   }
 
+  private goldenName() {
+    return `${ENEMIES[this.goldenId()].name.toUpperCase()} DOURADO`;
+  }
+
+  /** Criatura dourada da fase (cada fase tem a sua). */
+  private goldenId(): EnemyId {
+    return this.scene.stage.golden ?? this.scene.stage.waves[0].pool[0];
+  }
+
   private startGolden() {
     const sc = this.scene;
     const { x, y } = this.away(200, 240);
-    const e = sc.spawnEnemy(ENEMIES.goblin, x, y);
+    const def = ENEMIES[this.goldenId()];
+    const e = sc.spawnEnemy(def, x, y);
     if (!e) return;
     e.tag = 'golden';
-    e.maxHp = e.hp = ENEMIES.goblin.hp * 40 * stageScaling(sc.stage).hp;
+    e.maxHp = e.hp = def.hp * 40 * stageScaling(sc.stage).hp;
     // um pouco mais lento que o herói: dá para alcançar, mas exige perseguir
     e.speed = moveSpeed(sc.stats) * 0.92;
     e.setTint(0xffd84a);
@@ -406,7 +428,7 @@ export class RunEvents {
   private meteor(x: number, y: number) {
     const sc = this.scene;
     const r = 34;
-    const warn = sc.add.graphics().setDepth(LAYER.groundFx);
+    const warn = sc.add.graphics().setDepth(LAYER.warn);
     warn.fillStyle(0xff5a2a, 0.2).fillEllipse(x, y, r * 2, r * 1.5);
     warn.lineStyle(2, 0xff5a2a, 0.9).strokeEllipse(x, y, r * 2, r * 1.5);
     sc.tweens.add({ targets: warn, alpha: { from: 0.4, to: 1 }, duration: 900 });
@@ -517,10 +539,10 @@ export class RunEvents {
    * Cataclismo de véu. Tempestade de areia: a areia esconde a vista e o vento empurra o herói. Lua de
    * sangue: a tela fica vermelha e todos sangram. Nos dois, a cada instante herói e inimigos se ferem.
    */
-  private startStorm(kind: 'sand' | 'blood' = 'sand') {
+  private startStorm(kind: 'sand' | 'blood' | 'snow' = 'sand') {
     const sc = this.scene;
-    const grains = kind === 'sand' ? Array.from({ length: STORM.streaks }, () => ({ u: Math.random(), v: Math.random(), len: 6 + Math.random() * 18, sp: 0.5 + Math.random() * 0.7 })) : [];
-    const time = kind === 'sand' ? STORM.time : BLOOD_MOON.time;
+    const grains = kind !== 'blood' ? Array.from({ length: STORM.streaks }, () => ({ u: Math.random(), v: Math.random(), len: 6 + Math.random() * 18, sp: 0.5 + Math.random() * 0.7 })) : [];
+    const time = kind === 'blood' ? BLOOD_MOON.time : STORM.time;
     this.storm?.veil.destroy();
     this.storm = {
       kind, time, until: sc.elapsed + time, next: sc.elapsed + STORM.tick, wind: Math.random() < 0.5 ? -1 : 1,
@@ -536,6 +558,7 @@ export class RunEvents {
     if (t >= s.until || sc.state === 'over') {
       s.veil.destroy();
       this.storm = null;
+      sc.weatherHero = sc.weatherFoes = 1;
       return;
     }
     // véu: entra e sai suave
@@ -544,7 +567,21 @@ export class RunEvents {
     const v = sc.cameras.main.worldView;
     const g = s.veil.clear();
     const sand = s.kind === 'sand';
-    if (sand) {
+    if (s.kind === 'snow') {
+      // nevasca: véu branco, flocos caindo de lado; herói e inimigos andam mais devagar
+      g.fillStyle(0xd8e8f8, 0.3 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
+      for (const p of s.grains) {
+        p.u += s.wind * p.sp * 0.4 * dt;
+        p.v += p.sp * 0.35 * dt;
+        if (p.u > 1.05) p.u -= 1.1;
+        if (p.u < -0.05) p.u += 1.1;
+        const x = v.x + p.u * v.width;
+        const y = v.y + (p.v % 1) * v.height;
+        g.fillStyle(0xffffff, 0.85 * k).fillCircle(x, y, p.len > 16 ? 2.4 : 1.5);
+      }
+      sc.weatherHero = 1 - 0.3 * k;
+      sc.weatherFoes = 1 - 0.3 * k;
+    } else if (sand) {
       g.fillStyle(0xc89850, 0.45 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
       for (const p of s.grains) {
         p.u += s.wind * p.sp * dt;
@@ -571,13 +608,78 @@ export class RunEvents {
     if (t < s.next) return;
     s.next = t + STORM.tick;
     // cataclismo: fere o herói e os inimigos na tela (chefes perdem só 1%)
-    const hero = sand ? 0.05 : BLOOD_MOON.hero;
-    const foe = sand ? 0.12 : BLOOD_MOON.foe;
-    const color = sand ? '#e8c070' : '#ff3040';
+    const hero = s.kind === 'blood' ? BLOOD_MOON.hero : s.kind === 'snow' ? 0.04 : 0.05;
+    const foe = s.kind === 'blood' ? BLOOD_MOON.foe : s.kind === 'snow' ? 0.1 : 0.12;
+    const color = s.kind === 'blood' ? '#ff3040' : s.kind === 'snow' ? '#bff0ff' : '#e8c070';
     sc.hurtPlayer(sc.stats.maxHp * hero);
     sc.queryEnemies(v.centerX, v.centerY, Math.hypot(v.width, v.height) / 2, (e) => {
       if (e.active && v.contains(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.01 : Math.max(20, e.maxHp * foe), color);
     });
+  }
+
+  // ---------- Avalanche ----------
+
+  /**
+   * Uma faixa larga atravessa a tela (aviso no chão por 2,6 s, o chão treme); depois uma parede de
+   * neve passa por ela e esmaga quem estiver dentro: herói e inimigos. Escapar vale o objetivo.
+   */
+  private startAvalanche() {
+    const sc = this.scene;
+    const v = sc.cameras.main.worldView;
+    const p = sc.player;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    // a faixa passa pelo herói (deslocada um pouco) para obrigar a sair dela
+    const y = p.y + (Math.random() - 0.5) * 40;
+    const g = sc.add.graphics().setDepth(LAYER.warn);
+    this.avalanche = { y, half: AVALANCHE.half, dir, start: sc.elapsed + AVALANCHE.warn, x: dir > 0 ? v.x - 80 : v.right + 80, g, hit: false, left: v.x - 120, right: v.right + 120 };
+    sc.cameras.main.shake(AVALANCHE.warn * 1000, 0.002);
+  }
+
+  private updateAvalanche(dt: number) {
+    const a = this.avalanche;
+    if (!a) return;
+    const sc = this.scene;
+    const t = sc.elapsed;
+    const g = a.g.clear();
+    if (t < a.start) {
+      // aviso: a faixa pisca, com setas na direção da avalanche
+      const blink = 0.16 + 0.1 * Math.sin(t * 10);
+      g.fillStyle(0xff3020, blink).fillRect(a.left, a.y - a.half, a.right - a.left, a.half * 2);
+      g.lineStyle(3, 0xff3020, 0.9).strokeRect(a.left, a.y - a.half, a.right - a.left, a.half * 2);
+      for (let x = a.left + 40; x < a.right; x += 70) {
+        g.fillStyle(0xff5a2a, 0.9).fillTriangle(x + a.dir * 12, a.y, x - a.dir * 8, a.y - 10, x - a.dir * 8, a.y + 10);
+      }
+      return;
+    }
+    // a parede de neve passa
+    a.x += a.dir * AVALANCHE.speed * dt;
+    const back = a.x - a.dir * 220;
+    // parede de neve com sombra azulada e borda escura (aparece mesmo no chão branco)
+    g.fillStyle(0x9ab8d8, 0.95).fillRect(Math.min(a.x, back), a.y - a.half, Math.abs(a.x - back), a.half * 2);
+    g.fillStyle(0xe8f4ff, 1).fillRect(Math.min(a.x, back), a.y - a.half + 6, Math.abs(a.x - back), a.half * 2 - 18);
+    g.lineStyle(3, 0x3a5a8a, 1).strokeRect(Math.min(a.x, back), a.y - a.half, Math.abs(a.x - back), a.half * 2);
+    for (let i = 0; i < 8; i++) {
+      const cx = a.x + (Math.random() - 0.5) * 34;
+      const cy = a.y + (Math.random() - 0.5) * a.half * 2;
+      const r = 7 + Math.random() * 11;
+      g.fillStyle(0x3a5a8a, 1).fillCircle(cx, cy, r + 2);
+      g.fillStyle(0xffffff, 1).fillCircle(cx, cy, r);
+    }
+    if (Math.random() < 0.5) sc.impact(a.x, a.y + (Math.random() - 0.5) * a.half * 2, 0xffffff, 1);
+    const inBand = (x: number, y: number) => Math.abs(y - a.y) < a.half && (a.dir > 0 ? x <= a.x && x >= back : x >= a.x && x <= back);
+    const p = sc.player;
+    if (!a.hit && inBand(p.x, p.y) && sc.hurtPlayer(sc.stats.maxHp * AVALANCHE.hero)) a.hit = true;
+    sc.queryEnemies(a.x, a.y, a.half + 60, (e) => {
+      if (e.active && inBand(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.03 : e.maxHp * 0.7 + 50, '#bff0ff');
+    });
+    if ((a.dir > 0 && back > a.right) || (a.dir < 0 && back < a.left)) {
+      g.destroy();
+      if (!a.hit) {
+        sc.completed.add('avalanche');
+        sc.events.emit('announce', 'VOCÊ ESCAPOU DA AVALANCHE!');
+      }
+      this.avalanche = null;
+    }
   }
 
   // ---------- Santuário maldito ----------
@@ -592,7 +694,7 @@ export class RunEvents {
     const img = sc.add.image(x, y, 'atlas', frameName('cursed_shrine')).setOrigin(0.5, 0.85).setDepth(y).setScale(1.3);
     const glow = sc.add.image(x, y - 22, 'atlas', frameName('glow')).setTint(0xb060ff).setDepth(y + 1).setScale(1.4).setAlpha(0.6);
     sc.tweens.add({ targets: glow, alpha: 0.25, scale: 1.8, duration: 900, yoyo: true, repeat: -1 });
-    const ring = sc.add.graphics().setDepth(LAYER.groundFx);
+    const ring = sc.add.graphics().setDepth(LAYER.warn);
     this.shrine = { img, glow, ring, progress: 0 };
     this.guard(x, y, 6, 52);
   }
@@ -632,7 +734,7 @@ export class RunEvents {
     const sc = this.scene;
     if (e.tag === 'golden') {
       sc.completed.add('goldenGoblin');
-      sc.events.emit('announce', 'GOBLIN DOURADO PEGO!');
+      sc.events.emit('announce', `${this.goldenName()} PEGO!`);
       for (let i = 0; i < 30; i++) sc.dropPickup('coin', e.x + Phaser.Math.Between(-30, 30), e.y + Phaser.Math.Between(-24, 24), 4);
       this.golden = null;
     } else if (e.tag === 'surprise') {

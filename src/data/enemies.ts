@@ -7,7 +7,8 @@ export type EnemyId = 'slime' | 'bat' | 'goblin' | 'wolf' | 'skeleton' | 'orc' |
   | 'scorpion' | 'vulture' | 'cactus_spitter' | 'sandworm' | 'lizard_shaman' | 'scorpion_emperor'
   | 'werewolf' | 'wisp' | 'spider' | 'witch' | 'ancient_ent'
   | 'king_slime' | 'alpha_wolf' | 'magma_lord' | 'goblin_warlord' | 'croc_king' | 'grand_frog_shaman'
-  | 'colossal_worm' | 'lizard_elder' | 'werewolf_alpha' | 'elder_witch';
+  | 'colossal_worm' | 'lizard_elder' | 'werewolf_alpha' | 'elder_witch'
+  | 'goblin_king' | 'yeti' | 'snow_golem' | 'frost_wraith' | 'penguin' | 'snow_owl' | 'ice_dragon' | 'yeti_elder' | 'frost_queen';
 
 /**
  * Como o inimigo luta: corpo a corpo (encosta); à distância (mantém distância e atira, com aviso);
@@ -96,7 +97,7 @@ const BASE = {
   wolf: { id: 'wolf', kind: 'wolf', name: 'Lobo', texture: 'wolf', hp: 22, speed: 66, damage: 8, xp: 2, scale: 1, radius: 11, knockback: 0.9, resist: 0.1 },
   skeleton: { id: 'skeleton', kind: 'skeleton', name: 'Esqueleto', texture: 'skeleton', hp: 28, speed: 40, damage: 9, xp: 2, scale: 1, radius: 8, knockback: 0.8, resist: 0.15 },
   orc: { id: 'orc', kind: 'orc', name: 'Orc', texture: 'orc', hp: 75, speed: 31, damage: 14, xp: 4, scale: 1, radius: 13, knockback: 0.4, resist: 0.35 },
-  demon: { id: 'demon', kind: 'demon', name: 'Demônio Ancestral', texture: 'demon', hp: 9000, speed: 42, damage: 25, xp: 150, scale: 1.6, radius: 22, knockback: 0, resist: 0.75, boss: true },
+  demon: { id: 'demon', kind: 'demon', name: 'Demônio Ancestral', texture: 'demon', hp: 9000, speed: 42, damage: 25, xp: 150, scale: 1.25, radius: 22, knockback: 0, resist: 0.75, boss: true },
 } satisfies Record<string, EnemyDef>;
 
 /*
@@ -133,7 +134,7 @@ export const ENEMIES = {
   }),
   // chefe do Bosque Outonal
   orc_chief: variant(BASE.orc, 'orc_chief', 'Chefe Orc', 'earth', {
-    hp: 9000, speed: 40, damage: 22, xp: 120, scale: 2.8, radius: 15, knockback: 0, resist: 0.7, boss: true,
+    hp: 9000, speed: 40, damage: 22, xp: 120, scale: 2.2, radius: 15, knockback: 0, resist: 0.7, boss: true,
   }),
   // ---------- Pântano Enevoado ----------
   frog: { id: 'frog', kind: 'frog', name: 'Sapo do Brejo', texture: 'frog', element: 'water', hp: 20, speed: 46, damage: 8, xp: 1, scale: 1, radius: 9, knockback: 1, resist: 0 },
@@ -153,7 +154,7 @@ export const ENEMIES = {
     id: 'frog_shaman', kind: 'frog_shaman', name: 'Xamã Sapo', texture: 'frog_shaman', element: 'water', hp: 40, speed: 30, damage: 10, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.15,
     behavior: 'caster', skill: { kind: 'wave', damage: 1.5, cooldown: 4.5, range: 170, windup: 0.9, speed: 150, radius: 26, level: 1 },
   },
-  frog_king: { id: 'frog_king', kind: 'frog_king', name: 'Rei Sapo', texture: 'frog_king', element: 'water', hp: 9000, speed: 40, damage: 26, xp: 160, scale: 1.7, radius: 24, knockback: 0, resist: 0.75, boss: true },
+  frog_king: { id: 'frog_king', kind: 'frog_king', name: 'Rei Sapo', texture: 'frog_king', element: 'water', hp: 9000, speed: 40, damage: 26, xp: 160, scale: 1.35, radius: 24, knockback: 0, resist: 0.75, boss: true },
   // ---------- Dunas Escaldantes ----------
   scorpion: { id: 'scorpion', kind: 'scorpion', name: 'Escorpião', texture: 'scorpion', element: 'earth', hp: 34, speed: 42, damage: 11, xp: 2, scale: 1, radius: 11, knockback: 0.7, resist: 0.15 },
   vulture: { id: 'vulture', kind: 'vulture', name: 'Abutre', texture: 'vulture', element: 'air', hp: 14, speed: 70, damage: 7, xp: 1, scale: 1, radius: 9, knockback: 1.1, resist: 0 },
@@ -172,7 +173,7 @@ export const ENEMIES = {
     id: 'lizard_shaman', kind: 'lizard_shaman', name: 'Xamã Lagarto', texture: 'lizard_shaman', element: 'air', hp: 48, speed: 32, damage: 11, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
     behavior: 'caster', skill: { kind: 'tornado', damage: 1.2, cooldown: 5, range: 180, windup: 0.9, speed: 70, radius: 18, level: 1 },
   },
-  scorpion_emperor: { id: 'scorpion_emperor', kind: 'scorpion_emperor', name: 'Imperador Escorpião', texture: 'scorpion_emperor', element: 'earth', hp: 9500, speed: 44, damage: 30, xp: 180, scale: 1.8, radius: 26, knockback: 0, resist: 0.8, boss: true },
+  scorpion_emperor: { id: 'scorpion_emperor', kind: 'scorpion_emperor', name: 'Imperador Escorpião', texture: 'scorpion_emperor', element: 'earth', hp: 9500, speed: 44, damage: 30, xp: 180, scale: 1.4, radius: 26, knockback: 0, resist: 0.8, boss: true },
   // ---------- Floresta Sombria ----------
   // bote: se agacha (aviso) e salta em linha reta
   werewolf: {
@@ -190,7 +191,24 @@ export const ENEMIES = {
     id: 'witch', kind: 'witch', name: 'Bruxa', texture: 'witch', element: 'air', hp: 55, speed: 30, damage: 12, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
     behavior: 'caster', skill: { kind: 'strike', damage: 1.8, cooldown: 4.5, range: 190, windup: 1, speed: 0, radius: 24, level: 1 },
   },
-  ancient_ent: { id: 'ancient_ent', kind: 'ancient_ent', name: 'Ent Ancião Corrompido', texture: 'ancient_ent', element: 'earth', hp: 9500, speed: 36, damage: 34, xp: 200, scale: 1.6, radius: 28, knockback: 0, resist: 0.85, boss: true },
+  ancient_ent: { id: 'ancient_ent', kind: 'ancient_ent', name: 'Ent Ancião Corrompido', texture: 'ancient_ent', element: 'earth', hp: 9500, speed: 36, damage: 34, xp: 200, scale: 1.25, radius: 28, knockback: 0, resist: 0.85, boss: true },
+  // ---------- Clareira: chefe final ----------
+  goblin_king: { id: 'goblin_king', kind: 'goblin_king', name: 'Rei Goblin', texture: 'goblin_king', hp: 9000, speed: 38, damage: 22, xp: 140, scale: 1.3, radius: 22, knockback: 0, resist: 0.75, boss: true },
+  // ---------- Pico Congelado ----------
+  yeti: { id: 'yeti', kind: 'yeti', name: 'Yeti', texture: 'yeti', element: 'water', hp: 80, speed: 34, damage: 15, xp: 4, scale: 1, radius: 12, knockback: 0.4, resist: 0.35 },
+  // à distância: arremessa bolas de neve
+  snow_golem: {
+    id: 'snow_golem', kind: 'snow_golem', name: 'Golem de Neve', texture: 'snow_golem', element: 'water', hp: 50, speed: 26, damage: 11, xp: 3, scale: 1, radius: 11, knockback: 0.5, resist: 0.25,
+    behavior: 'ranged', skill: { kind: 'spit', damage: 1.3, cooldown: 3, range: 160, windup: 0.5, speed: 140, radius: 8, level: 1 },
+  },
+  // conjurador: a Onda do herói, congelante (deixa o herói lento ao acertar)
+  frost_wraith: {
+    id: 'frost_wraith', kind: 'frost_wraith', name: 'Espectro do Gelo', texture: 'frost_wraith', element: 'water', hp: 55, speed: 32, damage: 12, xp: 3, scale: 1, radius: 10, knockback: 0.7, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'wave', damage: 1.3, cooldown: 4.5, range: 170, windup: 0.9, speed: 140, radius: 24, level: 1 },
+  },
+  penguin: { id: 'penguin', kind: 'penguin', name: 'Pinguim Guerreiro', texture: 'penguin', element: 'water', hp: 24, speed: 50, damage: 9, xp: 1, scale: 1, radius: 8, knockback: 1, resist: 0 },
+  snow_owl: { id: 'snow_owl', kind: 'snow_owl', name: 'Coruja da Nevasca', texture: 'snow_owl', element: 'air', hp: 16, speed: 74, damage: 8, xp: 1, scale: 1, radius: 8, knockback: 1.1, resist: 0 },
+  ice_dragon: { id: 'ice_dragon', kind: 'ice_dragon', name: 'Dragão de Gelo', texture: 'ice_dragon', element: 'water', hp: 10000, speed: 44, damage: 36, xp: 220, scale: 1.3, radius: 26, knockback: 0, resist: 0.85, boss: true },
 } as Record<EnemyId, EnemyDef>;
 
 /**
@@ -199,7 +217,8 @@ export const ENEMIES = {
  */
 function giant(of: EnemyDef, id: EnemyId, name: string, hp: number, scale: number, extra: Partial<EnemyDef> = {}): EnemyDef {
   return {
-    ...of, id, name, hp, scale, boss: true, behavior: undefined, skill: undefined,
+    // a escala é a da arte ampliada; ×0,78 deixa o chefe grande sem perder nitidez (~80 px)
+    ...of, id, name, hp, scale: scale * 0.78, boss: true, behavior: undefined, skill: undefined,
     damage: of.damage * 2.4, speed: of.speed * 0.8, xp: 60, radius: of.radius, knockback: 0, resist: 0.7, ...extra,
   };
 }
@@ -215,6 +234,8 @@ Object.assign(ENEMIES, {
   lizard_elder: giant(ENEMIES.lizard_shaman, 'lizard_elder', 'Ancião Lagarto', 3700, 3.1),
   werewolf_alpha: giant(ENEMIES.werewolf, 'werewolf_alpha', 'Lobisomem Alfa', 1500, 2.9, { speed: 52 }),
   elder_witch: giant(ENEMIES.witch, 'elder_witch', 'Bruxa Anciã', 3700, 3),
+  yeti_elder: giant(ENEMIES.yeti, 'yeti_elder', 'Yeti Ancião', 1600, 3),
+  frost_queen: giant(ENEMIES.frost_wraith, 'frost_queen', 'Rainha do Gelo', 4000, 3.1),
 } satisfies Partial<Record<EnemyId, EnemyDef>>);
 
 /** Cor das partículas quando o inimigo morre. */
@@ -226,5 +247,7 @@ export const DEATH_TINT: Record<EnemyId, number> = {
   king_slime: 0x6fdc72, alpha_wolf: 0x8f96a6, magma_lord: 0xff4a1a, goblin_warlord: 0xc69c6d, croc_king: 0x4fa040,
   grand_frog_shaman: 0x41a6f6, colossal_worm: 0xd8b880, lizard_elder: 0x9ad050, werewolf_alpha: 0x8a8f9a, elder_witch: 0x7ac050,
   scorpion: 0xe08a3a, vulture: 0x8a6a4a, cactus_spitter: 0x6ab84a, sandworm: 0xd8b880, lizard_shaman: 0x9ad050, scorpion_emperor: 0xe8c040,
+  goblin_king: 0x5bb04f, yeti: 0xe8f4ff, snow_golem: 0xffffff, frost_wraith: 0x9fe8ff, penguin: 0x2a3050, snow_owl: 0xf0f0f0, ice_dragon: 0xa0e0ff,
+  yeti_elder: 0xe8f4ff, frost_queen: 0x9fe8ff,
   werewolf: 0x8a8f9a, wisp: 0x9af0f0, spider: 0x7a4fa8, witch: 0x7ac050, ancient_ent: 0x9a50d0,
 };

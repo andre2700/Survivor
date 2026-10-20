@@ -128,3 +128,19 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 
 **Simulador de equilíbrio** (`npm run balance -- <fase> <partidas> <herói> <dificuldade>`): um robô joga partidas aceleradas, sem desenhar a tela, guarda o ouro, compra melhorias e joga de novo; mostra em quantas partidas chegou e venceu cada chefe. O robô não desvia dos avisos, então é um piso: uma pessoa vai melhor.
 
+## Pico Congelado, criaturas exclusivas, armadilhas e árvores bravas (20/10/2026)
+
+**Cada criatura pertence a uma fase só** (teste automático): Clareira (slime, slime d'água, morcego, goblin, lobo), Bosque Outonal (slimes de fogo, cuspidor, de magma e bomba, goblin da terra, orc, morcego do vento), Pântano (sapo, jacaré, mosquito, cogumelo, xamã sapo), Dunas (escorpião, abutre, cacto, verme, xamã lagarto), Floresta Sombria (lobisomem, fogo-fátuo, aranha, bruxa, esqueleto) e Pico Congelado (pinguim guerreiro, coruja da nevasca, golem de neve, yeti, espectro do gelo). Cerco, revoada, tribos e a criatura dourada também são da própria fase (o "goblin dourado" vira o sapo dourado no Pântano, o pinguim dourado no Pico...).
+
+**Chefe final da Clareira: Rei Goblin** (salto, pancada, investida, chama goblins; fase 2 "Rei Goblin Furioso"). O Demônio Ancestral fica guardado para fases avançadas. Chefes ~25% menores que antes (finais ~85–95 px, os do início e do meio ~80 px), para não perderem nitidez.
+
+**Pico Congelado** (sombrio, força 16): chão de neve, pinheiros nevados, cristais, rochas, montes de neve, troncos congelados e **placas de gelo** onde o herói escorrega (a velocidade muda devagar). Tiros das criaturas de gelo (golem, espectro, dragão) deixam o herói lento ("CONGELADO!"). Chefes: Yeti Ancião (saltos seguidos), Rainha do Gelo (ondas, anel de gelo, espinhos, teletransporte) e Dragão de Gelo (sopro de gelo em leque, salto, investida; fase 2 "Dragão de Gelo Ancestral" com anel de 18 tiros). Eventos: **nevasca** (cataclismo: véu branco, todos 30% mais lentos, todos se ferem) e **avalanche** (uma faixa vermelha atravessa a tela por 2,6 s; depois a parede de neve esmaga quem está nela, herói e inimigos; escapar vale uma estrela).
+
+**Armadilhas** em todos os mapas: placa de pedra com runa. Pisou, acontece algo aleatório: explosão (fere o herói e destrói inimigos em volta), teletransporte, emboscada, tesouro, preso, cura, raios nos inimigos ou maldição.
+
+**Árvores bravas** na Floresta Sombria: a árvore seca treme e marca o chão em vermelho por 0,8 s quando o herói chega perto, depois golpeia (herói e inimigos).
+
+**Avisos por cima de tudo:** todos os avisos de golpe ficam acima da escuridão e do véu dos cataclismos.
+
+**Loja de melhorias por abas:** Ataque, Defesa, Exploração e Cartas, com o total comprado em cada aba e um ponto verde quando há algo que dá para comprar.
+

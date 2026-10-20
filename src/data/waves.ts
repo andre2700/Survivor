@@ -19,21 +19,21 @@ export const ENDLESS_CYCLE = 5 * 60;
 export const MAX_ENEMIES = 700;
 
 export const WAVES: Wave[] = [
-  { minute: 0, pool: ['slime'], rate: 1.2, max: 30 },
-  { minute: 1, pool: ['slime', 'goblin'], rate: 1.8, max: 45 },
-  { minute: 2, pool: ['goblin', 'bat', 'slime_fire'], rate: 2.4, max: 60 },
-  { minute: 3, pool: ['goblin', 'wolf', 'slime_water'], rate: 3, max: 80, event: 'swarm' },
-  { minute: 4, pool: ['wolf', 'skeleton', 'goblin_earth', 'slime_fire'], rate: 3.2, max: 100 },
-  { minute: 5, pool: ['bat_air', 'skeleton', 'orc', 'slime_water'], rate: 3.8, max: 120 },
-  { minute: 6, pool: ['skeleton', 'wolf', 'orc', 'goblin_earth'], rate: 4.3, max: 140, event: 'ring' },
-  { minute: 7, pool: ['bat', 'bat_air', 'orc', 'slime_fire'], rate: 4.8, max: 160, event: 'swarm' },
-  { minute: 8, pool: ['skeleton', 'orc'], rate: 5.5, max: 180, event: 'ring' },
-  { minute: 9, pool: ['goblin_earth', 'wolf', 'skeleton', 'orc', 'slime_water'], rate: 6, max: 200, event: 'swarm' },
-  { minute: 10, pool: ['skeleton', 'orc'], rate: 6.5, max: 220 },
-  { minute: 11, pool: ['wolf', 'orc'], rate: 7, max: 240, event: 'ring' },
-  { minute: 12, pool: ['bat_air', 'wolf', 'skeleton', 'orc', 'slime_fire'], rate: 7.5, max: 260, event: 'swarm' },
-  { minute: 13, pool: ['skeleton', 'orc'], rate: 8, max: 280, event: 'ring' },
-  { minute: 14, pool: ['goblin_earth', 'wolf', 'skeleton', 'orc', 'slime_water', 'bat_air'], rate: 9, max: 300, event: 'swarm' },
+  { minute: 0, pool: ['slime'], rate: 1.6, max: 40 },
+  { minute: 1, pool: ['slime', 'goblin'], rate: 2.2, max: 55 },
+  { minute: 2, pool: ['slime', 'goblin', 'bat'], rate: 2.8, max: 70 },
+  { minute: 3, pool: ['goblin', 'wolf', 'slime_water'], rate: 3.2, max: 90, event: 'swarm' },
+  { minute: 4, pool: ['wolf', 'goblin', 'slime', 'bat'], rate: 3.6, max: 110 },
+  { minute: 5, pool: ['wolf', 'goblin', 'slime_water'], rate: 4.2, max: 130 },
+  { minute: 6, pool: ['goblin', 'wolf', 'bat'], rate: 4.7, max: 150, event: 'ring' },
+  { minute: 7, pool: ['bat', 'wolf', 'slime_water', 'goblin'], rate: 5.2, max: 170, event: 'swarm' },
+  { minute: 8, pool: ['wolf', 'goblin'], rate: 5.8, max: 190, event: 'ring' },
+  { minute: 9, pool: ['goblin', 'wolf', 'slime_water', 'bat'], rate: 6.4, max: 210, event: 'swarm' },
+  { minute: 10, pool: ['wolf', 'goblin', 'slime'], rate: 6.8, max: 230 },
+  { minute: 11, pool: ['wolf', 'goblin', 'bat'], rate: 7.3, max: 250, event: 'ring' },
+  { minute: 12, pool: ['bat', 'wolf', 'goblin', 'slime_water'], rate: 7.8, max: 270, event: 'swarm' },
+  { minute: 13, pool: ['wolf', 'goblin', 'slime_water'], rate: 8.3, max: 290, event: 'ring' },
+  { minute: 14, pool: ['goblin', 'wolf', 'slime', 'slime_water', 'bat'], rate: 9.2, max: 310, event: 'swarm' },
 ];
 
 export function waveAt(seconds: number, waves: Wave[] = WAVES): Wave {

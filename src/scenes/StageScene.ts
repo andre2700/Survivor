@@ -17,7 +17,7 @@ const MOOD_CHIP: Record<Mood, number> = { leve: 0x9be28a, sério: 0xf0c060, somb
 const EVENT_ICON: Record<RunEventId, [string, number?]> = {
   chest: ['chest'], captive: ['hero_ranger'], surpriseBoss: ['icon_skull', 0xff7a6a], goldenGoblin: ['goblin', 0xffd84a],
   meteors: ['fx_fireball'], ambush: ['icon_skull'], tribeWar: ['scorpion'], sandstorm: ['icon_tornado', 0xe8c070],
-  cursedShrine: ['cursed_shrine'], bloodMoon: ['glow', 0xd02030],
+  cursedShrine: ['cursed_shrine'], bloodMoon: ['glow', 0xd02030], blizzard: ['snowdrift'], avalanche: ['snow_rock', 0xe8f4ff],
 };
 
 /** Ajusta a imagem para caber em w × h (tamanho lógico, descontando a resolução alta da arte). */
@@ -274,7 +274,8 @@ export class StageScene extends Phaser.Scene {
       const ex = left + 96 + k * 26;
       add(this.add.circle(ex, y, 11, 0x14101e, 0.8).setStrokeStyle(1.5, known && seen.includes(ev) ? 0xd6a6ff : 0x4a4a5a));
       if (known && seen.includes(ev)) {
-        const [tex, tint] = EVENT_ICON[ev];
+        // a criatura dourada é a da fase
+        const [tex, tint] = ev === 'goldenGoblin' ? [ENEMIES[st.golden ?? st.waves[0].pool[0]].texture, 0xffd84a] : EVENT_ICON[ev];
         const ic = add(fit(this.add.image(ex, y, 'atlas', frameName(tex, 0)), 18, 18));
         if (tint) ic.setTint(tint);
       } else {
@@ -284,7 +285,7 @@ export class StageScene extends Phaser.Scene {
 
     // perigos e tesouros
     y += 26;
-    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão e teias' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
+    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão, teias e árvores bravas' : st.hazard === 'ice' ? 'gelo escorregadio' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
     add(this.add.text(left + 14, y, `Perigos: ${known ? hazard : '?'}`, { fontFamily: FONT, fontSize: px(10), color: '#ffb08a' }).setOrigin(0, 0.5));
     add(this.add.text(cx + 14, y, 'Tesouros:', { fontFamily: FONT, fontSize: px(10), color: '#a0e8a0' }).setOrigin(0, 0.5));
     ['chest', 'icon_magnet', 'bomb', 'heart'].forEach((tex, k) => add(fit(this.add.image(cx + 80 + k * 20, y, 'atlas', frameName(tex, 0)), 15, 15)));

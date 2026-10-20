@@ -203,7 +203,7 @@ export class BossAI {
     st.step = 'windup';
     st.hit = false;
     e.attackPhase = 'windup';
-    const g = sc.add.graphics().setDepth(LAYER.groundFx + 1);
+    const g = sc.add.graphics().setDepth(LAYER.warn);
     st.warn = g;
     const a = Math.atan2(p.y - e.y, p.x - e.x);
     switch (move.kind) {
@@ -352,7 +352,7 @@ export class BossAI {
         st.dur = MOVES.leap.air;
         e.intangible = true;
         const r = this.landRadius(e);
-        const g = sc.add.graphics().setDepth(LAYER.groundFx + 1);
+        const g = sc.add.graphics().setDepth(LAYER.warn);
         g.fillStyle(0xff3020, 0.3).fillEllipse(st.tx, st.ty, r * 2, r * 1.6);
         g.lineStyle(3, 0xff3020, 1).strokeEllipse(st.tx, st.ty, r * 2, r * 1.6);
         sc.tweens.add({ targets: g, alpha: { from: 0.5, to: 1 }, duration: st.dur * 1000, onComplete: () => g.destroy() });

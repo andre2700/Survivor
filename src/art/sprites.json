@@ -160,6 +160,22 @@
    "death"
   ]
  },
+ "frost_wraith": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "frozen_log": {
+  "hd": 2
+ },
  "fx_fireball": {
   "hd": 2,
   "frames": 2
@@ -220,6 +236,19 @@
    "death"
   ]
  },
+ "goblin_king": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "gravestone": {
   "hd": 2
  },
@@ -230,6 +259,9 @@
   "hd": 2
  },
  "ground_dunes": {
+  "hd": 2
+ },
+ "ground_snow": {
   "hd": 2
  },
  "ground_swamp": {
@@ -293,6 +325,25 @@
    "death",
    "victory"
   ]
+ },
+ "ice_crystal": {
+  "hd": 2
+ },
+ "ice_dragon": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "ice_patch": {
+  "hd": 2
  },
  "icon_bolt": {
   "hd": 4
@@ -426,6 +477,18 @@
  },
  "palm": {
   "hd": 2
+ },
+ "penguin": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "portrait_hero_barbarian": {
   "hd": 8
@@ -582,6 +645,39 @@
    "death"
   ]
  },
+ "snow_golem": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "snow_owl": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "snow_pine": {
+  "hd": 2
+ },
+ "snow_rock": {
+  "hd": 2
+ },
+ "snowdrift": {
+  "hd": 2
+ },
  "spider": {
   "hd": 3,
   "frames": 6,
@@ -699,6 +795,18 @@
   ]
  },
  "wolf": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "yeti": {
   "hd": 3,
   "frames": 6,
   "slots": [

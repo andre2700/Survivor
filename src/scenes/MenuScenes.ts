@@ -4,7 +4,7 @@ import { walkPose } from '../art/motion';
 import { generateTextures, groundSprite, preloadArt, scrollGround, slotsOf } from '../art/textures';
 import { formatNumber } from '../core/format';
 import { CHARACTERS } from '../data/characters';
-import { META_UPGRADES, metaCost } from '../data/meta';
+import { META_CATEGORIES, META_UPGRADES, metaCost, type MetaCategory } from '../data/meta';
 import { WEAPONS } from '../data/weapons';
 import { loadSave, writeSave } from '../systems/save';
 import { DEV_TOOLS } from '../systems/dev';
@@ -230,6 +230,8 @@ export class MenuScene extends Phaser.Scene {
 export class ShopScene extends Phaser.Scene {
   private scrollY = 0;
   private dragged = false;
+  /** aba aberta (fica guardada ao comprar e voltar) */
+  private static tab: MetaCategory = 'ataque';
 
   constructor() {
     super('Shop');
@@ -244,22 +246,53 @@ export class ShopScene extends Phaser.Scene {
     goldTitle(this, width / 2, 62, 'MELHORIAS', 30);
     text(this, width / 2, 88, 'Permanentes para todas as partidas, sem limite', 11, '#c8cce0');
 
-    const top = 104;
+    // abas por categoria, com o total de níveis comprados em cada uma
+    const tabW = (Math.min(width, 520) - 20) / META_CATEGORIES.length;
+    const tabsX = width / 2 - (tabW * META_CATEGORIES.length) / 2;
+    META_CATEGORIES.forEach((c, i) => {
+      const on = ShopScene.tab === c.id;
+      const x = tabsX + tabW * i + tabW / 2;
+      const levels = META_UPGRADES.filter((d) => d.category === c.id).reduce((a, d) => a + (save.meta[d.id] ?? 0), 0);
+      const affordable = META_UPGRADES.some((d) => d.category === c.id && save.gold >= metaCost(d, save.meta[d.id] ?? 0));
+      const tab = this.add.container(x, 124);
+      const g = this.add.graphics();
+      g.fillStyle(on ? c.color : 0x1c1a2c, on ? 1 : 0.85).fillRoundedRect(-tabW / 2 + 3, -22, tabW - 6, 44, 10);
+      g.lineStyle(2, c.color, on ? 1 : 0.6).strokeRoundedRect(-tabW / 2 + 3, -22, tabW - 6, 44, 10);
+      tab.add(g);
+      tab.add(this.add.image(0, -7, c.icon).setScale(1.1));
+      tab.add(this.add.text(0, 12, c.name, { fontFamily: FONT, fontSize: px(10), fontStyle: 'bold', color: on ? '#14101e' : '#e8ecff' }).setOrigin(0.5));
+      if (levels) tab.add(this.add.text(tabW / 2 - 8, -17, String(levels), { fontFamily: FONT, fontSize: px(9), fontStyle: 'bold', color: on ? '#14101e' : '#ffd86a' }).setOrigin(1, 0));
+      // pontinho: tem melhoria que dá para comprar nesta aba
+      if (affordable && !on) tab.add(this.add.circle(-tabW / 2 + 12, -14, 4, 0x8cf08a));
+      tab.setSize(tabW - 6, 44).setInteractive({ useHandCursor: true });
+      tab.on('pointerup', () => {
+        if (on) return;
+        sfx('select');
+        ShopScene.tab = c.id;
+        this.scrollY = 0;
+        this.scene.restart();
+      });
+    });
+    const cat = META_CATEGORIES.find((c) => c.id === ShopScene.tab)!;
+    text(this, width / 2, 160, cat.blurb, 11, '#c8cce0');
+
+    const top = 176;
     const bottom = height - 64;
-    const rowH = 58;
+    const rowH = 66;
+    const defs = META_UPGRADES.filter((d) => d.category === ShopScene.tab);
     const list = this.add.container(0, top);
-    META_UPGRADES.forEach((def, i) => {
+    defs.forEach((def, i) => {
       const lvl = save.meta[def.id] ?? 0;
       const cost = metaCost(def, lvl);
       const y = i * rowH + rowH / 2;
       const can = save.gold >= cost;
       const row = this.add.container(0, y);
-      row.add(panel(this, width / 2, 0, width - 20, rowH - 6, 'ui_panel'));
-      row.add(panel(this, 36, 0, 36, 36, 'ui_slot'));
-      row.add(this.add.image(36, 0, def.icon).setScale(1.5));
-      row.add(this.add.text(62, -13, def.name, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: '#f4f4f4' }).setOrigin(0, 0.5));
-      row.add(this.add.text(62, 3, def.description, { fontFamily: FONT, fontSize: px(11), color: '#b8bdd8' }).setOrigin(0, 0.5));
-      row.add(this.add.text(62, 17, `Nível ${lvl}`, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: lvl > 0 ? '#ffd86a' : '#6a6e88' }).setOrigin(0, 0.5));
+      row.add(panel(this, width / 2, 0, width - 20, rowH - 8, 'ui_panel'));
+      row.add(panel(this, 40, 0, 42, 42, 'ui_slot'));
+      row.add(this.add.image(40, 0, def.icon).setScale(1.7));
+      row.add(this.add.text(70, -14, def.name, { fontFamily: FONT, fontSize: px(14), fontStyle: 'bold', color: '#f4f4f4' }).setOrigin(0, 0.5));
+      row.add(this.add.text(70, 3, def.description, { fontFamily: FONT, fontSize: px(11), color: '#b8bdd8' }).setOrigin(0, 0.5));
+      row.add(this.add.text(70, 19, `Nível ${lvl}`, { fontFamily: FONT, fontSize: px(11), fontStyle: 'bold', color: lvl > 0 ? '#ffd86a' : '#6a6e88' }).setOrigin(0, 0.5));
       row.add(button(this, width - 62, 0, formatNumber(cost), () => {
         if (this.dragged || !can) return;
         save.gold -= cost;
@@ -273,7 +306,7 @@ export class ShopScene extends Phaser.Scene {
 
     const maskShape = this.make.graphics({}, false).fillRect(0, top - 2, width, bottom - top + 4);
     list.setMask(maskShape.createGeometryMask());
-    const contentH = META_UPGRADES.length * rowH;
+    const contentH = defs.length * rowH;
     const minY = Math.min(0, bottom - top - contentH);
     this.scrollY = Phaser.Math.Clamp(this.scrollY, minY, 0);
     list.y = top + this.scrollY;

@@ -30,6 +30,7 @@ import { WeaponSystem } from '../systems/weapons';
 import { BossAI } from '../systems/bossAI';
 import { EnemySkills, WEB } from '../systems/enemySkills';
 import { RunEvents } from '../systems/runEvents';
+import { MapHazards, TRAP, trapTexture } from '../systems/mapHazards';
 import { FONT, px } from '../ui/theme';
 
 /**
@@ -60,6 +61,8 @@ export const LAYER = {
   groundFx: -1.5e9,
   pickups: -1e9,
   fx: 1e9,
+  /** avisos de golpe (círculos, faixas): por cima da escuridão e do véu dos cataclismos */
+  warn: 1e9 + 10,
   text: 1.5e9,
   overlay: 2e9,
 };
@@ -162,6 +165,8 @@ export class GameScene extends Phaser.Scene {
   /** habilidades dos inimigos à distância, conjuradores e explosivos */
   enemySkills!: EnemySkills;
   bossAI!: BossAI;
+  /** árvores bravas e armadilhas */
+  private mapHazards!: MapHazards;
   /** eventos aleatórios, aliado e itens do mapa */
   runEvents!: RunEvents;
 
@@ -189,10 +194,19 @@ export class GameScene extends Phaser.Scene {
   private tallDecor: Phaser.GameObjects.Image[] = [];
   /** poças de lama visíveis (deixam o herói lento) */
   private mud: Phaser.GameObjects.Image[] = [];
+  /** armadilhas e árvores bravas visíveis */
+  private traps: Phaser.GameObjects.Image[] = [];
+  private angryTrees: Phaser.GameObjects.Image[] = [];
+  /** placas de gelo visíveis (o herói escorrega) e a velocidade com que ele desliza */
+  private ice: Phaser.GameObjects.Image[] = [];
+  private slide = new Phaser.Math.Vector2();
   /** névoa do pântano: nuvens nas bordas da tela */
   private fog: { img: Phaser.GameObjects.Image; a: number; r: number; speed: number }[] = [];
   /** escuridão da floresta: só a área em volta do herói fica clara */
   private darkness: Phaser.GameObjects.Image | null = null;
+  /** clima (nevasca): multiplicador de velocidade do herói e dos inimigos */
+  weatherHero = 1;
+  weatherFoes = 1;
   /** teia da aranha: herói preso (bem mais lento) até este instante (s) */
   webUntil = 0;
   /** santuário maldito: inimigos mais fortes e rápidos até este instante (s) */
@@ -277,9 +291,14 @@ export class GameScene extends Phaser.Scene {
     this.decor.clear();
     this.fog = [];
     this.mud = [];
+    this.ice = [];
+    this.traps = [];
+    this.angryTrees = [];
+    this.slide.set(0, 0);
     this.darkness = null;
     this.webUntil = 0;
     this.cursedUntil = 0;
+    this.weatherHero = this.weatherFoes = 1;
 
     const width = this.viewW;
     const height = this.viewH;
@@ -343,6 +362,8 @@ export class GameScene extends Phaser.Scene {
     this.weapons = new WeaponSystem(this);
     this.enemySkills = new EnemySkills(this);
     this.bossAI = new BossAI(this);
+    this.mapHazards = new MapHazards(this);
+    trapTexture(this);
     this.runEvents = new RunEvents(this);
     this.elements = new ElementSystem(this);
     this.weapons.sync(this.loadout.weapons);
@@ -423,6 +444,7 @@ export class GameScene extends Phaser.Scene {
     this.vignette.setPosition(cam.midPoint.x - this.viewW / 2 - 20, cam.midPoint.y - this.viewH / 2 - 20);
     this.updateFog(cam.midPoint.x, cam.midPoint.y);
     this.updateDarkness();
+    this.mapHazards.update(this.angryTrees, this.traps);
     this.motes.setPosition(cam.midPoint.x, cam.midPoint.y);
     this.drawPlayerHp();
     if (this.frame % 15 === 0) this.updateDecor();
@@ -460,10 +482,19 @@ export class GameScene extends Phaser.Scene {
     // poça de lama e areia movediça: o herói anda mais devagar
     const inMud = this.mud.find((m) => ((this.player.x - m.x) / (m.displayWidth * 0.45)) ** 2 + ((this.player.y - m.y) / (m.displayHeight * 0.4)) ** 2 < 1);
     const webbed = this.elapsed < this.webUntil ? WEB.speed : 1;
-    const speed = moveSpeed(this.stats) * (inMud ? (inMud.getData('mud') as number) : 1) * webbed;
+    const speed = moveSpeed(this.stats) * (inMud ? (inMud.getData('mud') as number) : 1) * webbed * this.weatherHero;
     const dt = Math.min(this.game.loop.delta, 50) / 1000;
-    this.player.x += x * speed * dt;
-    this.player.y += y * speed * dt;
+    // placa de gelo: o herói escorrega (a velocidade muda devagar, ele demora a virar e a frear)
+    const onIce = this.ice.some((m) => ((this.player.x - m.x) / (m.displayWidth * 0.45)) ** 2 + ((this.player.y - m.y) / (m.displayHeight * 0.4)) ** 2 < 1);
+    if (onIce) {
+      const k = Math.min(1, dt * 1.6);
+      this.slide.x += (x * speed * 1.15 - this.slide.x) * k;
+      this.slide.y += (y * speed * 1.15 - this.slide.y) * k;
+    } else {
+      this.slide.set(x * speed, y * speed);
+    }
+    this.player.x += this.slide.x * dt;
+    this.player.y += this.slide.y * dt;
     const moving = len > 0.1;
     if (moving) {
       this.facing.set(x, y).normalize();
@@ -596,6 +627,16 @@ export class GameScene extends Phaser.Scene {
     return { hp: hpMultiplier(RUN_DURATION) * s.hp * k.hp * tier.hp, damage: s.damage * k.damage * tier.damage, reward: s.reward * k.reward * tier.reward };
   }
 
+  /** Dano de um golpe do mapa (armadilha, árvore) com a força da fase e do tempo. */
+  enemyDamage(base: number) {
+    return base * this.difficulty().damage;
+  }
+
+  /** Multiplicador de ouro da partida. */
+  rewardScale() {
+    return this.difficulty().reward;
+  }
+
   /** Nome do chefe na barra da HUD. */
   bossLabel(e: Enemy) {
     return this.bossAI.label(e);
@@ -664,7 +705,7 @@ export class GameScene extends Phaser.Scene {
       this.elements.update(e, t, dt);
       if (!e.active) continue;
       // maldição do santuário: todos os inimigos 30% mais rápidos
-      const slow = still ? 0 : this.elements.speedFactor(e, t) * (t < this.cursedUntil ? 1.3 : 1);
+      const slow = still ? 0 : this.elements.speedFactor(e, t) * (t < this.cursedUntil ? 1.3 : 1) * this.weatherFoes;
       let vx = (dx / d) * e.speed * slow;
       let vy = (dy / d) * e.speed * slow;
       // guerra de tribos: com o herói longe, cada guerreiro luta com o rival mais próximo
@@ -1516,7 +1557,19 @@ export class GameScene extends Phaser.Scene {
           const tall = (this.stage.tall ?? ['tree', 'tree2']).includes(tex);
           img.setDepth(tall || UPRIGHT.has(tex) ? py - 6 : LAYER.groundDecor);
           if (tall) img.setData('tall', true);
+          if (this.stage.angry?.includes(tex)) img.setData('angry', true);
           imgs.push(img);
+        }
+        // armadilha: placa de pedra com runa (uma por trecho, às vezes)
+        const trapKey = `${key}:trap`;
+        if (rnd() < TRAP.chance && !this.mapHazards.isUsed(trapKey)) {
+          const tx = x * CHUNK + 30 + rnd() * (CHUNK - 60);
+          const ty = y * CHUNK + 30 + rnd() * (CHUNK - 60);
+          if (Math.hypot(tx, ty) > 160) {
+            const trap = this.add.image(Math.round(tx), Math.round(ty), 'trap').setScale(0.6).setDepth(LAYER.groundDecor);
+            trap.setData('trap', true).setData('trapKey', trapKey);
+            imgs.push(trap);
+          }
         }
         // trechos de terra quebram a monotonia da grama
         if (rnd() < 0.35) {
@@ -1531,6 +1584,7 @@ export class GameScene extends Phaser.Scene {
             if (kind === 'mud') patch.setData('mud', 0.6);
             if (kind === 'quicksand') patch.setData('mud', 0.5);
             if (kind === 'cobweb') patch.setData('mud', 0.7);
+            if (kind === 'ice_patch') patch.setData('ice', true);
             imgs.push(patch);
           }
         }
@@ -1543,7 +1597,10 @@ export class GameScene extends Phaser.Scene {
       this.decor.delete(key);
     }
     this.tallDecor = [...this.decor.values()].flat().filter((i) => i.getData('tall'));
+    this.angryTrees = [...this.decor.values()].flat().filter((i) => i.getData('angry'));
+    this.traps = [...this.decor.values()].flat().filter((i) => i.getData('trap'));
     this.mud = [...this.decor.values()].flat().filter((i) => i.getData('mud'));
+    this.ice = [...this.decor.values()].flat().filter((i) => i.getData('ice'));
   }
 
   /** Árvores ficam translúcidas quando o herói passa por trás delas. */

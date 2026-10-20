@@ -292,6 +292,16 @@ describe('fases', () => {
       for (const id of [st.swarm, ...(st.ring ?? [])]) if (id) expect(ENEMIES[id], `${st.id}:${id}`).toBeDefined();
     }
   });
+  it('cada criatura pertence a uma fase só (ondas, cerco, revoada, tribos e chefes)', () => {
+    const owner = new Map<string, string>();
+    for (const st of STAGES.filter((s) => s.playable)) {
+      const ids = new Set<string>([...st.waves.flatMap((w) => w.pool), ...(st.ring ?? []), ...(st.swarm ? [st.swarm] : []), ...(st.tribes ?? []).flatMap((t) => t.pool), ...st.bosses]);
+      for (const id of ids) {
+        expect(owner.get(id) ?? st.id, `${id} em ${owner.get(id)} e ${st.id}`).toBe(st.id);
+        owner.set(id, st.id);
+      }
+    }
+  });
   it('as fases ficam mais difíceis ao longo do mapa', () => {
     const playable = STAGES.filter((s) => s.playable);
     for (let i = 1; i < playable.length; i++) expect(playable[i].difficulty).toBeGreaterThan(playable[i - 1].difficulty);

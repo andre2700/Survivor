@@ -26,6 +26,8 @@ interface Shot {
   color: number;
   /** a onda já acertou o herói (ela atravessa, mas fere uma vez só) */
   hit?: boolean;
+  /** tiro de gelo: deixa o herói lento ao acertar */
+  chill?: boolean;
   /** tornado: tempo de vida total e próximo acerto permitido */
   total?: number;
   nextHit?: number;
@@ -56,6 +58,9 @@ const BOSS_SHOTS: Record<BossShot, EnemySkill> = {
   wave: { kind: 'wave', damage: 1, cooldown: 0, range: 260, windup: 0, speed: 150, radius: 26, level: 1 },
   tornado: { kind: 'tornado', damage: 1, cooldown: 0, range: 220, windup: 0, speed: 80, radius: 20, level: 1 },
 };
+
+/** Criaturas de gelo: os tiros delas deixam o herói lento. */
+const CHILL_KINDS = ['frost_wraith', 'snow_golem', 'ice_dragon'];
 
 /** Quanto tempo a teia prende o herói (s) e a velocidade dele preso. */
 export const WEB = { time: 1.6, speed: 0.45 };
@@ -201,7 +206,7 @@ export class EnemySkills {
 
   /** Círculo de aviso no chão que se enche até a hora do golpe. */
   private ring(x: number, y: number, r: number, color: number, time: number) {
-    const g = this.scene.add.graphics().setDepth(LAYER.groundFx + 1);
+    const g = this.scene.add.graphics().setDepth(LAYER.warn);
     g.lineStyle(2, color, 0.9).strokeEllipse(x, y, r * 2, r * 1.6);
     g.fillStyle(color, 0.2).fillEllipse(x, y, r * 2, r * 1.6);
     this.scene.tweens.add({ targets: g, alpha: { from: 0.25, to: 1 }, duration: time * 1000, onComplete: () => g.destroy() });
@@ -216,7 +221,7 @@ export class EnemySkills {
       // aviso: linha de mira e o círculo onde a bola vai cair
       const lvl = this.level(skill);
       const r = skill.radius * (1 + (lvl - 1) * 0.1);
-      const g = this.scene.add.graphics().setDepth(LAYER.groundFx + 1);
+      const g = this.scene.add.graphics().setDepth(LAYER.warn);
       g.lineStyle(2, 0xff5a2a, 0.55).lineBetween(e.x, e.y, tx, ty);
       g.lineStyle(2, 0xff5a2a, 0.9).strokeEllipse(tx, ty, r * 2, r * 1.5);
       g.fillStyle(0xff5a2a, 0.18).fillEllipse(tx, ty, r * 2, r * 1.5);
@@ -228,7 +233,7 @@ export class EnemySkills {
       const len = skill.kind === 'charge' ? Math.hypot(tx - e.x, ty - e.y) + 40 : skill.range + 60;
       const half = skill.kind === 'charge' ? e.radius : skill.radius * (1 + (lvl - 1) * 0.1);
       const color = skill.kind === 'charge' ? 0xff5a2a : 0x41a6f6;
-      const g = this.scene.add.graphics().setDepth(LAYER.groundFx + 1);
+      const g = this.scene.add.graphics().setDepth(LAYER.warn);
       const nx = -Math.sin(a) * half;
       const ny = Math.cos(a) * half;
       const ex = e.x + Math.cos(a) * len;
@@ -309,7 +314,7 @@ export class EnemySkills {
     const life = fireball ? dist / skill.speed : wave ? (skill.range + 60) / skill.speed : tornado ? 4.5 : 2.4;
     this.shots.push({
       img, vx: Math.cos(angle) * skill.speed, vy: Math.sin(angle) * skill.speed, total: life, nextHit: 0,
-      life, damage: dmg, r: fireball ? 8 : wave || tornado ? area : skill.radius, kind: skill.kind,
+      life, damage: dmg, r: fireball ? 8 : wave || tornado ? area : skill.radius, kind: skill.kind, chill: CHILL_KINDS.includes(e.def.kind),
       tx: e.x + Math.cos(angle) * dist, ty: e.y + Math.sin(angle) * dist, area, color,
     });
   }
@@ -368,6 +373,7 @@ export class EnemySkills {
         s.img.setFrame(loopFrame('fx_wave', s.life, 8)).setDepth(s.img.y).setAlpha(Math.min(0.9, s.life * 3));
         if (hitPlayer && !s.hit) {
           s.hit = this.scene.hurtPlayer(s.damage) || s.hit;
+          if (s.chill) this.chill();
           if (s.hit) this.scene.impact(p.x, p.y - 6, 0x41a6f6, 0.8);
         }
         if (s.life <= 0) s.img.destroy();
@@ -381,6 +387,7 @@ export class EnemySkills {
       }
       if (hitPlayer) {
         // teia: prende o herói mesmo quando o dano é esquivado
+        if (s.chill) this.chill();
         if (s.kind === 'web') {
           if (this.scene.elapsed >= this.scene.webUntil) this.scene.floatText(p.x, p.y - 20, 'PRESO!', '#f4f4ff', false);
           this.scene.webUntil = this.scene.elapsed + WEB.time;
@@ -398,6 +405,13 @@ export class EnemySkills {
     }
     this.shots = keep;
     this.updateStrikes();
+  }
+
+  /** Gelo no herói: fica lento por um instante (como a teia). */
+  private chill() {
+    const sc = this.scene;
+    if (sc.elapsed >= sc.webUntil) sc.floatText(sc.player.x, sc.player.y - 20, 'CONGELADO!', '#bff0ff', false);
+    sc.webUntil = Math.max(sc.webUntil, sc.elapsed + 1.1);
   }
 
   private updateStrikes() {

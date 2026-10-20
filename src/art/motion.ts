@@ -46,6 +46,14 @@ const GAITS: Record<string, Gait> = {
   spider: { fps: 11, cycle: STEP, squash: 0.02, tilt: 0.02 },
   witch: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.04 },
   ancient_ent: { fps: 3.5, cycle: STRIDE, squash: 0.02, tilt: 0.02 },
+  goblin_king: { fps: 4, cycle: STRIDE, squash: 0.03, tilt: 0.02 },
+  // Pico Congelado
+  yeti: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.03 },
+  snow_golem: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.03 },
+  frost_wraith: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.04 },
+  penguin: { fps: 9, cycle: STEP, squash: 0.04, tilt: 0.06 },
+  snow_owl: { fps: 9, cycle: STEP, squash: 0.03, tilt: 0.05 },
+  ice_dragon: { fps: 4, cycle: STRIDE, squash: 0.02, tilt: 0.015 },
 };
 
 export interface Pose {
