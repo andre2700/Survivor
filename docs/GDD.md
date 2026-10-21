@@ -169,22 +169,45 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 6. Monetização: anúncios com recompensa (ouro em dobro, reviver 1 vez, rolar de novo; limite por dia), VIP de compra única, cosméticos e pacotes de ouro; AdMob com consentimento, RevenueCat, salvamento na nuvem
 7. Lançamento: métricas, relatório de erros, desempenho em aparelho fraco, imagens da loja e lançamento em teste
 
-## Pets (21/10/2026)
+## Pets (21/10/2026, revisto)
 
-**6 pets, um por elemento**, cada um com 3 estágios desenhados (filhote, jovem no nível 10, adulto no nível 20). A animação é por código (flutuar e bater asas, ou pulinhos), porque o pet é pequeno. Só 1 pet vai na partida. O dano acompanha o nível do pet, o dano do herói e a força da fase.
+**6 linhagens, uma por elemento, com 6 estágios:** Ovo → Bebê → Criança → Adulto → Super → Mega. Os nomes e desenhos são nossos (referências de criaturas que evoluem servem só de inspiração).
 
-| Pet | Elemento | Filhote | Jovem | Adulto |
-|---|---|---|---|---|
-| Dragãozinho ✅ | Fogo | 1 bola de fogo | 2 bolas | 3 bolas + sopro em leque (7 s) |
-| Tartaruga das Marés | Água | jatos que encharcam | mais fortes | onda em volta |
-| Corujinha do Vento | Ar | rajadas que empurram | duplas | tornado |
-| Golem de Pedra | Terra | soco que atordoa | mais forte | atrai inimigos e protege |
-| Fada da Luz | Luz | cura aos poucos | cura + luz | escudo de luz |
-| Gatinho Sombrio | Sombra | arranha e coleta gemas | mais forte | rouba ouro |
+| Elemento | Bebê | Criança | Adulto | Super | Mega |
+|---|---|---|---|---|---|
+| Fogo ✅ | Brasinha | Dragãozinho | Draco | Draco Magma | Rei Solar |
+| Água | Gotinha | Tartaruguinha | Casco-Maré | Leviatã Coral | Imperador Abissal |
+| Ar | Penugem | Corujinha | Gavião-Vento | Grifo Tempestade | Roc Celeste |
+| Terra | Pedrinha | Golenzinho | Golem de Pedra | Colosso de Cristal | Titã Ancestral |
+| Luz | Faísca | Fadinha | Fada da Luz | Serafina | Arcanjo Radiante |
+| Sombra | Sombrinha | Gatinho Sombrio | Pantera Noturna | Lobo Eclipse | Senhor do Eclipse |
 
-**Ovos:** nunca à venda. Caem no baú do fim da partida: 20% por chefe, 30% pela vitória, 2% por elite (até 90%); o primeiro chefe vencido na vida garante um. Cada pet tem as suas fases (o Dragãozinho cai no Bosque Outonal, nas Dunas e no Vulcão), o que dá motivo para rejogar fases. A chocadeira guarda até 6 ovos e choca o primeiro da fila com o tempo de partida (o primeiro ovo da vida em 3 min, os outros em 20 min). Ovo de um pet que já tem vira 400 XP para ele.
+**Arte:** cada forma tem a imagem base e uma folha com 4 quadros (2 de movimento, preparar e atacar); o balanço (flutuar, pulinhos) é por código. A evolução parte da imagem da forma anterior, para parecer o mesmo bicho crescendo.
 
-**XP:** 10 por minuto de partida, 25 por chefe, 50 pela vitória (só o pet que foi na partida). Próximo nível: 60 × 1,18^(nível−1). Sem nível máximo. **Ração** (gasta ouro): um quarto do próximo nível, preço 40 × 1,2^(nível−1).
+**Ataque cresce a cada estágio** (Fogo): faíscas → bola de fogo → bola que explode em área → rajada de 3 + sopro em leque → tudo isso + **Chuva Solar** a cada 30 s (meteoros sobre os inimigos da tela, com clarão e tremor). Força por estágio: ×0,6 / 1 / 1,5 / 2,2 / 3,2, vezes o nível (+12% por nível), o dano do herói e a força da fase.
+
+**Teto de nível por estágio** (5, 12, 22, 35, sem teto no Mega): no teto o XP para e a tela pede evolução. XP do próximo nível: 50 × 1,12^(nível−1). XP por partida: 10/min, 25 por chefe, 50 pela vitória. Ração (ouro): um quarto do próximo nível, preço 40 × 1,15^(nível−1).
+
+**Requisitos para evoluir:**
+
+| Evolução | Requisito |
+|---|---|
+| Ovo → Bebê | chocar (3 min de partida no primeiro ovo, 15 nos outros) |
+| Bebê → Criança | nível 5 + comer 3 rações |
+| Criança → Adulto | nível 12 + 300 inimigos derrotados pelo pet + vencer 1 chefe com ele |
+| Adulto → Super | nível 22 + missão do elemento + 1 Cristal de Evolução |
+| Super → Mega | nível 35 + afinidade máxima (10 corações) + vencer o chefe final da fase natal no Muito Difícil com ele + 3 Fragmentos Ancestrais |
+
+- **Missões do elemento:** Fogo derrota 1.000 inimigos queimando; Água 500 reações de Vapor ou Gelo; Ar empurra 2.000 inimigos; Terra atordoa 300; Luz cura 5.000 de vida; Sombra coleta 3.000 gemas.
+- **Afinidade:** 1 coração a cada 3 partidas juntos (máximo 10).
+- **Cristal de Evolução:** 25% por chefe vencido no Difícil ou acima. **Fragmento Ancestral:** 30% por chefe no Pesadelo ou acima. Aparecem no baú.
+- **Cerimônia:** botão EVOLUIR! na tela de pets; a forma vira silhueta, pisca alternando com a nova cada vez mais rápido, clarão, "EVOLUIU!" e o nome novo.
+
+**Ovos:** nunca à venda. Caem no baú: 20% por chefe, 30% pela vitória, 2% por elite (até 90%); o primeiro chefe vencido na vida garante um. Cada linhagem cai em fases próprias (a primeira é a fase natal). Ovo repetido vira 400 XP. Chocadeira com até 6 ovos.
+
+**Equilíbrio:** o pet deve render uns 10–20% do dano total.
+
+**Evolução alternativa (atualizações):** a mesma linhagem pode virar outra forma Super/Mega conforme como foi criada (ex. dragão criado na neve → Draco Gélido).
 
 ## Revisão visual dos efeitos (21/10/2026)
 

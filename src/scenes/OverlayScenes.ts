@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { getPet } from '../data/pets';
+import { eggName, getPet } from '../data/pets';
 import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
 import { formatNumber } from '../core/format';
 import { getCharacter } from '../data/characters';
@@ -291,16 +291,24 @@ function petRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number, d
   let h = 0;
   if (r.egg) {
     const p = getPet(r.egg);
-    const label = r.full ? `Ovo de ${p.name} (chocadeira cheia!)` : `OVO DE ${p.name.toUpperCase()}!`;
+    const label = r.full ? `${eggName(r.egg)} (chocadeira cheia!)` : `${eggName(r.egg).toUpperCase()}!`;
     const t = text(scene, cx + 12, y, label, 12, r.full ? '#a8acc4' : '#8cf08a', { bold: true, strokeThickness: 3 });
     const egg = scene.add.image(cx - t.displayWidth / 2 - 4, y, p.egg).setScale(0);
     scene.tweens.add({ targets: egg, scale: 1.1, duration: 300, delay, ease: 'Back.Out', onStart: () => sfx('levelup') });
     h += 22;
   }
-  if (r.active && r.xp > 0) {
-    const p = getPet(r.active);
+  if (r.crystals || r.shards) {
+    const parts = [r.crystals ? `+${r.crystals} Cristal de Evolução` : '', r.shards ? `+${r.shards} Fragmento Ancestral` : ''].filter(Boolean);
+    text(scene, cx, y + h, parts.join(' · '), 11, '#d6a6ff', { bold: true, strokeThickness: 3 });
+    h += 18;
+  }
+  if (r.active) {
+    const save = loadSave();
+    const st = save.pets[r.active];
+    const name = st ? getPet(r.active).forms[st.stage].name : '';
     const lv = r.levels ? ` · +${r.levels} ${r.levels === 1 ? 'nível' : 'níveis'}` : '';
-    text(scene, cx, y + h, `${p.name}: +${r.xp} XP${lv}${r.evolved ? ' · EVOLUIU!' : ''}`, 11, r.evolved ? '#ffd86a' : '#c8cce0', { bold: r.evolved });
+    const note = r.ready ? ' · PRONTO PARA EVOLUIR!' : r.capped ? ' · nível máximo: evolua!' : '';
+    text(scene, cx, y + h, `${name}: +${r.xp} XP${lv}${note}`, 11, r.ready ? '#ffd86a' : '#c8cce0', { bold: r.ready });
     h += 18;
   }
   return h;

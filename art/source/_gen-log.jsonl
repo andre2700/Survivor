@@ -156,3 +156,10 @@
 {"at":"2026-10-21T13:09:03.330Z","model":"gemini-3.1-flash-image","out":"art/source/fx_avalanche.png","tokens":1787}
 {"at":"2026-10-21T13:09:17.662Z","model":"gemini-3.1-flash-image","out":"art/source/fx_avalanche_sheet.png","tokens":1958}
 {"at":"2026-10-21T13:17:19.427Z","model":"gemini-3.1-flash-image","out":"art/source/blood_moon.png","tokens":1736}
+{"at":"2026-10-21T14:24:14.714Z","model":"gemini-3-pro-image","out":"art/source/pet_fire_1.png","tokens":1928}
+{"at":"2026-10-21T14:24:16.201Z","model":"gemini-3-pro-image","out":"art/source/pet_dragon_2_sheet.png","tokens":2074}
+{"at":"2026-10-21T14:24:16.306Z","model":"gemini-3-pro-image","out":"art/source/pet_dragon_1_sheet.png","tokens":2098}
+{"at":"2026-10-21T14:24:32.418Z","model":"gemini-3-pro-image","out":"art/source/pet_fire_5.png","tokens":1904}
+{"at":"2026-10-21T14:24:33.771Z","model":"gemini-3-pro-image","out":"art/source/pet_dragon_3_sheet.png","tokens":2209}
+{"at":"2026-10-21T14:24:59.063Z","model":"gemini-3-pro-image","out":"art/source/pet_fire_1_sheet.png","tokens":2109}
+{"at":"2026-10-21T14:25:00.047Z","model":"gemini-3-pro-image","out":"art/source/pet_fire_5_sheet.png","tokens":2101}

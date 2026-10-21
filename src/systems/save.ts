@@ -5,7 +5,7 @@ import type { MetaId } from '../data/meta';
 import type { PetId } from '../data/pets';
 import type { RunEventId, StageId } from '../data/stages';
 import { INFINITE_GOLD, dev } from './dev';
-import type { Egg, PetState } from './pets';
+import { migratePets, type Egg, type PetState } from './pets';
 
 export interface SaveData {
   version: 2;
@@ -39,6 +39,9 @@ export interface SaveData {
   activePet?: PetId;
   eggs: Egg[];
   eggSeen: boolean;
+  /** Cristais de Evolução (Adulto → Super) e Fragmentos Ancestrais (Super → Mega) */
+  evoCrystals: number;
+  ancientShards: number;
   /** eventos já encontrados em cada fase (o mapa mostra "?" nos que faltam) */
   seen: Partial<Record<StageId, RunEventId[]>>;
 }
@@ -68,6 +71,8 @@ export function defaultSave(): SaveData {
     pets: {},
     eggs: [],
     eggSeen: false,
+    evoCrystals: 0,
+    ancientShards: 0,
     seen: {},
   };
 }
@@ -83,6 +88,7 @@ export function migrate(raw: Record<string, unknown>): SaveData {
     }
     delete data.stars;
   }
+  migratePets(data);
   if (raw.version !== 2) {
     const renames: Record<string, MetaId> = { might: 'power', armor: 'defense', speed: 'moveSpeed', growth: 'wisdom' };
     const meta: Record<string, number> = {};

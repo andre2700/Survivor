@@ -1,5 +1,5 @@
-import { PETS, eggChance, petStage, petXpToNext, rollEggPet } from '../src/data/pets';
-import { addEgg, addPetXp, feed, hatch, incubate } from '../src/systems/pets';
+import { PETS, STAGE_CAP, eggChance, evoRequirements, getPet, petXpToNext, rollEggPet } from '../src/data/pets';
+import { addEgg, addPetXp, atCap, canEvolve, evolve, feed, hatch, incubate } from '../src/systems/pets';
 import { BAG_SIZE, forgeCost, itemPower, lootCount, makeItem, rollRarity as rollItemRarity } from '../src/data/items';
 import { addItems, equip, equipmentModifiers, nextUid } from '../src/systems/inventory';
 import { describe, expect, it } from 'vitest';
@@ -376,38 +376,59 @@ describe('itens', () => {
 });
 
 describe('pets', () => {
-  it('evolui nos níveis 10 e 20', () => {
-    expect([1, 9, 10, 19, 20, 50].map(petStage)).toEqual([0, 0, 1, 1, 2, 2]);
-    expect(petXpToNext(10)).toBeGreaterThan(petXpToNext(1));
+  it('5 formas por linhagem, requisitos ficam mais difíceis', () => {
+    for (const p of PETS) expect(p.forms).toHaveLength(5);
+    const fire = getPet('fire');
+    const counts = [0, 1, 2, 3].map((k) => evoRequirements(fire, k as 0 | 1 | 2 | 3).length);
+    expect(counts[3]).toBeGreaterThan(counts[0]);
+    expect(evoRequirements(fire, 4)).toEqual([]);
+    expect(petXpToNext(30)).toBeGreaterThan(petXpToNext(1));
   });
   it('ovo choca com tempo de partida; o primeiro choca rápido; repetido vira XP', () => {
     const s = migrate({});
-    expect(addEgg(s, 'dragon')).toBe(true);
-    addEgg(s, 'dragon');
+    expect(addEgg(s, 'fire')).toBe(true);
+    addEgg(s, 'fire');
     expect(s.eggs[0].need).toBeLessThan(s.eggs[1].need);
     expect(hatch(s, s.eggs[0].uid)).toBeUndefined();
     incubate(s, 10_000);
     const first = hatch(s, s.eggs[0].uid)!;
     expect(first.isNew).toBe(true);
-    expect(s.activePet).toBe('dragon');
+    expect(s.activePet).toBe('fire');
+    expect(s.pets.fire!.stage).toBe(0);
     incubate(s, 10_000);
-    const dup = hatch(s, s.eggs[0].uid)!;
-    expect(dup.isNew).toBe(false);
-    expect(s.pets.dragon!.level).toBeGreaterThan(1);
+    expect(hatch(s, s.eggs[0].uid)!.isNew).toBe(false);
+    expect(s.pets.fire!.level).toBeGreaterThan(1);
   });
-  it('XP sobe vários níveis e a ração custa ouro', () => {
+  it('XP para no teto do estágio; evoluir pede os requisitos e gasta os materiais', () => {
     const s = migrate({});
-    s.pets.dragon = { level: 1, xp: 0 };
-    expect(addPetXp(s, 'dragon', 1000)).toBeGreaterThan(3);
-    s.gold = 0;
-    expect(feed(s, 'dragon')).toBe(false);
+    s.pets.fire = { stage: 0, level: 1, xp: 0, feeds: 0, kills: 0, bossWins: 0, runs: 0, trial: false, mission: {} };
+    addPetXp(s, 'fire', 1e6);
+    expect(s.pets.fire.level).toBe(STAGE_CAP[0]);
+    expect(atCap(s.pets.fire)).toBe(true);
+    expect(canEvolve(s, 'fire')).toBe(false);
     s.gold = 1e6;
-    expect(feed(s, 'dragon')).toBe(true);
+    for (let i = 0; i < 3; i++) feed(s, 'fire');
+    expect(evolve(s, 'fire')).toBe(true);
+    expect(s.pets.fire.stage).toBe(1);
+    // Adulto → Super gasta um cristal
+    s.pets.fire = { ...s.pets.fire, stage: 2, level: 22, mission: { burnKills: 1000 } };
+    s.evoCrystals = 1;
+    expect(evolve(s, 'fire')).toBe(true);
+    expect(s.evoCrystals).toBe(0);
   });
-  it('ovos: chance limitada e pet da fase', () => {
+  it('pet antigo (dragão) vira a linhagem do Fogo', () => {
+    const s = migrate({ pets: { dragon: { level: 12, xp: 0 } }, activePet: 'dragon', eggs: [{ uid: 1, pet: 'dragon', need: 10, progress: 0 }] });
+    expect(s.pets.fire?.stage).toBe(1);
+    expect(s.activePet).toBe('fire');
+    expect(s.eggs[0].pet).toBe('fire');
+  });
+  it('ovos: chance limitada, pet da fase e arte de todas as formas disponíveis', () => {
     expect(eggChance(3, true, 50)).toBeLessThanOrEqual(0.9);
     expect(eggChance(0, false, 0)).toBe(0);
-    expect(rollEggPet('outono')).toBe('dragon');
-    for (const p of PETS.filter((x) => x.available)) for (const t of [...p.textures, p.egg]) expect(SPRITES).toHaveProperty(t);
+    expect(rollEggPet('outono')).toBe('fire');
+    for (const p of PETS.filter((x) => x.available)) {
+      expect(SPRITES).toHaveProperty(p.egg);
+      for (const f of p.forms) expect((SPRITES as Record<string, { slots?: string[] }>)[f.texture]?.slots).toEqual(['walk_a', 'walk_b', 'windup', 'attack']);
+    }
   });
 });

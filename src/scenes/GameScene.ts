@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { eggChance, petStage, rollEggPet, runPetXp, type PetId } from '../data/pets';
+import { CRYSTAL_CHANCE, CRYSTAL_TIER, SHARD_CHANCE, SHARD_TIER, TRIAL_TIER, eggChance, getPet, rollEggPet, runPetXp, type PetId } from '../data/pets';
 import { PetCompanion } from '../systems/petCompanion';
-import { activePet, addEgg, addPetXp, incubate } from '../systems/pets';
+import { activePet, addEgg, addPetXp, atCap, canEvolve, incubate } from '../systems/pets';
 import { VIEW } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { ElementSystem } from '../systems/elements';
@@ -90,7 +90,13 @@ export interface RunResult {
   /** itens do baú de fim de partida */
   loot: ItemInstance[];
   /** pets: ovo ganho (e se a chocadeira estava cheia), XP do pet ativo e níveis que ele subiu */
-  pet?: { egg?: PetId; full?: boolean; active?: PetId; xp: number; levels: number; evolved: boolean };
+  pet?: {
+    egg?: PetId; full?: boolean; active?: PetId; xp: number; levels: number;
+    /** nível máximo do estágio (precisa evoluir) e se os requisitos da evolução ficaram completos */
+    capped: boolean; ready: boolean;
+    /** Cristais de Evolução e Fragmentos Ancestrais ganhos */
+    crystals: number; shards: number;
+  };
   /** objetivos da fase cumpridos nesta partida (estrelas) */
   stars: boolean[];
   /** o que a vitória liberou (próxima fase, próxima dificuldade) */
@@ -182,6 +188,8 @@ export class GameScene extends Phaser.Scene {
   private loot: ItemInstance[] = [];
   private elitesKilled = 0;
   private pet?: PetCompanion;
+  /** inimigos derrotados queimando com o pet na partida (missão do Fogo) */
+  private petBurnKills = 0;
   private petReward?: RunResult['pet'];
   /** árvores bravas e armadilhas */
   private mapHazards!: MapHazards;
@@ -332,7 +340,8 @@ export class GameScene extends Phaser.Scene {
     this.playerSlots = slotsOf(this.char.texture);
     // pet escolhido no menu
     const pet = activePet(save);
-    this.pet = pet ? new PetCompanion(this, pet.id, pet.level) : undefined;
+    this.pet = pet ? new PetCompanion(this, pet.id, pet) : undefined;
+    this.petBurnKills = 0;
     // itens Épicos ou melhores: brilho no chão na cor da melhor raridade equipada
     const best = bestEquippedRarity(save);
     this.rarityGlow = best >= 3
@@ -962,6 +971,7 @@ export class GameScene extends Phaser.Scene {
     if (e.boss || e.elite) this.impact(x, y, 0xffcd75, e.boss ? 3 : 1.6);
     this.spawnCorpse(e);
     if (e.elite) this.elitesKilled++;
+    if (this.pet && e.status.fire > this.elapsed) this.petBurnKills++;
     e.kill();
     this.kills++;
     sfx('kill');
@@ -1543,15 +1553,32 @@ export class GameScene extends Phaser.Scene {
    * (chefes, vitória e elites aumentam a chance; o primeiro chefe vencido na vida garante um).
    */
   private grantPetRewards(save: SaveData) {
-    const reward: NonNullable<RunResult['pet']> = { xp: 0, levels: 0, evolved: false };
+    const reward: NonNullable<RunResult['pet']> = { xp: 0, levels: 0, capped: false, ready: false, crystals: 0, shards: 0 };
     incubate(save, this.elapsed);
+    // cristais (Difícil ou acima) e fragmentos (Pesadelo ou acima) por chefe vencido
+    for (let i = 0; i < this.bossesDown; i++) {
+      if (this.tier >= CRYSTAL_TIER && Math.random() < CRYSTAL_CHANCE) reward.crystals++;
+      if (this.tier >= SHARD_TIER && Math.random() < SHARD_CHANCE) reward.shards++;
+    }
+    save.evoCrystals += reward.crystals;
+    save.ancientShards += reward.shards;
     const active = activePet(save);
-    if (active) {
-      const before = petStage(active.level);
-      reward.active = active.id;
+    if (active && this.pet) {
+      const id = active.id;
+      const p = save.pets[id]!;
+      const def = getPet(id);
+      const wasReady = canEvolve(save, id);
+      p.runs++;
+      p.kills += this.pet.kills;
+      if (this.bossesDown > 0) p.bossWins++;
+      if (def.mission.stat === 'burnKills') p.mission.burnKills = (p.mission.burnKills ?? 0) + this.petBurnKills;
+      // prova do Mega: chefe final da fase natal no Muito Difícil
+      if (this.bossDown && this.stage.id === def.stages[0] && this.tier >= TRIAL_TIER) p.trial = true;
+      reward.active = id;
       reward.xp = runPetXp(this.elapsed, this.bossesDown, this.bossDown);
-      reward.levels = addPetXp(save, active.id, reward.xp);
-      reward.evolved = petStage(save.pets[active.id]!.level) > before;
+      reward.levels = addPetXp(save, id, reward.xp);
+      reward.capped = atCap(p);
+      reward.ready = !wasReady && canEvolve(save, id);
     }
     const first = !save.eggSeen && this.bossesDown > 0;
     if (first || Math.random() < eggChance(this.bossesDown, this.bossDown, this.elitesKilled)) {

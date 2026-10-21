@@ -16,6 +16,7 @@
 // ground: efeito apoiado no chão (quadros alinhados pela base, não pelo centro).
 // frames: quantos quadros o efeito tem (padrão 4; mínimo 2).
 // soften: chão com contornos finos da IA, apagados no processamento (tamanho do filtro).
+// fadeRight: quadros cuja ponta direita some aos poucos (ex. labareda do ataque cortada na borda), com a fração da largura.
 // mirror: quadros de personagem desenhados virados para a esquerda, espelhados no processamento.
 // facing: efeito com direção; quadros virados para o lado contrário do 1º são espelhados no processamento.
 // wideSheets: folhas em 21:9 sem mudar a quantidade de quadros por folha (asas abertas).
@@ -36,6 +37,8 @@ export const FRAME_TEMPLATES = {
   boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   // herói: ciclo de corrida completo (pé de perto à frente, passagem, pé de longe à frente)
   hero: { move: ['idle', 'walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death', 'victory'] },
+  // pet: uma folha só com 2 quadros de movimento, preparar e atacar (animado também por código)
+  pet: { move: ['walk_a', 'walk_b', 'windup', 'attack'], action: [] },
   // efeito visual animado (reações, explosões, ondas): até 4 quadros numa folha só, descritos em
   // `poses`; `frames` limita a quantidade (todo efeito tem ao menos 2 quadros)
   vfx: { move: ['f1', 'f2', 'f3', 'f4'], action: [] },
@@ -59,6 +62,20 @@ const RUN = {
   walk_mid: 'running fast, body leaning forward: passing pose, one foot under the body and the other knee lifted high',
   walk_b: 'running fast, body leaning forward: the FAR leg reaching forward, the NEAR leg pushing off behind, the opposite legs of the other stride frame',
 };
+
+// poses dos pets (o ataque descrito por linhagem)
+const PET_FLYER = (attack) => ({
+  walk_a: 'flying, hovering in the air with wings raised high',
+  walk_b: 'flying, hovering in the air with wings pushed down low',
+  windup: 'rearing back and inhaling, head pulled back, chest puffed, about to attack',
+  attack: `attacking to the RIGHT: ${attack}, body lunging forward`,
+});
+const PET_BLOB = (attack) => ({
+  walk_a: 'bouncing: squashed flat against the ground',
+  walk_b: 'bouncing: stretched tall in mid-hop',
+  windup: 'puffing up round and big, eyes squinting, about to attack',
+  attack: `attacking to the RIGHT: ${attack}, body leaning forward`,
+});
 
 export const POSES = {
   biped: BIPED,
@@ -109,15 +126,24 @@ export const ART = {
     prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, gripping a huge double-bladed two-handed great axe with BOTH hands, ${CHAR}, fierce stance`,
     poses: { attack: 'chopping down hard with the huge great axe held in both hands: axe head low in front to the RIGHT, body leaning forward, dynamic' },
   },
-  // pets: um desenho por estágio de evolução (filhote, jovem, adulto), animados por código
-  pet_dragon_1: { h: 20, hd: 4, pro: true, prompt: `a tiny adorable baby red dragon pet hatchling with big shiny eyes, stubby little wings, a round belly and a small flame-tipped tail, ${CHAR}` },
+  // pets (linhagem do Fogo): Bebê, Criança, Adulto, Super e Mega. Cada forma tem a imagem base e uma
+  // folha com 2 quadros de movimento, preparar e atacar. As evoluções partem da forma anterior.
+  pet_fire_1: {
+    h: 16, hd: 4, role: 'pet', ref: 'pet_dragon_1', poses: PET_BLOB('a tiny spark of fire spat forward'),
+    prompt: `the BABY form of the dragon in the reference image: a tiny round bouncy blob of warm red-orange body with big cute shiny eyes, a little flame tuft on top of the head and a tiny flame tail, no wings, no legs, same colors and art style, ${CHAR}`,
+  },
+  pet_dragon_1: { h: 20, hd: 4, role: 'pet', poses: PET_FLYER('a small fireball spat from the mouth'), prompt: `a tiny adorable baby red dragon pet hatchling with big shiny eyes, stubby little wings, a round belly and a small flame-tipped tail, ${CHAR}` },
   pet_dragon_2: {
-    h: 25, hd: 4, pro: true, ref: 'pet_dragon_1',
+    h: 25, hd: 4, role: 'pet', ref: 'pet_dragon_1', poses: PET_FLYER('a big fireball spat from the mouth'),
     prompt: `the SAME red dragon from the reference image, grown into a young teen dragon: longer neck and tail, bigger wings, small horns, a few golden belly scales, still cute, same colors and art style, ${CHAR}`,
   },
   pet_dragon_3: {
-    h: 30, hd: 4, pro: true, ref: 'pet_dragon_2',
+    h: 30, hd: 4, role: 'pet', ref: 'pet_dragon_2', fadeRight: { attack: 0.3 }, poses: PET_FLYER('a wide stream of fire breathed from the mouth'),
     prompt: `the SAME red dragon from the reference image, now fully grown into a majestic adult dragon companion: large spread wings, curved golden horns, spiked back, glowing ember-orange eyes and small flames around the mouth, heroic and powerful but still friendly-looking, same colors and art style, ${CHAR}`,
+  },
+  pet_fire_5: {
+    h: 36, hd: 4, role: 'pet', wideSheets: true, ref: 'pet_dragon_3', fadeRight: { attack: 0.3 }, poses: PET_FLYER('a huge blazing sun-fire blast breathed from the mouth'),
+    prompt: `the SAME dragon from the reference image evolved into its ultimate legendary form, a sun dragon king: radiant golden armor plates over red scales, a blazing golden sun crest ring behind its head, two pairs of great wings with flaming edges, a long tail ending in a sun flame, glowing golden eyes, epic and majestic but still recognizably the same dragon, same art style, ${CHAR}`,
   },
   egg_dragon: { h: 18, hd: 4, shadow: true, prompt: `${ICON}: a speckled red and orange dragon egg with small golden spots and a faint glowing crack` },
   // inimigos

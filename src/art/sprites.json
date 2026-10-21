@@ -558,13 +558,54 @@
   ]
  },
  "pet_dragon_1": {
-  "hd": 4
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
  },
  "pet_dragon_2": {
-  "hd": 4
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
  },
  "pet_dragon_3": {
-  "hd": 4
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_fire_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_fire_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
  },
  "portrait_hero_barbarian": {
   "hd": 8

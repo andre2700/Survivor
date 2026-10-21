@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { rollEggPet } from '../data/pets';
+import { STAGE_CAP, rollEggPet } from '../data/pets';
 import { addEgg } from '../systems/pets';
 import { RARITIES, makeItem } from '../data/items';
 import { addItems, nextUid } from '../systems/inventory';
@@ -79,10 +79,21 @@ export class DevScene extends Phaser.Scene {
         if (pet && addEgg(save, pet)) save.eggs[save.eggs.length - 1].progress = 1e9;
         writeSave(save);
       }],
-      ['Pet ativo +5 níveis', () => {
+      ['Pet ativo: cumprir requisitos da evolução', () => {
         const save = loadSave();
         const p = save.activePet && save.pets[save.activePet];
-        if (p) p.level += 5;
+        if (p) {
+          p.level = Math.max(p.level, STAGE_CAP[p.stage] === Infinity ? p.level : STAGE_CAP[p.stage]);
+          p.xp = 0;
+          p.feeds = Math.max(p.feeds, 3);
+          p.kills = Math.max(p.kills, 300);
+          p.bossWins = Math.max(p.bossWins, 1);
+          p.runs = Math.max(p.runs, 30);
+          p.trial = true;
+          p.mission = { burnKills: 1e4, steamIce: 1e4, pushes: 1e4, stuns: 1e4, heal: 1e5, gems: 1e4 };
+          save.evoCrystals = Math.max(save.evoCrystals, 1);
+          save.ancientShards = Math.max(save.ancientShards, 3);
+        }
         writeSave(save);
       }],
     ];

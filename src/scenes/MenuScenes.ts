@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { eggReady } from '../systems/pets';
+import { canEvolve, eggReady } from '../systems/pets';
 import { VIEW, WIDE_COL, col, isWide, pointerPos, setupCamera } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { generateTextures, groundSprite, preloadArt, scrollGround, slotsOf } from '../art/textures';
@@ -201,7 +201,7 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start('Equip');
     }, { width: 116, height: 38, size: 10, icon: 'item_helm' });
     // ovo pronto para chocar
-    if (save.eggs.some(eggReady)) {
+    if (save.eggs.some(eggReady) || (save.activePet && canEvolve(save, save.activePet))) {
       const badge = this.add.container(infoX + 121 + 52, cardY + 140);
       badge.add(this.add.circle(0, 0, 10, 0x4ac05a).setStrokeStyle(2, 0xffffff));
       badge.add(text(this, 0, 0, '!', 11, '#ffffff', { bold: true }));

@@ -169,6 +169,22 @@ def fade_bottom(im, frac):
     return out
 
 
+def fade_right(im, frac):
+    """Ponta direita que some aos poucos (labareda cortada na borda do quadro)."""
+    box = im.getchannel('A').getbbox()
+    if not box:
+        return im
+    ramp = Image.new('L', im.size, 255)
+    end = box[2]
+    start = int(end - (box[2] - box[0]) * frac)
+    draw = ImageDraw.Draw(ramp)
+    for x in range(start, im.width):
+        draw.line((x, 0, x, im.height), fill=round(255 * max(0, 1 - (x - start) / max(1, end - start)) ** 1.3))
+    out = im.copy()
+    out.putalpha(ImageChops.multiply(im.getchannel('A'), ramp))
+    return out
+
+
 def with_shadow(im, size=None, cx=None):
     """Sombra oval sob os pés: centrada na largura dos pés, metade para baixo da sola.
     `size`/`cx` fixam a sombra (igual em todos os quadros de uma animação)."""
@@ -480,6 +496,9 @@ def main():
                 slots += [p['slot'] for p in poses[1:]]
             if a.get('flip'):
                 frames = [ImageOps.mirror(f) for f in frames]
+            # labareda cortada na borda do quadro: a ponta some aos poucos (fadeRight: {quadro: fração})
+            for slot, frac in a.get('fadeRight', {}).items():
+                frames[slots.index(slot)] = fade_right(frames[slots.index(slot)], frac)
             # quadros que a IA desenhou virados para a esquerda (conferidos na prancha)
             for slot in a.get('mirror', []):
                 frames[slots.index(slot)] = ImageOps.mirror(frames[slots.index(slot)])

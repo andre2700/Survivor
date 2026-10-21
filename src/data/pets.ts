@@ -1,76 +1,113 @@
-// Pets: companheiros que seguem o herói e atacam sozinhos. Nascem de ovos (caem de chefes e elites,
-// nunca à venda), chocam com tempo de partida, sobem de nível jogando (ou comendo ração comprada com
-// ouro) e evoluem em 3 estágios: filhote, jovem (nível 10) e adulto (nível 20, com habilidade especial).
-import type { StageId } from './stages';
+// Pets: companheiros que seguem o herói e atacam sozinhos. 6 linhagens (uma por elemento), cada uma com
+// 6 estágios: Ovo → Bebê → Criança → Adulto → Super → Mega. Ovos caem de chefes e elites (nunca à
+// venda) e chocam com tempo de partida. O pet sobe de nível jogando (ou com ração comprada com ouro),
+// mas cada estágio tem um nível máximo: para seguir, precisa evoluir, cumprindo requisitos cada vez
+// mais difíceis (missão do elemento, cristais, afinidade, prova do chefe...).
+import { getStage, type StageId } from './stages';
 import type { Element } from './weapons';
 
-export type PetId = 'dragon' | 'turtle' | 'owl' | 'golem' | 'fairy' | 'cat';
+export type PetId = 'fire' | 'water' | 'air' | 'earth' | 'light' | 'dark';
+
+/** Estágio do pet já nascido: 0 Bebê, 1 Criança, 2 Adulto, 3 Super, 4 Mega. */
+export type PetStage = 0 | 1 | 2 | 3 | 4;
+export const STAGE_NAMES = ['Bebê', 'Criança', 'Adulto', 'Super', 'Mega'] as const;
+/** Nível máximo de cada estágio (o Mega não tem). */
+export const STAGE_CAP = [5, 12, 22, 35, Infinity] as const;
+/** Força de cada estágio (multiplica o dano). */
+export const STAGE_POWER = [0.6, 1, 1.5, 2.2, 3.2] as const;
+
+/** Missão do elemento (para virar Super): o que contar e quanto. */
+export type MissionStat = 'burnKills' | 'steamIce' | 'pushes' | 'stuns' | 'heal' | 'gems';
+
+export interface PetForm {
+  name: string;
+  /** arte com os quadros walk_a, walk_b, windup e attack */
+  texture: string;
+  /** quadros do movimento (o resto do balanço é por código) */
+  move?: string[];
+  /** o que faz neste estágio */
+  skill: string;
+}
 
 export interface PetDef {
   id: PetId;
-  name: string;
   element: Element;
-  /** arte de cada estágio (filhote, jovem, adulto) e do ovo */
-  textures: [string, string, string];
+  /** nome do elemento (Ovo de Fogo, linhagem do Fogo) */
+  label: string;
+  forms: [PetForm, PetForm, PetForm, PetForm, PetForm];
   egg: string;
-  /** fases onde o ovo dele cai (fora delas, só se nenhum outro pet couber) */
+  /** fases onde o ovo cai; a primeira é a fase natal (prova do Mega) */
   stages: StageId[];
-  /** voa (flutua acima do chão) ou anda (pulinhos) */
   flies: boolean;
-  /** o que cada estágio faz */
-  skills: [string, string, string];
+  mission: { stat: MissionStat; target: number; text: string };
   /** já tem arte e pode aparecer (os outros aparecem como "?" na coleção) */
   available: boolean;
 }
 
+const form = (name: string, texture: string, skill: string, move?: string[]): PetForm => ({ name, texture, skill, move });
+
 export const PETS: PetDef[] = [
   {
-    id: 'dragon', name: 'Dragãozinho', element: 'fire', textures: ['pet_dragon_1', 'pet_dragon_2', 'pet_dragon_3'], egg: 'egg_dragon',
-    stages: ['outono', 'dunas', 'vulcao'], flies: true, available: true,
-    skills: ['Cospe uma bola de fogo no inimigo mais perto', 'Cospe duas bolas de fogo, mais fortes', 'Três bolas de fogo e, de tempos em tempos, um sopro de fogo em leque'],
+    id: 'fire', element: 'fire', label: 'Fogo', egg: 'egg_dragon', stages: ['outono', 'dunas', 'vulcao'], flies: true, available: true,
+    mission: { stat: 'burnKills', target: 1000, text: 'Derrotar 1.000 inimigos queimando' },
+    forms: [
+      form('Brasinha', 'pet_fire_1', 'Cospe faíscas no inimigo mais perto', ['walk_a', 'windup']),
+      form('Dragãozinho', 'pet_dragon_1', 'Cospe bolas de fogo'),
+      form('Draco', 'pet_dragon_2', 'Bolas de fogo que explodem em área'),
+      form('Draco Magma', 'pet_dragon_3', 'Rajada de 3 bolas de fogo e sopro em leque'),
+      form('Rei Solar', 'pet_fire_5', 'Rajada, sopro e, a cada 30 s, a Chuva Solar: meteoros na tela toda'),
+    ],
   },
   {
-    id: 'turtle', name: 'Tartaruga das Marés', element: 'water', textures: ['pet_turtle_1', 'pet_turtle_2', 'pet_turtle_3'], egg: 'egg_turtle',
-    stages: ['pantano'], flies: false, available: false,
-    skills: ['Jatos de água que encharcam', 'Jatos mais fortes e rápidos', 'Onda em volta do herói'],
+    id: 'water', element: 'water', label: 'Água', egg: 'egg_turtle', stages: ['pantano'], flies: false, available: false,
+    mission: { stat: 'steamIce', target: 500, text: 'Causar 500 reações de Vapor ou Gelo' },
+    forms: [
+      form('Gotinha', 'pet_water_1', 'Bolhas'), form('Tartaruguinha', 'pet_water_2', 'Jatos de água'), form('Casco-Maré', 'pet_water_3', 'Jatos que encharcam'),
+      form('Leviatã Coral', 'pet_water_4', 'Onda em volta'), form('Imperador Abissal', 'pet_water_5', 'Maremoto'),
+    ],
   },
   {
-    id: 'owl', name: 'Corujinha do Vento', element: 'air', textures: ['pet_owl_1', 'pet_owl_2', 'pet_owl_3'], egg: 'egg_owl',
-    stages: ['pico', 'dunas'], flies: true, available: false,
-    skills: ['Rajadas que empurram', 'Rajadas duplas', 'Tornado que puxa os inimigos'],
+    id: 'air', element: 'air', label: 'Ar', egg: 'egg_owl', stages: ['pico', 'dunas'], flies: true, available: false,
+    mission: { stat: 'pushes', target: 2000, text: 'Empurrar 2.000 inimigos' },
+    forms: [
+      form('Penugem', 'pet_air_1', 'Sopros'), form('Corujinha', 'pet_air_2', 'Rajadas'), form('Gavião-Vento', 'pet_air_3', 'Rajadas duplas'),
+      form('Grifo Tempestade', 'pet_air_4', 'Tornado'), form('Roc Celeste', 'pet_air_5', 'Furacão'),
+    ],
   },
   {
-    id: 'golem', name: 'Golem de Pedra', element: 'earth', textures: ['pet_golem_1', 'pet_golem_2', 'pet_golem_3'], egg: 'egg_golem',
-    stages: ['ruinas', 'pico'], flies: false, available: false,
-    skills: ['Soco que atordoa', 'Socos mais fortes', 'Atrai os inimigos e protege o herói'],
+    id: 'earth', element: 'earth', label: 'Terra', egg: 'egg_golem', stages: ['ruinas', 'pico'], flies: false, available: false,
+    mission: { stat: 'stuns', target: 300, text: 'Atordoar 300 inimigos' },
+    forms: [
+      form('Pedrinha', 'pet_earth_1', 'Pedrinhas'), form('Golenzinho', 'pet_earth_2', 'Soco'), form('Golem de Pedra', 'pet_earth_3', 'Soco que atordoa'),
+      form('Colosso de Cristal', 'pet_earth_4', 'Atrai os inimigos'), form('Titã Ancestral', 'pet_earth_5', 'Terremoto'),
+    ],
   },
   {
-    id: 'fairy', name: 'Fada da Luz', element: 'light', textures: ['pet_fairy_1', 'pet_fairy_2', 'pet_fairy_3'], egg: 'egg_fairy',
-    stages: ['clareira', 'cidadela'], flies: true, available: false,
-    skills: ['Cura o herói aos poucos', 'Cura mais e dispara luz', 'Escudo de luz'],
+    id: 'light', element: 'light', label: 'Luz', egg: 'egg_fairy', stages: ['clareira', 'cidadela'], flies: true, available: false,
+    mission: { stat: 'heal', target: 5000, text: 'Curar 5.000 de vida' },
+    forms: [
+      form('Faísca', 'pet_light_1', 'Cura leve'), form('Fadinha', 'pet_light_2', 'Cura'), form('Fada da Luz', 'pet_light_3', 'Cura e luz'),
+      form('Serafina', 'pet_light_4', 'Escudo de luz'), form('Arcanjo Radiante', 'pet_light_5', 'Julgamento'),
+    ],
   },
   {
-    id: 'cat', name: 'Gatinho Sombrio', element: 'dark', textures: ['pet_cat_1', 'pet_cat_2', 'pet_cat_3'], egg: 'egg_cat',
-    stages: ['sombria'], flies: false, available: false,
-    skills: ['Arranha e coleta gemas', 'Arranhões mais fortes', 'Rouba ouro dos inimigos'],
+    id: 'dark', element: 'dark', label: 'Sombra', egg: 'egg_cat', stages: ['sombria'], flies: false, available: false,
+    mission: { stat: 'gems', target: 3000, text: 'Coletar 3.000 gemas' },
+    forms: [
+      form('Sombrinha', 'pet_dark_1', 'Arranhões'), form('Gatinho Sombrio', 'pet_dark_2', 'Arranha e coleta gemas'), form('Pantera Noturna', 'pet_dark_3', 'Bote'),
+      form('Lobo Eclipse', 'pet_dark_4', 'Rouba ouro'), form('Senhor do Eclipse', 'pet_dark_5', 'Eclipse'),
+    ],
   },
 ];
 
-export const getPet = (id: PetId) => PETS.find((p) => p.id === id)!;
+export const getPet = (id: PetId) => PETS.find((p) => p.id === id) ?? PETS[0];
+export const eggName = (id: PetId) => `Ovo de ${getPet(id).label}`;
 
-/** Nível em que cada estágio começa. */
-export const PET_STAGE_LEVELS = [1, 10, 20] as const;
-export const STAGE_NAMES = ['Filhote', 'Jovem', 'Adulto'] as const;
+/** XP para passar do nível `level` ao próximo. */
+export const petXpToNext = (level: number) => Math.round(50 * Math.pow(1.12, level - 1));
 
-export function petStage(level: number): 0 | 1 | 2 {
-  return level >= PET_STAGE_LEVELS[2] ? 2 : level >= PET_STAGE_LEVELS[1] ? 1 : 0;
-}
-
-/** XP para passar do nível `level` ao próximo (sem nível máximo). */
-export const petXpToNext = (level: number) => Math.round(60 * Math.pow(1.18, level - 1));
-
-/** Força do pet pelo nível (o estágio soma por cima). */
-export const petPower = (level: number) => (1 + 0.15 * (level - 1)) * [1, 1.4, 1.9][petStage(level)];
+/** Força do pet: nível × estágio. */
+export const petPower = (level: number, stage: PetStage) => (1 + 0.12 * (level - 1)) * STAGE_POWER[stage];
 
 /** XP de uma partida: por minuto, por chefe e pela vitória. */
 export const runPetXp = (seconds: number, bosses: number, victory: boolean) =>
@@ -78,10 +115,15 @@ export const runPetXp = (seconds: number, bosses: number, victory: boolean) =>
 
 /** Ração: compra com ouro um quarto do próximo nível (preço sobe com o nível). */
 export const feedXp = (level: number) => Math.ceil(petXpToNext(level) / 4);
-export const feedCost = (level: number) => Math.round(40 * Math.pow(1.2, level - 1));
+export const feedCost = (level: number) => Math.round(40 * Math.pow(1.15, level - 1));
+
+/** Afinidade: um coração a cada 3 partidas juntos, até 10. */
+export const AFFINITY_RUNS = 3;
+export const MAX_HEARTS = 10;
+export const hearts = (runs: number) => Math.min(MAX_HEARTS, Math.floor(runs / AFFINITY_RUNS));
 
 /** Tempo de partida para chocar (o primeiro ovo choca rápido, para o jogador conhecer logo os pets). */
-export const HATCH_SECONDS = 20 * 60;
+export const HATCH_SECONDS = 15 * 60;
 export const FIRST_HATCH_SECONDS = 3 * 60;
 /** Ovo de um pet que o jogador já tem: vira XP para ele. */
 export const DUPLICATE_EGG_XP = 400;
@@ -92,6 +134,14 @@ export function eggChance(bosses: number, victory: boolean, elites: number) {
   return Math.min(0.9, bosses * 0.2 + (victory ? 0.3 : 0) + elites * 0.02);
 }
 
+/** Cristal de Evolução: chance por chefe vencido no Difícil ou acima. Fragmento Ancestral: no Pesadelo ou acima. */
+export const CRYSTAL_CHANCE = 0.25;
+export const SHARD_CHANCE = 0.3;
+export const CRYSTAL_TIER = 1;
+export const SHARD_TIER = 3;
+/** Prova do Mega: vencer o chefe final da fase natal nesta dificuldade (Muito Difícil). */
+export const TRIAL_TIER = 2;
+
 /** Pet do ovo: um dos que caem nesta fase; se nenhum couber, qualquer um disponível. */
 export function rollEggPet(stage: StageId, rnd: () => number = Math.random): PetId | undefined {
   const pool = PETS.filter((p) => p.available);
@@ -99,4 +149,43 @@ export function rollEggPet(stage: StageId, rnd: () => number = Math.random): Pet
   const local = pool.filter((p) => p.stages.includes(stage));
   const list = local.length ? local : pool;
   return list[Math.floor(rnd() * list.length)].id;
+}
+
+// ---------- Evolução ----------
+
+export type ReqKind = 'level' | 'feeds' | 'kills' | 'bossWins' | 'mission' | 'crystals' | 'hearts' | 'trial' | 'shards';
+export interface Requirement {
+  kind: ReqKind;
+  target: number;
+  text: string;
+}
+
+/** Requisitos para evoluir do estágio `stage` para o seguinte (vazio no Mega). */
+export function evoRequirements(def: PetDef, stage: PetStage): Requirement[] {
+  const home = def.stages[0];
+  switch (stage) {
+    case 0:
+      return [{ kind: 'level', target: 5, text: 'Chegar ao nível 5' }, { kind: 'feeds', target: 3, text: 'Comer 3 rações' }];
+    case 1:
+      return [
+        { kind: 'level', target: 12, text: 'Chegar ao nível 12' },
+        { kind: 'kills', target: 300, text: 'Derrotar 300 inimigos' },
+        { kind: 'bossWins', target: 1, text: 'Vencer um chefe com ele na partida' },
+      ];
+    case 2:
+      return [
+        { kind: 'level', target: 22, text: 'Chegar ao nível 22' },
+        { kind: 'mission', target: def.mission.target, text: def.mission.text },
+        { kind: 'crystals', target: 1, text: '1 Cristal de Evolução (chefes no Difícil ou acima)' },
+      ];
+    case 3:
+      return [
+        { kind: 'level', target: 35, text: 'Chegar ao nível 35' },
+        { kind: 'hearts', target: MAX_HEARTS, text: 'Afinidade máxima (10 corações)' },
+        { kind: 'trial', target: 1, text: `Vencer o chefe final de ${getStage(home).name} no Muito Difícil com ele` },
+        { kind: 'shards', target: 3, text: '3 Fragmentos Ancestrais (chefes no Pesadelo)' },
+      ];
+    default:
+      return [];
+  }
 }
