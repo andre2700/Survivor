@@ -149,7 +149,7 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 
 **Espaços:** arma, mão secundária, elmo, armadura, botas, capa, anel ×2, amuleto e relíquia. Os itens aparecem como ícones e efeitos; as peças no corpo do herói ficam para as skins pagas.
 
-**Visível no herói (21/10/2026):** arma, mão secundária e capa aparecem no herói (na partida, no menu e na tela de equipamento). Elmo e armadura não vestem: o visual completo do herói continua sendo a skin paga. A melhor raridade equipada (Épico ou mais) dá um brilho no chão. Ver `src/art/heroRig.ts`.
+**Aparência (decisão de 21/10/2026):** os itens não mudam o visual do herói. O visual muda só com skins completas (loja); assim cada skin sai barata (só a arte do herói) e tem mais valor. Os itens se mostram pelos efeitos únicos na partida e por um brilho no chão na cor da melhor raridade equipada (Épico ou mais). Um teste de arma, escudo e capa desenhados sobre o herói foi feito e descartado (está no histórico do git).
 
 **Raridades:** Comum, Incomum, Raro, Épico, Lendário e Mítico, com 0–4 atributos extras e força ×1 a ×4,3. Do Raro para cima, o item ganha um **efeito único** visível na partida: Carrasco, Espelho, Sopro do Dragão, Explosão de Espinhos, Passos Ígneos, Manto da Tempestade, Vampiro, Caos, Nova de Gelo, Ímã Ancestral e Segundo Fôlego. Dois itens com o mesmo efeito somam a força. O dano dos efeitos acompanha o dano do herói e a força da fase.
 

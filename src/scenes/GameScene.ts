@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { HeroRig, heroLook, rigOf } from '../art/heroRig';
 import { VIEW } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { ElementSystem } from '../systems/elements';
@@ -33,8 +32,8 @@ import { EnemySkills, WEB } from '../systems/enemySkills';
 import { RunEvents } from '../systems/runEvents';
 import { MapHazards, TRAP, trapTexture } from '../systems/mapHazards';
 import { ItemEffects } from '../systems/itemEffects';
-import { activeEffects, addItems, equipmentModifiers, nextUid } from '../systems/inventory';
-import { dropLevel, lootCount, makeItem, rollRarity, EFFECT_RARITY, type ItemInstance } from '../data/items';
+import { activeEffects, addItems, bestEquippedRarity, equipmentModifiers, nextUid } from '../systems/inventory';
+import { RARITIES as ITEM_RARITIES, dropLevel, lootCount, makeItem, rollRarity, EFFECT_RARITY, type ItemInstance } from '../data/items';
 import { FONT, px } from '../ui/theme';
 
 /**
@@ -151,10 +150,7 @@ export class GameScene extends Phaser.Scene {
   private hurtUntil = 0;
   private playerFrame = 0;
   private playerSlots: Slots = {};
-  private playerTex = '';
-  private playerSlotName = 'idle';
-  private heroRig?: HeroRig;
-  private playerMotion = 0;
+  private rarityGlow?: Phaser.GameObjects.Image;
   private corpses: { img: Phaser.GameObjects.Image; life: number; total: number }[] = [];
   private spawnAcc = 0;
   private eventsDone = new Set<number>();
@@ -322,13 +318,13 @@ export class GameScene extends Phaser.Scene {
     const height = this.viewH;
     // chão e vinheta acompanham a câmera (com margem para não aparecer borda)
     this.ground = groundSprite(this, 0, 0, width + 128, height + 128, this.stage.ground).setOrigin(0).setDepth(LAYER.ground);
-    // herói com equipamento visível: arte sem equipamento + arma, escudo e capa por cima
-    const rig = rigOf(this.char);
-    this.playerTex = rig ? rig.texture : this.char.texture;
-    this.player = this.add.image(0, 0, 'atlas', frameName(this.playerTex)).setOrigin(0.5, 0.68);
-    this.playerSlots = slotsOf(this.playerTex);
-    this.playerSlotName = 'idle';
-    this.heroRig = rig ? new HeroRig(this, rig, heroLook(save, this.char)) : undefined;
+    this.player = this.add.image(0, 0, 'atlas', frameName(this.char.texture)).setOrigin(0.5, 0.68);
+    this.playerSlots = slotsOf(this.char.texture);
+    // itens Épicos ou melhores: brilho no chão na cor da melhor raridade equipada
+    const best = bestEquippedRarity(save);
+    this.rarityGlow = best >= 3
+      ? this.add.image(0, 0, 'atlas', frameName('aura')).setTint(ITEM_RARITIES[best].color).setBlendMode(Phaser.BlendModes.ADD).setScale(0.34, 0.13)
+      : undefined;
     this.vignette = this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width + 40, height + 40).setDepth(LAYER.overlay);
     this.hpBar = this.add.graphics().setDepth(LAYER.fx + 4);
 
@@ -479,11 +475,10 @@ export class GameScene extends Phaser.Scene {
 
   /** Troca o quadro do herói pelo nome (idle, walk_a, attack, hurt, death, victory). */
   private setPlayerSlot(slot: string) {
-    this.playerSlotName = slot;
     const f = this.playerSlots[slot] ?? 0;
     if (f === this.playerFrame) return;
     this.playerFrame = f;
-    this.player.setFrame(frameName(this.playerTex, f));
+    this.player.setFrame(frameName(this.char.texture, f));
   }
 
   /** Mostra o quadro de ataque do herói por um instante (arma inicial disparou). */
@@ -531,13 +526,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setDepth(this.player.y);
     const blinking = this.elapsed < this.invulnUntil;
     this.player.setAlpha(blinking && Math.floor(this.elapsed * 20) % 2 === 0 ? 0.4 : 1);
-    this.playerMotion += ((moving ? 1 : 0) - this.playerMotion) * Math.min(1, dt * 6);
-    this.syncRig();
-  }
-
-  /** Arma, escudo e capa acompanham o herói. */
-  private syncRig() {
-    this.heroRig?.sync(this.player, this.playerSlotName, this.elapsed, this.playerMotion);
+    this.rarityGlow?.setPosition(this.player.x, this.player.y + 14).setDepth(this.player.y - 1).setAlpha(0.3 + 0.12 * Math.sin(this.elapsed * 3));
   }
 
   private drawPlayerHp() {
@@ -1377,7 +1366,6 @@ export class GameScene extends Phaser.Scene {
     this.joy.x = this.joy.y = 0;
     this.setPlayerSlot('victory');
     this.player.setScale(1).setRotation(0);
-    this.syncRig();
     this.scene.pause();
     this.scene.pause('Hud');
     this.scene.launch('Victory', this.result(true));
@@ -1551,7 +1539,6 @@ export class GameScene extends Phaser.Scene {
     if (!victory || this.endless) {
       this.setPlayerSlot('death');
       this.player.setScale(1).setRotation(0);
-      this.syncRig();
       this.tweens.add({ targets: this.player, alpha: 0.75, duration: 500 });
     }
   }

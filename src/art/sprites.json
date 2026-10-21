@@ -298,20 +298,6 @@
    "victory"
   ]
  },
- "hero_knight_bare": {
-  "hd": 3,
-  "frames": 8,
-  "slots": [
-   "idle",
-   "walk_a",
-   "walk_mid",
-   "walk_b",
-   "attack",
-   "hurt",
-   "death",
-   "victory"
-  ]
- },
  "hero_mage": {
   "hd": 3,
   "frames": 8,
@@ -565,9 +551,6 @@
   "hd": 8
  },
  "portrait_hero_knight": {
-  "hd": 8
- },
- "portrait_hero_knight_bare": {
   "hd": 8
  },
  "portrait_hero_mage": {

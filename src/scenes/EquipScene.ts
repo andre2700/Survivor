@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { HeroPortrait, heroLook } from '../art/heroRig';
 import { formatNumber } from '../core/format';
 import { getCharacter } from '../data/characters';
 import {
@@ -64,8 +63,7 @@ export class EquipScene extends Phaser.Scene {
     const top = wide ? 80 : 92;
     const slotSize = 44;
     const gap = 50;
-    const char = getCharacter(save.selected);
-    const hero = new HeroPortrait(this, heroX, top + gap * 2.6, 0.5).show(char, heroLook(save, char)).body.setScale(3.4);
+    const hero = this.add.image(heroX, top + gap * 2.6, `portrait_${getCharacter(save.selected).texture}`).setOrigin(0.5, 0.5).setScale(3.4);
     hero.setAlpha(0.95);
     EQUIP_SLOTS.forEach((s, i) => {
       const left = i < 5;

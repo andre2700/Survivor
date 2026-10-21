@@ -28,6 +28,11 @@ export function activeEffects(save: SaveData): Partial<Record<EffectId, number>>
   return out;
 }
 
+/** Melhor raridade entre os itens equipados (-1 sem nada). */
+export function bestEquippedRarity(save: SaveData) {
+  return equippedItems(save).reduce((m, i) => Math.max(m, i.rarity), -1);
+}
+
 /** Em qual espaço o item está equipado (ou undefined). */
 export function equippedSlot(save: SaveData, uid: number): EquipSlot | undefined {
   return EQUIP_SLOTS.find((s) => save.equipped[s] === uid);
