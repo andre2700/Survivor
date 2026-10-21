@@ -185,3 +185,10 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 **Ovos:** nunca à venda. Caem no baú do fim da partida: 20% por chefe, 30% pela vitória, 2% por elite (até 90%); o primeiro chefe vencido na vida garante um. Cada pet tem as suas fases (o Dragãozinho cai no Bosque Outonal, nas Dunas e no Vulcão), o que dá motivo para rejogar fases. A chocadeira guarda até 6 ovos e choca o primeiro da fila com o tempo de partida (o primeiro ovo da vida em 3 min, os outros em 20 min). Ovo de um pet que já tem vira 400 XP para ele.
 
 **XP:** 10 por minuto de partida, 25 por chefe, 50 pela vitória (só o pet que foi na partida). Próximo nível: 60 × 1,18^(nível−1). Sem nível máximo. **Ração** (gasta ouro): um quarto do próximo nível, preço 40 × 1,2^(nível−1).
+
+## Revisão visual dos efeitos (21/10/2026)
+
+Todos os eventos, golpes de chefes, armadilhas e árvores foram revistos na tela, fase por fase. Mudanças:
+- **Avisos de golpe num estilo só** (`src/systems/telegraph.ts`): área translúcida com contorno forte (borda escura por baixo, aparece em qualquer chão) e um preenchimento que cresce até a hora do golpe, para ler quanto tempo falta; o contorno pulsa no fim. Faixas (investida, bote, onda, mira dos tiros do chefe) com setas na direção do golpe. Usado por chefes, monstros com habilidade, meteoros e árvores bravas.
+- **Avalanche** com arte animada (onda de neve com blocos de gelo e pedras) no lugar do retângulo; aviso com bordas tracejadas e setas andando.
+- **Lua de Sangue** com arte da lua e halo vermelho pulsando.

@@ -153,3 +153,6 @@
 {"at":"2026-10-21T05:28:51.787Z","model":"gemini-3-pro-image","out":"art/source/pet_dragon_2.png","tokens":1962}
 {"at":"2026-10-21T05:29:11.774Z","model":"gemini-3-pro-image","out":"art/source/pet_dragon_3.png","tokens":1930}
 {"at":"2026-10-21T05:29:46.829Z","model":"gemini-3.1-flash-image","out":"art/source/egg_dragon.png","tokens":1780}
+{"at":"2026-10-21T13:09:03.330Z","model":"gemini-3.1-flash-image","out":"art/source/fx_avalanche.png","tokens":1787}
+{"at":"2026-10-21T13:09:17.662Z","model":"gemini-3.1-flash-image","out":"art/source/fx_avalanche_sheet.png","tokens":1958}
+{"at":"2026-10-21T13:17:19.427Z","model":"gemini-3.1-flash-image","out":"art/source/blood_moon.png","tokens":1736}

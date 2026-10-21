@@ -1,8 +1,9 @@
 // Perigos espalhados pelo mapa: árvores bravas (atacam quem chega perto, com aviso) e armadilhas
 // (uma placa de pedra com runa: pisou, acontece algo aleatório, bom ou ruim).
 import Phaser from 'phaser';
+import { warnCircle } from './telegraph';
 import { ENEMIES } from '../data/enemies';
-import { LAYER, type GameScene } from '../scenes/GameScene';
+import type { GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
 
 /** Árvore brava: alcance (px), aviso (s), tempo até atacar de novo (s) e dano (em dano de contato). */
@@ -79,10 +80,7 @@ export class MapHazards {
       // aviso: a árvore treme e o chão em volta fica vermelho
       tree.setData('swingAt', t + TREE.windup);
       tree.setData('ready', t + TREE.windup + TREE.cooldown);
-      const g = sc.add.graphics().setDepth(LAYER.warn);
-      g.fillStyle(0xff3020, 0.3).fillEllipse(tree.x, tree.y, TREE.reach * 2, TREE.reach * 1.6);
-      g.lineStyle(3, 0xff3020, 1).strokeEllipse(tree.x, tree.y, TREE.reach * 2, TREE.reach * 1.6);
-      sc.tweens.add({ targets: g, alpha: { from: 0.3, to: 1 }, duration: TREE.windup * 1000, onComplete: () => g.destroy() });
+      warnCircle(sc, tree.x, tree.y, TREE.reach, 0xff3020, TREE.windup);
       sc.tweens.add({ targets: tree, angle: { from: -4, to: 4 }, duration: 80, yoyo: true, repeat: Math.floor((TREE.windup * 1000) / 160) - 1, onComplete: () => tree.setAngle(0) });
     }
   }

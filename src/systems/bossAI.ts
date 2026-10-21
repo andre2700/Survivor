@@ -2,6 +2,7 @@
 // sempre com aviso; ficam furiosos com pouca vida; o chefe final se transforma ao "morrer" e volta
 // para a fase 2 com a vida enchendo de novo.
 import Phaser from 'phaser';
+import { warnCircle, warnLane } from './telegraph';
 import { bossDef, type BossDef, type BossMove } from '../data/bosses';
 import { ENEMIES } from '../data/enemies';
 import type { Enemy } from '../entities';
@@ -212,9 +213,8 @@ export class BossAI {
         st.tx = e.x + Math.cos(a) * reach;
         st.ty = e.y + Math.sin(a) * reach;
         const r = this.slamRadius(e);
-        g.fillStyle(0xff3020, 0.2).fillEllipse(st.tx, st.ty, r * 2, r * 1.6);
-        g.lineStyle(3, 0xff3020, 0.9).strokeEllipse(st.tx, st.ty, r * 2, r * 1.6);
         st.until = t + MOVES.slam.windup;
+        warnCircle(sc, st.tx, st.ty, r, 0xff3020, MOVES.slam.windup, g);
         break;
       }
       case 'leap': {
@@ -223,8 +223,8 @@ export class BossAI {
         st.ty = p.y;
         st.until = t + (again ? MOVES.leap.again : MOVES.leap.windup);
         const r = this.landRadius(e);
-        g.fillStyle(0xff3020, 0.22).fillEllipse(st.tx, st.ty, r * 2, r * 1.6);
-        g.lineStyle(3, 0xff3020, 0.9).strokeEllipse(st.tx, st.ty, r * 2, r * 1.6);
+        // o círculo se enche durante a preparação e o salto (fica cheio no pouso)
+        warnCircle(sc, st.tx, st.ty, r, 0xff3020, st.until - t + MOVES.leap.air, g);
         sc.tweens.add({ targets: e, scaleY: e.baseScale * 0.82, duration: (st.until - t) * 900, yoyo: true });
         break;
       }
@@ -236,28 +236,27 @@ export class BossAI {
         st.tx = e.x + Math.cos(a) * len;
         st.ty = e.y + Math.sin(a) * len;
         const half = Math.min(e.radius * 0.8, MOVES.charge.halfWidth);
-        const nx = -Math.sin(a) * half;
-        const ny = Math.cos(a) * half;
-        g.fillStyle(0xff5a2a, 0.22).fillPoints([{ x: e.x + nx, y: e.y + ny }, { x: st.tx + nx, y: st.ty + ny }, { x: st.tx - nx, y: st.ty - ny }, { x: e.x - nx, y: e.y - ny }] as Phaser.Math.Vector2[], true);
         st.until = t + (again ? MOVES.charge.again : MOVES.charge.windup);
+        warnLane(sc, e.x, e.y, st.tx, st.ty, half, 0xff5a2a, st.until - t, g);
         break;
       }
       case 'volley':
-        g.lineStyle(2, move.color ?? 0xff5a2a, 0.6).lineBetween(e.x, e.y, p.x, p.y);
         st.tx = p.x;
         st.ty = p.y;
         st.until = t + MOVES.volley.windup;
+        // mira: faixa estreita até um pouco depois do herói
+        warnLane(sc, e.x, e.y, p.x + Math.cos(a) * 40, p.y + Math.sin(a) * 40, 9, move.color ?? 0xff5a2a, MOVES.volley.windup, g);
         break;
       case 'nova':
-        g.lineStyle(3, move.color ?? 0xffd86a, 0.8).strokeCircle(e.x, e.y - 10, e.radius * 1.6);
         st.until = t + MOVES.nova.windup;
+        warnCircle(sc, e.x, e.y, e.radius * 1.6, move.color ?? 0xffd86a, MOVES.nova.windup, g);
         break;
       case 'rain':
         st.until = t + MOVES.rain.windup;
         break;
       case 'summon':
-        g.lineStyle(3, 0xd6a6ff, 0.8).strokeEllipse(e.x, e.y, e.radius * 4, e.radius * 3);
         st.until = t + MOVES.summon.windup;
+        warnCircle(sc, e.x, e.y, e.radius * 2, 0xd6a6ff, MOVES.summon.windup, g, 0.75);
         break;
       case 'blink':
         st.until = t + MOVES.blink.fade;
@@ -265,7 +264,6 @@ export class BossAI {
         sc.tweens.add({ targets: e, alpha: 0, duration: MOVES.blink.fade * 1000 });
         break;
     }
-    sc.tweens.add({ targets: g, alpha: { from: 0.35, to: 1 }, duration: Math.max(1, (st.until - t) * 1000) });
   }
 
   private run(e: Enemy, st: BossState, move: BossMove, d: number, dt: number) {
@@ -352,10 +350,8 @@ export class BossAI {
         st.dur = MOVES.leap.air;
         e.intangible = true;
         const r = this.landRadius(e);
-        const g = sc.add.graphics().setDepth(LAYER.warn);
-        g.fillStyle(0xff3020, 0.3).fillEllipse(st.tx, st.ty, r * 2, r * 1.6);
-        g.lineStyle(3, 0xff3020, 1).strokeEllipse(st.tx, st.ty, r * 2, r * 1.6);
-        sc.tweens.add({ targets: g, alpha: { from: 0.5, to: 1 }, duration: st.dur * 1000, onComplete: () => g.destroy() });
+        // continua o círculo da preparação: termina de encher no pouso
+        warnCircle(sc, st.tx, st.ty, r, 0xff3020, st.dur, undefined, 0.8, MOVES.leap.windup / (MOVES.leap.windup + MOVES.leap.air));
         sfx('whoosh');
         return;
       }

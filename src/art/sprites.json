@@ -39,6 +39,9 @@
    "death"
   ]
  },
+ "blood_moon": {
+  "hd": 3
+ },
  "bolt": {
   "hd": 4
  },
@@ -178,6 +181,10 @@
  },
  "frozen_log": {
   "hd": 2
+ },
+ "fx_avalanche": {
+  "hd": 2,
+  "frames": 3
  },
  "fx_fireball": {
   "hd": 2,

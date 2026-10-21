@@ -2,6 +2,7 @@
 // conjurador (Bola de Fogo, Onda e Tornado do herói, com nível), explosivo (pisca e explode), bote e
 // toca (o verme se enterra e irrompe sob o herói). Todo ataque tem aviso antes, para o jogador poder desviar.
 import Phaser from 'phaser';
+import { warnCircle, warnLane } from './telegraph';
 import { frameName, loopFrame } from '../art/textures';
 import type { BossShot } from '../data/bosses';
 import type { EnemySkill } from '../data/enemies';
@@ -206,10 +207,7 @@ export class EnemySkills {
 
   /** Círculo de aviso no chão que se enche até a hora do golpe. */
   private ring(x: number, y: number, r: number, color: number, time: number) {
-    const g = this.scene.add.graphics().setDepth(LAYER.warn);
-    g.lineStyle(2, color, 0.9).strokeEllipse(x, y, r * 2, r * 1.6);
-    g.fillStyle(color, 0.2).fillEllipse(x, y, r * 2, r * 1.6);
-    this.scene.tweens.add({ targets: g, alpha: { from: 0.25, to: 1 }, duration: time * 1000, onComplete: () => g.destroy() });
+    warnCircle(this.scene, x, y, r, color, time);
   }
 
   private windup(e: Enemy, skill: EnemySkill, tx: number, ty: number) {
@@ -223,9 +221,8 @@ export class EnemySkills {
       const r = skill.radius * (1 + (lvl - 1) * 0.1);
       const g = this.scene.add.graphics().setDepth(LAYER.warn);
       g.lineStyle(2, 0xff5a2a, 0.55).lineBetween(e.x, e.y, tx, ty);
-      g.lineStyle(2, 0xff5a2a, 0.9).strokeEllipse(tx, ty, r * 2, r * 1.5);
-      g.fillStyle(0xff5a2a, 0.18).fillEllipse(tx, ty, r * 2, r * 1.5);
       this.scene.tweens.add({ targets: g, alpha: { from: 0.3, to: 1 }, duration: skill.windup * 1000, onComplete: () => g.destroy() });
+      warnCircle(this.scene, tx, ty, r, 0xff5a2a, skill.windup, undefined, 0.75);
     } else if (skill.kind === 'charge' || skill.kind === 'wave') {
       // aviso: a faixa do bote ou da onda no chão
       const lvl = this.level(skill);
@@ -233,13 +230,7 @@ export class EnemySkills {
       const len = skill.kind === 'charge' ? Math.hypot(tx - e.x, ty - e.y) + 40 : skill.range + 60;
       const half = skill.kind === 'charge' ? e.radius : skill.radius * (1 + (lvl - 1) * 0.1);
       const color = skill.kind === 'charge' ? 0xff5a2a : 0x41a6f6;
-      const g = this.scene.add.graphics().setDepth(LAYER.warn);
-      const nx = -Math.sin(a) * half;
-      const ny = Math.cos(a) * half;
-      const ex = e.x + Math.cos(a) * len;
-      const ey = e.y + Math.sin(a) * len;
-      g.fillStyle(color, 0.18).fillPoints([{ x: e.x + nx, y: e.y + ny }, { x: ex + nx, y: ey + ny }, { x: ex - nx, y: ey - ny }, { x: e.x - nx, y: e.y - ny }] as Phaser.Math.Vector2[], true);
-      this.scene.tweens.add({ targets: g, alpha: { from: 0.3, to: 1 }, duration: skill.windup * 1000, onComplete: () => g.destroy() });
+      warnLane(this.scene, e.x, e.y, e.x + Math.cos(a) * len, e.y + Math.sin(a) * len, half, color, skill.windup);
     } else if (skill.kind === 'strike') {
       // aviso: um círculo onde cada raio vai cair (o primeiro no herói; com nível, mais raios em volta)
       const lvl = this.level(skill);

@@ -168,6 +168,10 @@ export const ART = {
   fx_tornado: { h: 64, ground: true, wide_top: true, role: 'vfx', effect: 'this same tornado funnel (same shape, size and colors as the reference), spinning', poses: {
     f1: 'the funnel with swirl stripes and leaves in one position', f2: 'the same funnel, swirl stripes rotated a quarter turn, leaves moved around it',
     f3: 'the same funnel, swirl stripes rotated half a turn, leaves on the other side', f4: 'the same funnel, swirl stripes rotated three quarters, leaves moved again' }, prompt: `${FX}a cartoon tornado whirlwind funnel of pale green and white swirling wind with a few small leaves` },
+  fx_avalanche: { h: 72, facing: true, ground: true, wideSheets: true, frames: 3, role: 'vfx', effect: 'this same avalanche snow wall (same shape, size and colors as the reference), rolling forward', poses: {
+    f1: 'the snow wall with billowing powder clouds and tumbling ice chunks and rocks at the front', f2: 'the same snow wall, the powder clouds rolled forward a bit, the chunks rotated to new positions',
+    f3: 'the same snow wall, clouds churning and spraying snow forward, chunks bouncing' }, prompt: `${FX}a huge cartoon avalanche: a tall rolling wall of white powder snow with soft blue shading, crashing to the RIGHT, big billowing snow clouds on top, chunks of blue ice and grey rocks tumbling at its front edge, side view, bold dark outlines` },
+  blood_moon: { h: 56, hd: 3, prompt: `${FX}a huge ominous blood red full moon with darker red craters and a thin glowing crimson rim, slightly cracked, menacing, perfectly round, no clouds` },
   // efeitos animados (4 quadros): effect descreve o efeito; poses, cada quadro
   vfx_lava: { h: 40, role: 'vfx', wide: true, effect: 'a lava eruption bursting from cracked ground', poses: {
     f1: 'glowing orange cracks opening on the ground', f2: 'lava bursting upward in a short fountain with molten droplets',
