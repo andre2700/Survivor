@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { eggReady } from '../systems/pets';
 import { VIEW, WIDE_COL, col, isWide, pointerPos, setupCamera } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { generateTextures, groundSprite, preloadArt, scrollGround, slotsOf } from '../art/textures';
@@ -181,22 +182,34 @@ export class MenuScene extends Phaser.Scene {
     button(this, heroX + arrow, cy + 30, '>', () => cycle(1), { width: 40, height: 44, size: 20 });
     refresh();
 
-    button(this, infoX - 78, cardY + 156, 'MELHORIAS', () => {
+    button(this, infoX - 121, cardY + 156, 'MELHORIAS', () => {
       unlockAudio();
       sfx('select');
       this.scene.start('Shop');
-    }, { width: 148, height: 38, size: 13, icon: 'icon_star' });
-    button(this, infoX + 78, cardY + 156, 'EQUIPAMENTO', () => {
+    }, { width: 116, height: 38, size: 10, icon: 'icon_star' });
+    button(this, infoX + 121, cardY + 156, 'PETS', () => {
+      unlockAudio();
+      sfx('select');
+      this.scene.start('Pets');
+    }, { width: 116, height: 38, size: 12, icon: 'egg_dragon' });
+    button(this, infoX, cardY + 156, 'EQUIPAMENTO', () => {
       unlockAudio();
       sfx('select');
       const s = loadSave();
       s.newItems = 0;
       writeSave(s);
       this.scene.start('Equip');
-    }, { width: 148, height: 38, size: 12, icon: 'item_helm' });
+    }, { width: 116, height: 38, size: 10, icon: 'item_helm' });
+    // ovo pronto para chocar
+    if (save.eggs.some(eggReady)) {
+      const badge = this.add.container(infoX + 121 + 52, cardY + 140);
+      badge.add(this.add.circle(0, 0, 10, 0x4ac05a).setStrokeStyle(2, 0xffffff));
+      badge.add(text(this, 0, 0, '!', 11, '#ffffff', { bold: true }));
+      this.tweens.add({ targets: badge, scale: 1.15, duration: 500, yoyo: true, repeat: -1 });
+    }
     // itens novos desde a última visita
     if (save.newItems) {
-      const badge = this.add.container(infoX + 78 + 66, cardY + 140);
+      const badge = this.add.container(infoX + 52, cardY + 140);
       badge.add(this.add.circle(0, 0, 10, 0xff4a5a).setStrokeStyle(2, 0xffffff));
       badge.add(text(this, 0, 0, String(save.newItems), 10, '#ffffff', { bold: true }));
       this.tweens.add({ targets: badge, scale: 1.15, duration: 500, yoyo: true, repeat: -1 });

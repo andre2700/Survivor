@@ -119,6 +119,9 @@
  "dry_bush": {
   "hd": 2
  },
+ "egg_dragon": {
+  "hd": 4
+ },
  "flowers": {
   "hd": 2
  },
@@ -546,6 +549,15 @@
    "hurt",
    "death"
   ]
+ },
+ "pet_dragon_1": {
+  "hd": 4
+ },
+ "pet_dragon_2": {
+  "hd": 4
+ },
+ "pet_dragon_3": {
+  "hd": 4
  },
  "portrait_hero_barbarian": {
   "hd": 8

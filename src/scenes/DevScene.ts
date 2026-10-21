@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { rollEggPet } from '../data/pets';
+import { addEgg } from '../systems/pets';
 import { RARITIES, makeItem } from '../data/items';
 import { addItems, nextUid } from '../systems/inventory';
 import { WEAPONS, WEAPON_IDS } from '../data/weapons';
@@ -69,6 +71,18 @@ export class DevScene extends Phaser.Scene {
         addItems(save, items);
         save.dust += 200;
         save.newItems = (save.newItems ?? 0) + items.length;
+        writeSave(save);
+      }],
+      ['Ganhar ovo de pet (pronto para chocar)', () => {
+        const save = loadSave();
+        const pet = rollEggPet(save.stage);
+        if (pet && addEgg(save, pet)) save.eggs[save.eggs.length - 1].progress = 1e9;
+        writeSave(save);
+      }],
+      ['Pet ativo +5 níveis', () => {
+        const save = loadSave();
+        const p = save.activePet && save.pets[save.activePet];
+        if (p) p.level += 5;
         writeSave(save);
       }],
     ];

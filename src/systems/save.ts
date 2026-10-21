@@ -2,8 +2,10 @@ import type { CharacterId } from '../data/characters';
 import type { TierProgress } from '../data/difficulty';
 import type { EquipSlot, ItemInstance } from '../data/items';
 import type { MetaId } from '../data/meta';
+import type { PetId } from '../data/pets';
 import type { RunEventId, StageId } from '../data/stages';
 import { INFINITE_GOLD, dev } from './dev';
+import type { Egg, PetState } from './pets';
 
 export interface SaveData {
   version: 2;
@@ -32,6 +34,11 @@ export interface SaveData {
   nextItem: number;
   /** itens ganhos desde a última visita ao equipamento (selo no menu) */
   newItems: number;
+  /** pets (nível e XP), o pet que vai para a partida, ovos na chocadeira e se já ganhou algum ovo */
+  pets: Partial<Record<PetId, PetState>>;
+  activePet?: PetId;
+  eggs: Egg[];
+  eggSeen: boolean;
   /** eventos já encontrados em cada fase (o mapa mostra "?" nos que faltam) */
   seen: Partial<Record<StageId, RunEventId[]>>;
 }
@@ -58,6 +65,9 @@ export function defaultSave(): SaveData {
     dust: 0,
     nextItem: 1,
     newItems: 0,
+    pets: {},
+    eggs: [],
+    eggSeen: false,
     seen: {},
   };
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { getPet } from '../data/pets';
 import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
 import { formatNumber } from '../core/format';
 import { getCharacter } from '../data/characters';
@@ -258,7 +259,7 @@ function lootRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number, 
   text(scene, cx, y, loot.length ? `BAÚ DA PARTIDA · ${loot.length} ${loot.length > 1 ? 'ITENS' : 'ITEM'}` : 'BAÚ DA PARTIDA', 13, '#ffd86a', { bold: true });
   if (!loot.length) {
     text(scene, cx, y + 22, 'Sobreviva 3 minutos ou vença chefes para ganhar itens', 11, '#a8acc4', { wrap: w });
-    return 44;
+    return 44 + petRow(scene, result, cx, y + 46, 300);
   }
   const size = 42;
   const per = Math.max(1, Math.floor(w / (size + 8)));
@@ -280,7 +281,29 @@ function lootRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number, 
   const best = loot.reduce((a, b) => (b.rarity > a.rarity ? b : a));
   const by = y + 34 + rows * (size + 8) - 8;
   text(scene, cx, by, `Melhor: ${itemName(best)} (${ITEM_RARITIES[best.rarity].name})`, 11, rarityHex(best.rarity), { bold: true, wrap: w });
-  return by - y + 18;
+  return by - y + 18 + petRow(scene, result, cx, by + 22, 400 + loot.length * 220);
+}
+
+/** Ovo ganho e XP do pet ativo, embaixo do baú. Devolve a altura usada. */
+function petRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number, delay: number): number {
+  const r = result.pet;
+  if (!r) return 0;
+  let h = 0;
+  if (r.egg) {
+    const p = getPet(r.egg);
+    const label = r.full ? `Ovo de ${p.name} (chocadeira cheia!)` : `OVO DE ${p.name.toUpperCase()}!`;
+    const t = text(scene, cx + 12, y, label, 12, r.full ? '#a8acc4' : '#8cf08a', { bold: true, strokeThickness: 3 });
+    const egg = scene.add.image(cx - t.displayWidth / 2 - 4, y, p.egg).setScale(0);
+    scene.tweens.add({ targets: egg, scale: 1.1, duration: 300, delay, ease: 'Back.Out', onStart: () => sfx('levelup') });
+    h += 22;
+  }
+  if (r.active && r.xp > 0) {
+    const p = getPet(r.active);
+    const lv = r.levels ? ` · +${r.levels} ${r.levels === 1 ? 'nível' : 'níveis'}` : '';
+    text(scene, cx, y + h, `${p.name}: +${r.xp} XP${lv}${r.evolved ? ' · EVOLUIU!' : ''}`, 11, r.evolved ? '#ffd86a' : '#c8cce0', { bold: r.evolved });
+    h += 18;
+  }
+  return h;
 }
 
 /** Estrelas da fase nesta partida, com o texto de cada objetivo cumprido. */
@@ -317,14 +340,14 @@ export class VictoryScene extends Phaser.Scene {
     if (result.unlocked) text(this, lx, ty + 112, `Liberado: ${result.unlocked}!`, 14, '#8cf08a', { bold: true, strokeThickness: 3 });
     if (!wide) lootRow(this, result, lx, ty + 138, width - 40);
 
-    const py = wide ? height * 0.36 : height * 0.5;
+    const py = wide ? height * 0.36 : height * 0.58;
     const pw = wide ? WIDE_COL : width - 36;
     panel(this, rx, py, pw, 150, 'ui_card_2');
     text(this, rx, py - 52, 'MODO INFINITO', 18, '#e0c2ff', { bold: true, strokeThickness: 4 });
     text(this, rx, py + 4,
       'Continue com a sua build. A cada 5 minutos surge um novo chefe e os inimigos ficam bem mais fortes. As recompensas crescem a cada ciclo. Morrer aqui não conta como derrota.',
       12, '#eadcff', { wrap: pw - 36 });
-    const by = wide ? py + 106 : height * 0.7;
+    const by = wide ? py + 106 : height * 0.78;
 
     button(this, rx, by, 'CONTINUAR', () => {
       sfx('levelup');

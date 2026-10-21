@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { eggChance, petStage, rollEggPet, runPetXp, type PetId } from '../data/pets';
+import { PetCompanion } from '../systems/petCompanion';
+import { activePet, addEgg, addPetXp, incubate } from '../systems/pets';
 import { VIEW } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { ElementSystem } from '../systems/elements';
@@ -20,7 +23,7 @@ import {
   ENDLESS_CYCLE, MAX_ENEMIES, RUN_DURATION, damageMultiplier, endlessScaling, hpMultiplier, isEliteTime, waveAt, xpToNext,
 } from '../data/waves';
 import { Enemy, Pickup, Pool, Projectile, type PickupKind } from '../entities';
-import { loadSave, writeSave } from '../systems/save';
+import { loadSave, writeSave, type SaveData } from '../systems/save';
 import { STAGES, finalBoss, getStage, stageScaling, type RunEventId, type StageDef, type StageId } from '../data/stages';
 import { sfx } from '../systems/sfx';
 import {
@@ -86,6 +89,8 @@ export interface RunResult {
   bosses: number;
   /** itens do baú de fim de partida */
   loot: ItemInstance[];
+  /** pets: ovo ganho (e se a chocadeira estava cheia), XP do pet ativo e níveis que ele subiu */
+  pet?: { egg?: PetId; full?: boolean; active?: PetId; xp: number; levels: number; evolved: boolean };
   /** objetivos da fase cumpridos nesta partida (estrelas) */
   stars: boolean[];
   /** o que a vitória liberou (próxima fase, próxima dificuldade) */
@@ -175,6 +180,9 @@ export class GameScene extends Phaser.Scene {
   itemFx!: ItemEffects;
   /** itens ganhos no baú de fim de partida */
   private loot: ItemInstance[] = [];
+  private elitesKilled = 0;
+  private pet?: PetCompanion;
+  private petReward?: RunResult['pet'];
   /** árvores bravas e armadilhas */
   private mapHazards!: MapHazards;
   /** eventos aleatórios, aliado e itens do mapa */
@@ -292,6 +300,8 @@ export class GameScene extends Phaser.Scene {
     const fx = activeEffects(save);
     this.itemFx = new ItemEffects(this, fx);
     this.loot = [];
+    this.elitesKilled = 0;
+    this.petReward = undefined;
     // Caos (item): +1 opção a cada nível
     this.numOptions = 3 + (save.meta.choices ?? 0) + (fx.chaos ? 1 : 0);
     this.banned = new Set();
@@ -320,6 +330,9 @@ export class GameScene extends Phaser.Scene {
     this.ground = groundSprite(this, 0, 0, width + 128, height + 128, this.stage.ground).setOrigin(0).setDepth(LAYER.ground);
     this.player = this.add.image(0, 0, 'atlas', frameName(this.char.texture)).setOrigin(0.5, 0.68);
     this.playerSlots = slotsOf(this.char.texture);
+    // pet escolhido no menu
+    const pet = activePet(save);
+    this.pet = pet ? new PetCompanion(this, pet.id, pet.level) : undefined;
     // itens Épicos ou melhores: brilho no chão na cor da melhor raridade equipada
     const best = bestEquippedRarity(save);
     this.rarityGlow = best >= 3
@@ -445,6 +458,7 @@ export class GameScene extends Phaser.Scene {
     this.weapons.update(dt);
     this.enemySkills.update(dt);
     this.itemFx.update(dt);
+    this.pet?.update(dt);
     this.runEvents.update(dt);
     this.updateProjectiles(dt);
     this.checkContact();
@@ -947,6 +961,7 @@ export class GameScene extends Phaser.Scene {
     this.particles.explode(e.boss ? 60 : e.elite ? 20 : 6, x, y);
     if (e.boss || e.elite) this.impact(x, y, 0xffcd75, e.boss ? 3 : 1.6);
     this.spawnCorpse(e);
+    if (e.elite) this.elitesKilled++;
     e.kill();
     this.kills++;
     sfx('kill');
@@ -1475,6 +1490,7 @@ export class GameScene extends Phaser.Scene {
       tier: this.tier,
       bosses: this.bossesDown,
       loot: this.loot,
+      pet: this.petReward,
       stars,
       unlocked,
       endless: this.endless,
@@ -1518,7 +1534,34 @@ export class GameScene extends Phaser.Scene {
     this.loot = Array.from({ length: n }, (_, i) => makeItem(nextUid(save), rollRarity(this.stats.luck, bonus, this.bossDown && i === 0 ? EFFECT_RARITY : 0), ilvl));
     addItems(save, this.loot);
     save.newItems = (save.newItems ?? 0) + this.loot.length;
+    this.grantPetRewards(save);
     writeSave(save);
+  }
+
+  /**
+   * Pets no fim da partida: o tempo choca o ovo da vez, o pet ativo ganha XP e pode cair um ovo
+   * (chefes, vitória e elites aumentam a chance; o primeiro chefe vencido na vida garante um).
+   */
+  private grantPetRewards(save: SaveData) {
+    const reward: NonNullable<RunResult['pet']> = { xp: 0, levels: 0, evolved: false };
+    incubate(save, this.elapsed);
+    const active = activePet(save);
+    if (active) {
+      const before = petStage(active.level);
+      reward.active = active.id;
+      reward.xp = runPetXp(this.elapsed, this.bossesDown, this.bossDown);
+      reward.levels = addPetXp(save, active.id, reward.xp);
+      reward.evolved = petStage(save.pets[active.id]!.level) > before;
+    }
+    const first = !save.eggSeen && this.bossesDown > 0;
+    if (first || Math.random() < eggChance(this.bossesDown, this.bossDown, this.elitesKilled)) {
+      const egg = rollEggPet(this.stage.id);
+      if (egg) {
+        reward.egg = egg;
+        reward.full = !addEgg(save, egg);
+      }
+    }
+    this.petReward = reward;
   }
 
   /** Puxa todas as gemas do mapa (item Ímã Ancestral). */

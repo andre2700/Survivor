@@ -9,6 +9,8 @@
 // role/body: personagem animado pelo modelo de quadros abaixo (FRAME_TEMPLATES e POSES).
 // hold: o que o personagem segura, repetido em todas as poses (a IA às vezes larga a arma).
 // edit: a imagem base sai da edição da imagem desta outra arte (prompt = a mudança); as folhas seguem a nova base.
+// ref: imagem de referência no lugar do cavaleiro (ex. a evolução de um pet parte do estágio anterior).
+// pro: usa o modelo Pro mesmo sem modelo de quadros (criaturas animadas só por código, como os pets).
 // variant: cópia de outra criatura com a cor trocada (hue: graus somados à matiz dentro de range; sat/val: multiplicadores).
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 // ground: efeito apoiado no chão (quadros alinhados pela base, não pelo centro).
@@ -107,6 +109,17 @@ export const ART = {
     prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, gripping a huge double-bladed two-handed great axe with BOTH hands, ${CHAR}, fierce stance`,
     poses: { attack: 'chopping down hard with the huge great axe held in both hands: axe head low in front to the RIGHT, body leaning forward, dynamic' },
   },
+  // pets: um desenho por estágio de evolução (filhote, jovem, adulto), animados por código
+  pet_dragon_1: { h: 20, hd: 4, pro: true, prompt: `a tiny adorable baby red dragon pet hatchling with big shiny eyes, stubby little wings, a round belly and a small flame-tipped tail, ${CHAR}` },
+  pet_dragon_2: {
+    h: 25, hd: 4, pro: true, ref: 'pet_dragon_1',
+    prompt: `the SAME red dragon from the reference image, grown into a young teen dragon: longer neck and tail, bigger wings, small horns, a few golden belly scales, still cute, same colors and art style, ${CHAR}`,
+  },
+  pet_dragon_3: {
+    h: 30, hd: 4, pro: true, ref: 'pet_dragon_2',
+    prompt: `the SAME red dragon from the reference image, now fully grown into a majestic adult dragon companion: large spread wings, curved golden horns, spiked back, glowing ember-orange eyes and small flames around the mouth, heroic and powerful but still friendly-looking, same colors and art style, ${CHAR}`,
+  },
+  egg_dragon: { h: 18, hd: 4, shadow: true, prompt: `${ICON}: a speckled red and orange dragon egg with small golden spots and a faint glowing crack` },
   // inimigos
   slime: { h: 22, hd: 3, shadow: true, role: 'monster', body: 'blob' },
   bat: { h: 22, hd: 3, role: 'monster', body: 'flyer', prompt: `a small purple cave bat monster with big ears, open wings, fangs and glowing eyes, flying, ${CHAR}` },

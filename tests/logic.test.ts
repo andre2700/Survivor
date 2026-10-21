@@ -1,3 +1,5 @@
+import { PETS, eggChance, petStage, petXpToNext, rollEggPet } from '../src/data/pets';
+import { addEgg, addPetXp, feed, hatch, incubate } from '../src/systems/pets';
 import { BAG_SIZE, forgeCost, itemPower, lootCount, makeItem, rollRarity as rollItemRarity } from '../src/data/items';
 import { addItems, equip, equipmentModifiers, nextUid } from '../src/systems/inventory';
 import { describe, expect, it } from 'vitest';
@@ -370,5 +372,42 @@ describe('itens', () => {
       return t / 2000;
     };
     expect(avg(100, 0.5)).toBeGreaterThan(avg(0, 0));
+  });
+});
+
+describe('pets', () => {
+  it('evolui nos níveis 10 e 20', () => {
+    expect([1, 9, 10, 19, 20, 50].map(petStage)).toEqual([0, 0, 1, 1, 2, 2]);
+    expect(petXpToNext(10)).toBeGreaterThan(petXpToNext(1));
+  });
+  it('ovo choca com tempo de partida; o primeiro choca rápido; repetido vira XP', () => {
+    const s = migrate({});
+    expect(addEgg(s, 'dragon')).toBe(true);
+    addEgg(s, 'dragon');
+    expect(s.eggs[0].need).toBeLessThan(s.eggs[1].need);
+    expect(hatch(s, s.eggs[0].uid)).toBeUndefined();
+    incubate(s, 10_000);
+    const first = hatch(s, s.eggs[0].uid)!;
+    expect(first.isNew).toBe(true);
+    expect(s.activePet).toBe('dragon');
+    incubate(s, 10_000);
+    const dup = hatch(s, s.eggs[0].uid)!;
+    expect(dup.isNew).toBe(false);
+    expect(s.pets.dragon!.level).toBeGreaterThan(1);
+  });
+  it('XP sobe vários níveis e a ração custa ouro', () => {
+    const s = migrate({});
+    s.pets.dragon = { level: 1, xp: 0 };
+    expect(addPetXp(s, 'dragon', 1000)).toBeGreaterThan(3);
+    s.gold = 0;
+    expect(feed(s, 'dragon')).toBe(false);
+    s.gold = 1e6;
+    expect(feed(s, 'dragon')).toBe(true);
+  });
+  it('ovos: chance limitada e pet da fase', () => {
+    expect(eggChance(3, true, 50)).toBeLessThanOrEqual(0.9);
+    expect(eggChance(0, false, 0)).toBe(0);
+    expect(rollEggPet('outono')).toBe('dragon');
+    for (const p of PETS.filter((x) => x.available)) for (const t of [...p.textures, p.egg]) expect(SPRITES).toHaveProperty(t);
   });
 });

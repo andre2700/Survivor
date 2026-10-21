@@ -168,3 +168,20 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 5. Acabamento: música e sons, tutorial, configurações, inglês e português, missões diárias e conquistas
 6. Monetização: anúncios com recompensa (ouro em dobro, reviver 1 vez, rolar de novo; limite por dia), VIP de compra única, cosméticos e pacotes de ouro; AdMob com consentimento, RevenueCat, salvamento na nuvem
 7. Lançamento: métricas, relatório de erros, desempenho em aparelho fraco, imagens da loja e lançamento em teste
+
+## Pets (21/10/2026)
+
+**6 pets, um por elemento**, cada um com 3 estágios desenhados (filhote, jovem no nível 10, adulto no nível 20). A animação é por código (flutuar e bater asas, ou pulinhos), porque o pet é pequeno. Só 1 pet vai na partida. O dano acompanha o nível do pet, o dano do herói e a força da fase.
+
+| Pet | Elemento | Filhote | Jovem | Adulto |
+|---|---|---|---|---|
+| Dragãozinho ✅ | Fogo | 1 bola de fogo | 2 bolas | 3 bolas + sopro em leque (7 s) |
+| Tartaruga das Marés | Água | jatos que encharcam | mais fortes | onda em volta |
+| Corujinha do Vento | Ar | rajadas que empurram | duplas | tornado |
+| Golem de Pedra | Terra | soco que atordoa | mais forte | atrai inimigos e protege |
+| Fada da Luz | Luz | cura aos poucos | cura + luz | escudo de luz |
+| Gatinho Sombrio | Sombra | arranha e coleta gemas | mais forte | rouba ouro |
+
+**Ovos:** nunca à venda. Caem no baú do fim da partida: 20% por chefe, 30% pela vitória, 2% por elite (até 90%); o primeiro chefe vencido na vida garante um. Cada pet tem as suas fases (o Dragãozinho cai no Bosque Outonal, nas Dunas e no Vulcão), o que dá motivo para rejogar fases. A chocadeira guarda até 6 ovos e choca o primeiro da fila com o tempo de partida (o primeiro ovo da vida em 3 min, os outros em 20 min). Ovo de um pet que já tem vira 400 XP para ele.
+
+**XP:** 10 por minuto de partida, 25 por chefe, 50 pela vitória (só o pet que foi na partida). Próximo nível: 60 × 1,18^(nível−1). Sem nível máximo. **Ração** (gasta ouro): um quarto do próximo nível, preço 40 × 1,2^(nível−1).

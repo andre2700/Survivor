@@ -27,7 +27,7 @@ for (const [name, a] of Object.entries(ART)) {
   }
   // edit: a imagem base é a de outra arte com uma mudança (ex. o herói sem arma, escudo e capa)
   if (a.edit) jobs.push({ out: name, ref: a.edit, prompt: `Edit the reference image and keep everything else exactly the same (character, pose, art style, outline, shading, colors, proportions): ${a.prompt}. ${BG}` });
-  else if (a.prompt) jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
+  else if (a.prompt) jobs.push({ out: name, ref: a.ref ?? 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
   if (a.role === 'vfx') {
     const poses = sheets(a).move;
     const list = poses.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
@@ -68,7 +68,7 @@ const todo = jobs.filter((j) => (names.length ? names.includes(j.out) : !existsS
 // personagem = tem papel de criatura (não efeito)
 for (const j of todo) {
   const base = ART[j.out.replace(/_(sheet|action\d*)$/, '')];
-  j.model = base?.role && base.role !== 'vfx' ? PRO : CHEAP;
+  j.model = (base?.role && base.role !== 'vfx') || base?.pro ? PRO : CHEAP;
 }
 if (flag('--plan') || todo.length > max) {
   for (const j of todo) console.log(j.model === PRO ? 'pro   ' : 'barato', j.out);
