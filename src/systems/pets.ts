@@ -16,7 +16,7 @@ export interface PetState {
   bossWins: number;
   /** partidas juntos (afinidade) */
   runs: number;
-  /** venceu a prova do Mega */
+  /** venceu a prova do Supremo */
   trial: boolean;
   mission: Partial<Record<MissionStat, number>>;
 }

@@ -39,7 +39,7 @@ export interface SaveData {
   activePet?: PetId;
   eggs: Egg[];
   eggSeen: boolean;
-  /** Cristais de Evolução (Adulto → Super) e Fragmentos Ancestrais (Super → Mega) */
+  /** Cristais de Evolução (Jovem → Adulto) e Fragmentos Ancestrais (Adulto → Supremo) */
   evoCrystals: number;
   ancientShards: number;
   /** eventos já encontrados em cada fase (o mapa mostra "?" nos que faltam) */

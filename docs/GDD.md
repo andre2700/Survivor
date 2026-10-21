@@ -171,22 +171,33 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 
 ## Pets (21/10/2026, revisto)
 
-**6 linhagens, uma por elemento, com 6 estágios:** Ovo → Bebê → Criança → Adulto → Super → Mega. Os nomes e desenhos são nossos (referências de criaturas que evoluem servem só de inspiração).
+**6 linhagens, uma por elemento, com 6 estágios:** Ovo → Bebê → Criança → Jovem → Adulto → Supremo. Os nomes e desenhos são nossos (referências de criaturas que evoluem servem só de inspiração). **O pet cresce a cada estágio:** 14, 20, 28, 38 e 52 px de altura (o herói tem 44).
 
-| Elemento | Bebê | Criança | Adulto | Super | Mega |
+| Elemento | Bebê | Criança | Jovem | Adulto | Supremo |
 |---|---|---|---|---|---|
-| Fogo ✅ | Brasinha | Dragãozinho | Draco | Draco Magma | Rei Solar |
+| Fogo | Brasinha | Dragãozinho | Draco | Draco Magma | Rei Solar |
 | Água | Gotinha | Tartaruguinha | Casco-Maré | Leviatã Coral | Imperador Abissal |
 | Ar | Penugem | Corujinha | Gavião-Vento | Grifo Tempestade | Roc Celeste |
 | Terra | Pedrinha | Golenzinho | Golem de Pedra | Colosso de Cristal | Titã Ancestral |
 | Luz | Faísca | Fadinha | Fada da Luz | Serafina | Arcanjo Radiante |
 | Sombra | Sombrinha | Gatinho Sombrio | Pantera Noturna | Lobo Eclipse | Senhor do Eclipse |
 
-**Arte:** cada forma tem a imagem base e uma folha com 4 quadros (2 de movimento, preparar e atacar); o balanço (flutuar, pulinhos) é por código. A evolução parte da imagem da forma anterior, para parecer o mesmo bicho crescendo.
+**Arte:** cada forma tem a imagem base e uma folha com 4 quadros (2 de movimento, preparar e atacar); o balanço (flutuar, pulinhos) é por código. Cada evolução parte da imagem da forma anterior, para parecer o mesmo bicho crescendo. Cada linhagem tem o seu projétil (bola de fogo, orbe de água, lâmina de vento, pedra, orbe de luz, garras de sombra).
 
-**Ataque cresce a cada estágio** (Fogo): faíscas → bola de fogo → bola que explode em área → rajada de 3 + sopro em leque → tudo isso + **Chuva Solar** a cada 30 s (meteoros sobre os inimigos da tela, com clarão e tremor). Força por estágio: ×0,6 / 1 / 1,5 / 2,2 / 3,2, vezes o nível (+12% por nível), o dano do herói e a força da fase.
+**Kits** (o ataque básico cresce em quantidade, dano e área a cada estágio; o Adulto ganha um golpe extra a cada 8 s; o Supremo, um golpe na tela toda a cada 30 s):
 
-**Teto de nível por estágio** (5, 12, 22, 35, sem teto no Mega): no teto o XP para e a tela pede evolução. XP do próximo nível: 50 × 1,12^(nível−1). XP por partida: 10/min, 25 por chefe, 50 pela vitória. Ração (ouro): um quarto do próximo nível, preço 40 × 1,15^(nível−1).
+| Linhagem | Ataque básico | Adulto | Supremo |
+|---|---|---|---|
+| Fogo | bolas de fogo (explodem a partir do Jovem) | Sopro de Fogo em leque | Chuva Solar: meteoros sobre os inimigos |
+| Água | orbes que encharcam (área a partir do Jovem) | Onda que atravessa e empurra | Maremoto: ondas gigantes cruzam a tela |
+| Ar | lâminas de vento que empurram forte | Tornado que puxa e fere | Furacão: tornado gigante atravessa a tela |
+| Terra | pedras em arco que atordoam | Muralha de espinhos em volta (atordoa) | Terremoto: espinhos sob todos os inimigos |
+| Luz | cura o herói aos poucos + orbes de luz | Escudo de Luz (invulnerável um instante) | Julgamento: raios de luz na tela e cura forte |
+| Sombra | avança e arranha; puxa gemas; rouba ouro (Jovem+) | Frenesi: arranha vários em volta | Eclipse: a tela escurece e os inimigos sofrem |
+
+Força por estágio: ×0,6 / 1 / 1,5 / 2,2 / 3,2, vezes o nível (+12% por nível), o dano do herói e a força da fase.
+
+**Teto de nível por estágio** (5, 12, 22, 35, sem teto no Supremo): no teto o XP para e a tela pede evolução. XP do próximo nível: 50 × 1,12^(nível−1). XP por partida: 10/min, 25 por chefe, 50 pela vitória. Ração (ouro): um quarto do próximo nível, preço 40 × 1,15^(nível−1).
 
 **Requisitos para evoluir:**
 
@@ -194,20 +205,20 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 |---|---|
 | Ovo → Bebê | chocar (3 min de partida no primeiro ovo, 15 nos outros) |
 | Bebê → Criança | nível 5 + comer 3 rações |
-| Criança → Adulto | nível 12 + 300 inimigos derrotados pelo pet + vencer 1 chefe com ele |
-| Adulto → Super | nível 22 + missão do elemento + 1 Cristal de Evolução |
-| Super → Mega | nível 35 + afinidade máxima (10 corações) + vencer o chefe final da fase natal no Muito Difícil com ele + 3 Fragmentos Ancestrais |
+| Criança → Jovem | nível 12 + 300 inimigos derrotados pelo pet + vencer 1 chefe com ele |
+| Jovem → Adulto | nível 22 + missão do elemento + 1 Cristal de Evolução |
+| Adulto → Supremo | nível 35 + afinidade máxima (10 corações) + vencer o chefe final da fase natal no Muito Difícil com ele + 3 Fragmentos Ancestrais |
 
-- **Missões do elemento:** Fogo derrota 1.000 inimigos queimando; Água 500 reações de Vapor ou Gelo; Ar empurra 2.000 inimigos; Terra atordoa 300; Luz cura 5.000 de vida; Sombra coleta 3.000 gemas.
+- **Missões do elemento:** Fogo derrota 1.000 inimigos queimando; Água faz 500 reações de Vapor ou Gelo; Ar empurra 2.000 inimigos; Terra atordoa 300; Luz cura 5.000 de vida; Sombra coleta 3.000 gemas (contam só as partidas com o pet).
 - **Afinidade:** 1 coração a cada 3 partidas juntos (máximo 10).
 - **Cristal de Evolução:** 25% por chefe vencido no Difícil ou acima. **Fragmento Ancestral:** 30% por chefe no Pesadelo ou acima. Aparecem no baú.
 - **Cerimônia:** botão EVOLUIR! na tela de pets; a forma vira silhueta, pisca alternando com a nova cada vez mais rápido, clarão, "EVOLUIU!" e o nome novo.
 
-**Ovos:** nunca à venda. Caem no baú: 20% por chefe, 30% pela vitória, 2% por elite (até 90%); o primeiro chefe vencido na vida garante um. Cada linhagem cai em fases próprias (a primeira é a fase natal). Ovo repetido vira 400 XP. Chocadeira com até 6 ovos.
+**Ovos:** nunca à venda. Caem no baú: 20% por chefe, 30% pela vitória, 2% por elite (até 90%); o primeiro chefe vencido na vida garante um. Cada linhagem cai em fases próprias (a primeira é a fase natal). Ovo repetido vira 400 XP. Chocadeira com até 6 ovos. Uma linhagem só cai em ovos quando toda a arte dela está pronta.
 
 **Equilíbrio:** o pet deve render uns 10–20% do dano total.
 
-**Evolução alternativa (atualizações):** a mesma linhagem pode virar outra forma Super/Mega conforme como foi criada (ex. dragão criado na neve → Draco Gélido).
+**Evolução alternativa (atualizações):** a mesma linhagem pode virar outra forma Adulto/Supremo conforme como foi criada (ex. dragão criado na neve → Draco Gélido).
 
 ## Revisão visual dos efeitos (21/10/2026)
 

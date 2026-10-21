@@ -432,11 +432,15 @@ def main():
             continue
         if a.get('role') == 'vfx':
             sheet = SRC / f'{name}_sheet.png'
-            if not sheet.exists():
+            if sheet.exists():
+                frames = slice_sheet(sheet, len(a['sheets']['move']))
+            elif (SRC / f'{name}.png').exists():
+                # folha ainda não gerada: a imagem base vira o único quadro
+                print('  sem folha: quadro único de', name)
+                frames = [cut_background(Image.open(SRC / f'{name}.png'))]
+            else:
                 print('falta', sheet)
                 continue
-            n = len(a['sheets']['move'])
-            frames = slice_sheet(sheet, n)
             if a.get('flip'):
                 frames = [ImageOps.mirror(f) for f in frames]
             if a.get('facing'):
@@ -458,10 +462,10 @@ def main():
                         frames[i] = ImageOps.mirror(frames[j])
             if a.get('fade'):
                 frames = [fade_bottom(f, a['fade']) for f in frames]
-            img = strip(frames, a, a.get('hd', 2), n)
+            img = strip(frames, a, a.get('hd', 2), len(frames))
             img.save(OUT / f'{name}.png', optimize=True)
-            index[name] = {'hd': a.get('hd', 2), 'frames': n}
-            print(name, img.size, f'efeito {n} quadros')
+            index[name] = {'hd': a.get('hd', 2), 'frames': len(frames)}
+            print(name, img.size, f'efeito {len(frames)} quadros')
             continue
         src = SRC / f'{name}.png'
         if not src.exists():

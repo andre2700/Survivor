@@ -33,6 +33,8 @@ function zigzag(x0: number, y0: number, x1: number, y1: number) {
 export class ElementSystem {
   /** dano total por reação na partida (estatísticas) */
   readonly dealt: Partial<Record<ReactionId, number>> = {};
+  /** quantas vezes cada reação aconteceu na partida */
+  readonly triggered: Partial<Record<ReactionId, number>> = {};
   private motes: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor(private scene: GameScene) {
@@ -120,6 +122,7 @@ export class ElementSystem {
   }
 
   private trigger(r: ReactionDef, e: Enemy, dmg: number) {
+    this.triggered[r.id] = (this.triggered[r.id] ?? 0) + 1;
     const { x, y } = e;
     const sc = this.scene;
     const t = sc.elapsed;

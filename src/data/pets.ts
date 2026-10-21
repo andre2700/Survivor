@@ -1,5 +1,5 @@
 // Pets: companheiros que seguem o herói e atacam sozinhos. 6 linhagens (uma por elemento), cada uma com
-// 6 estágios: Ovo → Bebê → Criança → Adulto → Super → Mega. Ovos caem de chefes e elites (nunca à
+// 6 estágios: Ovo → Bebê → Criança → Jovem → Adulto → Supremo. Ovos caem de chefes e elites (nunca à
 // venda) e chocam com tempo de partida. O pet sobe de nível jogando (ou com ração comprada com ouro),
 // mas cada estágio tem um nível máximo: para seguir, precisa evoluir, cumprindo requisitos cada vez
 // mais difíceis (missão do elemento, cristais, afinidade, prova do chefe...).
@@ -8,15 +8,15 @@ import type { Element } from './weapons';
 
 export type PetId = 'fire' | 'water' | 'air' | 'earth' | 'light' | 'dark';
 
-/** Estágio do pet já nascido: 0 Bebê, 1 Criança, 2 Adulto, 3 Super, 4 Mega. */
+/** Estágio do pet já nascido: 0 Bebê, 1 Criança, 2 Jovem, 3 Adulto, 4 Supremo. */
 export type PetStage = 0 | 1 | 2 | 3 | 4;
-export const STAGE_NAMES = ['Bebê', 'Criança', 'Adulto', 'Super', 'Mega'] as const;
-/** Nível máximo de cada estágio (o Mega não tem). */
+export const STAGE_NAMES = ['Bebê', 'Criança', 'Jovem', 'Adulto', 'Supremo'] as const;
+/** Nível máximo de cada estágio (o Supremo não tem). */
 export const STAGE_CAP = [5, 12, 22, 35, Infinity] as const;
 /** Força de cada estágio (multiplica o dano). */
 export const STAGE_POWER = [0.6, 1, 1.5, 2.2, 3.2] as const;
 
-/** Missão do elemento (para virar Super): o que contar e quanto. */
+/** Missão do elemento (para virar Adulto): o que contar e quanto. */
 export type MissionStat = 'burnKills' | 'steamIce' | 'pushes' | 'stuns' | 'heal' | 'gems';
 
 export interface PetForm {
@@ -36,7 +36,7 @@ export interface PetDef {
   label: string;
   forms: [PetForm, PetForm, PetForm, PetForm, PetForm];
   egg: string;
-  /** fases onde o ovo cai; a primeira é a fase natal (prova do Mega) */
+  /** fases onde o ovo cai; a primeira é a fase natal (prova do Supremo) */
   stages: StageId[];
   flies: boolean;
   mission: { stat: MissionStat; target: number; text: string };
@@ -54,48 +54,63 @@ export const PETS: PetDef[] = [
       form('Brasinha', 'pet_fire_1', 'Cospe faíscas no inimigo mais perto', ['walk_a', 'windup']),
       form('Dragãozinho', 'pet_dragon_1', 'Cospe bolas de fogo'),
       form('Draco', 'pet_dragon_2', 'Bolas de fogo que explodem em área'),
-      form('Draco Magma', 'pet_dragon_3', 'Rajada de 3 bolas de fogo e sopro em leque'),
-      form('Rei Solar', 'pet_fire_5', 'Rajada, sopro e, a cada 30 s, a Chuva Solar: meteoros na tela toda'),
+      form('Draco Magma', 'pet_dragon_3', 'Rajada de 3 bolas de fogo e o Sopro de Fogo em leque'),
+      form('Rei Solar', 'pet_fire_5', 'Tudo isso e, a cada 30 s, a Chuva Solar: meteoros na tela toda'),
     ],
   },
   {
-    id: 'water', element: 'water', label: 'Água', egg: 'egg_turtle', stages: ['pantano'], flies: false, available: false,
+    id: 'water', element: 'water', label: 'Água', egg: 'egg_turtle', stages: ['pantano'], flies: false, available: true,
     mission: { stat: 'steamIce', target: 500, text: 'Causar 500 reações de Vapor ou Gelo' },
     forms: [
-      form('Gotinha', 'pet_water_1', 'Bolhas'), form('Tartaruguinha', 'pet_water_2', 'Jatos de água'), form('Casco-Maré', 'pet_water_3', 'Jatos que encharcam'),
-      form('Leviatã Coral', 'pet_water_4', 'Onda em volta'), form('Imperador Abissal', 'pet_water_5', 'Maremoto'),
+      form('Gotinha', 'pet_water_1', 'Solta bolhas no inimigo mais perto', ['walk_a', 'windup']),
+      form('Tartaruguinha', 'pet_water_2', 'Bolas de água que encharcam'),
+      form('Casco-Maré', 'pet_water_3', 'Duas bolas de água que espirram em área'),
+      form('Leviatã Coral', 'pet_water_4', 'Bolas de água e a Onda, que atravessa e empurra'),
+      form('Imperador Abissal', 'pet_water_5', 'Tudo isso e, a cada 30 s, o Maremoto: ondas gigantes cruzam a tela'),
     ],
   },
   {
     id: 'air', element: 'air', label: 'Ar', egg: 'egg_owl', stages: ['pico', 'dunas'], flies: true, available: false,
     mission: { stat: 'pushes', target: 2000, text: 'Empurrar 2.000 inimigos' },
     forms: [
-      form('Penugem', 'pet_air_1', 'Sopros'), form('Corujinha', 'pet_air_2', 'Rajadas'), form('Gavião-Vento', 'pet_air_3', 'Rajadas duplas'),
-      form('Grifo Tempestade', 'pet_air_4', 'Tornado'), form('Roc Celeste', 'pet_air_5', 'Furacão'),
+      form('Penugem', 'pet_air_1', 'Sopros de vento que empurram', ['walk_a', 'windup']),
+      form('Corujinha', 'pet_air_2', 'Lâminas de vento que empurram forte'),
+      form('Gavião-Vento', 'pet_air_3', 'Duas lâminas de vento'),
+      form('Grifo Tempestade', 'pet_air_4', 'Três lâminas e o Tornado, que puxa e fere os inimigos'),
+      form('Roc Celeste', 'pet_air_5', 'Tudo isso e, a cada 30 s, o Furacão: um tornado gigante atravessa a tela'),
     ],
   },
   {
     id: 'earth', element: 'earth', label: 'Terra', egg: 'egg_golem', stages: ['ruinas', 'pico'], flies: false, available: false,
     mission: { stat: 'stuns', target: 300, text: 'Atordoar 300 inimigos' },
     forms: [
-      form('Pedrinha', 'pet_earth_1', 'Pedrinhas'), form('Golenzinho', 'pet_earth_2', 'Soco'), form('Golem de Pedra', 'pet_earth_3', 'Soco que atordoa'),
-      form('Colosso de Cristal', 'pet_earth_4', 'Atrai os inimigos'), form('Titã Ancestral', 'pet_earth_5', 'Terremoto'),
+      form('Pedrinha', 'pet_earth_1', 'Atira pedrinhas', ['walk_a', 'windup']),
+      form('Golenzinho', 'pet_earth_2', 'Pedras em arco que podem atordoar'),
+      form('Golem de Pedra', 'pet_earth_3', 'Pedras maiores que atordoam em área'),
+      form('Colosso de Cristal', 'pet_earth_4', 'Duas pedras e a Muralha: espinhos de pedra em volta que atordoam'),
+      form('Titã Ancestral', 'pet_earth_5', 'Tudo isso e, a cada 30 s, o Terremoto: espinhos sob todos os inimigos da tela'),
     ],
   },
   {
     id: 'light', element: 'light', label: 'Luz', egg: 'egg_fairy', stages: ['clareira', 'cidadela'], flies: true, available: false,
     mission: { stat: 'heal', target: 5000, text: 'Curar 5.000 de vida' },
     forms: [
-      form('Faísca', 'pet_light_1', 'Cura leve'), form('Fadinha', 'pet_light_2', 'Cura'), form('Fada da Luz', 'pet_light_3', 'Cura e luz'),
-      form('Serafina', 'pet_light_4', 'Escudo de luz'), form('Arcanjo Radiante', 'pet_light_5', 'Julgamento'),
+      form('Faísca', 'pet_light_1', 'Cura o herói aos poucos e solta faíscas de luz', ['walk_a', 'windup']),
+      form('Fadinha', 'pet_light_2', 'Cura mais e dispara orbes de luz'),
+      form('Fada da Luz', 'pet_light_3', 'Cura mais e dispara dois orbes'),
+      form('Serafina', 'pet_light_4', 'Cura, orbes que explodem em luz e o Escudo de Luz (invulnerável por um instante)'),
+      form('Arcanjo Radiante', 'pet_light_5', 'Tudo isso e, a cada 30 s, o Julgamento: raios de luz na tela toda e cura forte'),
     ],
   },
   {
     id: 'dark', element: 'dark', label: 'Sombra', egg: 'egg_cat', stages: ['sombria'], flies: false, available: false,
     mission: { stat: 'gems', target: 3000, text: 'Coletar 3.000 gemas' },
     forms: [
-      form('Sombrinha', 'pet_dark_1', 'Arranhões'), form('Gatinho Sombrio', 'pet_dark_2', 'Arranha e coleta gemas'), form('Pantera Noturna', 'pet_dark_3', 'Bote'),
-      form('Lobo Eclipse', 'pet_dark_4', 'Rouba ouro'), form('Senhor do Eclipse', 'pet_dark_5', 'Eclipse'),
+      form('Sombrinha', 'pet_dark_1', 'Avança e arranha o inimigo', ['walk_a', 'windup']),
+      form('Gatinho Sombrio', 'pet_dark_2', 'Arranhões mais fortes e puxa as gemas por perto'),
+      form('Pantera Noturna', 'pet_dark_3', 'Rouba ouro de cada inimigo que derruba'),
+      form('Lobo Eclipse', 'pet_dark_4', 'Dois arranhões, mais ouro e o Frenesi: arranha vários inimigos em volta'),
+      form('Senhor do Eclipse', 'pet_dark_5', 'Tudo isso e, a cada 30 s, o Eclipse: a tela escurece e os inimigos sofrem'),
     ],
   },
 ];
@@ -134,12 +149,12 @@ export function eggChance(bosses: number, victory: boolean, elites: number) {
   return Math.min(0.9, bosses * 0.2 + (victory ? 0.3 : 0) + elites * 0.02);
 }
 
-/** Cristal de Evolução: chance por chefe vencido no Difícil ou acima. Fragmento Ancestral: no Pesadelo ou acima. */
+/** Cristal de Evolução (Jovem → Adulto): chance por chefe vencido no Difícil ou acima. Fragmento Ancestral: no Pesadelo ou acima. */
 export const CRYSTAL_CHANCE = 0.25;
 export const SHARD_CHANCE = 0.3;
 export const CRYSTAL_TIER = 1;
 export const SHARD_TIER = 3;
-/** Prova do Mega: vencer o chefe final da fase natal nesta dificuldade (Muito Difícil). */
+/** Prova do Supremo: vencer o chefe final da fase natal nesta dificuldade (Muito Difícil). */
 export const TRIAL_TIER = 2;
 
 /** Pet do ovo: um dos que caem nesta fase; se nenhum couber, qualquer um disponível. */
@@ -160,7 +175,7 @@ export interface Requirement {
   text: string;
 }
 
-/** Requisitos para evoluir do estágio `stage` para o seguinte (vazio no Mega). */
+/** Requisitos para evoluir do estágio `stage` para o seguinte (vazio no Supremo). */
 export function evoRequirements(def: PetDef, stage: PetStage): Requirement[] {
   const home = def.stages[0];
   switch (stage) {

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CRYSTAL_CHANCE, CRYSTAL_TIER, SHARD_CHANCE, SHARD_TIER, TRIAL_TIER, eggChance, getPet, rollEggPet, runPetXp, type PetId } from '../data/pets';
+import { CRYSTAL_CHANCE, CRYSTAL_TIER, SHARD_CHANCE, SHARD_TIER, TRIAL_TIER, eggChance, getPet, rollEggPet, runPetXp, type MissionStat, type PetId } from '../data/pets';
 import { PetCompanion } from '../systems/petCompanion';
 import { activePet, addEgg, addPetXp, atCap, canEvolve, incubate } from '../systems/pets';
 import { VIEW } from '../ui/view';
@@ -190,6 +190,8 @@ export class GameScene extends Phaser.Scene {
   private pet?: PetCompanion;
   /** inimigos derrotados queimando com o pet na partida (missão do Fogo) */
   private petBurnKills = 0;
+  /** gemas coletadas na partida (missão da Sombra) */
+  private gemsCollected = 0;
   private petReward?: RunResult['pet'];
   /** árvores bravas e armadilhas */
   private mapHazards!: MapHazards;
@@ -342,6 +344,7 @@ export class GameScene extends Phaser.Scene {
     const pet = activePet(save);
     this.pet = pet ? new PetCompanion(this, pet.id, pet) : undefined;
     this.petBurnKills = 0;
+    this.gemsCollected = 0;
     // itens Épicos ou melhores: brilho no chão na cor da melhor raridade equipada
     const best = bestEquippedRarity(save);
     this.rarityGlow = best >= 3
@@ -1202,6 +1205,7 @@ export class GameScene extends Phaser.Scene {
   private collect(p: Pickup) {
     p.setActive(false).setVisible(false);
     if (p.kind === 'gem') {
+      this.gemsCollected++;
       this.addXp(p.value * xpMult(this.stats));
       sfx('pickup');
     } else if (p.kind === 'coin') {
@@ -1571,8 +1575,16 @@ export class GameScene extends Phaser.Scene {
       p.runs++;
       p.kills += this.pet.kills;
       if (this.bossesDown > 0) p.bossWins++;
-      if (def.mission.stat === 'burnKills') p.mission.burnKills = (p.mission.burnKills ?? 0) + this.petBurnKills;
-      // prova do Mega: chefe final da fase natal no Muito Difícil
+      // missão do elemento: o que o pet contou e o que a partida contou com ele junto
+      const done: Partial<Record<MissionStat, number>> = {
+        ...this.pet.mission,
+        burnKills: this.petBurnKills,
+        steamIce: (this.elements.triggered.steam ?? 0) + (this.elements.triggered.ice ?? 0),
+        gems: this.gemsCollected,
+      };
+      const stat = def.mission.stat;
+      p.mission[stat] = (p.mission[stat] ?? 0) + (done[stat] ?? 0);
+      // prova do Supremo: chefe final da fase natal no Muito Difícil
       if (this.bossDown && this.stage.id === def.stages[0] && this.tier >= TRIAL_TIER) p.trial = true;
       reward.active = id;
       reward.xp = runPetXp(this.elapsed, this.bossesDown, this.bossDown);
@@ -1589,6 +1601,11 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.petReward = reward;
+  }
+
+  /** Puxa as gemas perto de um ponto (pet da Sombra). */
+  pullGemsNear(x: number, y: number, r: number) {
+    for (const g of this.pickups.items) if (g.active && g.kind === 'gem' && (g.x - x) ** 2 + (g.y - y) ** 2 < r * r) g.magnet = true;
   }
 
   /** Puxa todas as gemas do mapa (item Ímã Ancestral). */

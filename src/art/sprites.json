@@ -122,7 +122,22 @@
  "dry_bush": {
   "hd": 2
  },
+ "egg_cat": {
+  "hd": 4
+ },
  "egg_dragon": {
+  "hd": 4
+ },
+ "egg_fairy": {
+  "hd": 4
+ },
+ "egg_golem": {
+  "hd": 4
+ },
+ "egg_owl": {
+  "hd": 4
+ },
+ "egg_turtle": {
   "hd": 4
  },
  "flowers": {
@@ -198,6 +213,18 @@
   "hd": 3,
   "frames": 2
  },
+ "fx_light_orb": {
+  "hd": 2,
+  "frames": 1
+ },
+ "fx_rock": {
+  "hd": 2,
+  "frames": 1
+ },
+ "fx_shadow_claw": {
+  "hd": 2,
+  "frames": 1
+ },
  "fx_spike": {
   "hd": 2,
   "frames": 2
@@ -206,9 +233,17 @@
   "hd": 2,
   "frames": 4
  },
+ "fx_water_orb": {
+  "hd": 2,
+  "frames": 1
+ },
  "fx_wave": {
   "hd": 2,
   "frames": 4
+ },
+ "fx_wind_blade": {
+  "hd": 2,
+  "frames": 1
  },
  "gem": {
   "hd": 4
@@ -557,6 +592,57 @@
    "death"
   ]
  },
+ "pet_air_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_air_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_air_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_air_4": {
+  "hd": 4
+ },
+ "pet_air_5": {
+  "hd": 4
+ },
+ "pet_dark_1": {
+  "hd": 4
+ },
+ "pet_dark_2": {
+  "hd": 4
+ },
+ "pet_dark_3": {
+  "hd": 4
+ },
+ "pet_dark_4": {
+  "hd": 4
+ },
+ "pet_dark_5": {
+  "hd": 4
+ },
  "pet_dragon_1": {
   "hd": 4,
   "frames": 4,
@@ -587,6 +673,21 @@
    "attack"
   ]
  },
+ "pet_earth_1": {
+  "hd": 4
+ },
+ "pet_earth_2": {
+  "hd": 4
+ },
+ "pet_earth_3": {
+  "hd": 4
+ },
+ "pet_earth_4": {
+  "hd": 4
+ },
+ "pet_earth_5": {
+  "hd": 4
+ },
  "pet_fire_1": {
   "hd": 4,
   "frames": 4,
@@ -598,6 +699,71 @@
   ]
  },
  "pet_fire_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_light_1": {
+  "hd": 4
+ },
+ "pet_light_2": {
+  "hd": 4
+ },
+ "pet_light_3": {
+  "hd": 4
+ },
+ "pet_light_4": {
+  "hd": 4
+ },
+ "pet_light_5": {
+  "hd": 4
+ },
+ "pet_water_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_4": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_5": {
   "hd": 4,
   "frames": 4,
   "slots": [
