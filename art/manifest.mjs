@@ -8,6 +8,7 @@
 // flip: a imagem gerada olha para a esquerda; o jogo espera tudo olhando para a direita.
 // role/body: personagem animado pelo modelo de quadros abaixo (FRAME_TEMPLATES e POSES).
 // hold: o que o personagem segura, repetido em todas as poses (a IA às vezes larga a arma).
+// edit: a imagem base sai da edição da imagem desta outra arte (prompt = a mudança); as folhas seguem a nova base.
 // variant: cópia de outra criatura com a cor trocada (hue: graus somados à matiz dentro de range; sat/val: multiplicadores).
 // wide: folhas em formato 21:9 (figuras grandes, com asas, que se encostariam no formato padrão).
 // ground: efeito apoiado no chão (quadros alinhados pela base, não pelo centro).
@@ -98,6 +99,13 @@ export const ART = {
     h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'BOTH the sword (blade clearly visible, pointing forward and up) and the round blue steel shield; the sword never disappears',
     prompt: `a brave young knight hero in steel armor with a blue cape, a sword in one hand and a round blue steel shield with a gold rim on the other arm, ${CHAR}, heroic stance`,
     poses: { attack: 'slashing the sword forward to the RIGHT in a wide arc, shield held up in front of the body, dynamic' },
+  },
+  // herói sem equipamento: arma, mão secundária e capa são desenhadas por cima pelo jogo (src/art/heroRig.ts)
+  hero_knight_bare: {
+    h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', edit: 'hero_knight',
+    hold: 'nothing: both hands are EMPTY, closed into fists as if gripping an invisible handle, no sword, no shield, no cape',
+    prompt: 'the knight is now UNARMED: delete the sword and delete the round shield entirely (no blade, no hilt, no shield anywhere in the image), and no cape. Draw both arms fully visible, bent at the elbow in front of the body, each hand an empty closed gauntlet fist. The steel armor, helmet, plume, legs and stance stay identical',
+    poses: { attack: 'punching forward to the RIGHT with the front fist, body leaning into the strike, the other fist raised in front of the chest, dynamic' },
   },
   hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'the tall magic staff with the glowing purple crystal firmly in the front hand', prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
   hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'a dagger in each hand', prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },

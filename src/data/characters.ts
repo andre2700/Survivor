@@ -7,6 +7,8 @@ export interface CharacterDef {
   id: CharacterId;
   name: string;
   texture: string;
+  /** equipamento desenhado por cima de uma arte sem equipamento (src/art/heroRig.ts) */
+  rig?: string;
   description: string;
   weapon: WeaponId;
   /** diferenças em relação aos atributos base */
@@ -16,7 +18,7 @@ export interface CharacterDef {
 
 export const CHARACTERS: CharacterDef[] = [
   {
-    id: 'knight', name: 'Cavaleiro', texture: 'hero_knight', weapon: 'sword', cost: 0,
+    id: 'knight', name: 'Cavaleiro', texture: 'hero_knight', rig: 'knight', weapon: 'sword', cost: 0,
     description: 'Resistente. Começa com Espada, +20 vida e +4 defesa.',
     mods: [{ stat: 'maxHp', flat: 20 }, { stat: 'defense', flat: 4 }],
   },

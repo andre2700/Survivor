@@ -86,3 +86,7 @@ Toda criatura nova segue o modelo do seu papel (`FRAME_TEMPLATES` em `art/manife
 - Funis (tornado) precisam ser largos logo no topo; quadro com ponta em cima e embaixo é trocado pelo espelho de um quadro bom vizinho.
 - Chão gerado que forma desenhos repetidos pode ser trocado por outro chão recolorido (`regrade`), sem gastar imagem: o da Floresta Sombria é a grama da Clareira sem cor.
 - Sombra embutida (19/10/2026): a tela de cada quadro cresce até caber a sombra inteira com o desfoque. Antes ela era cortada na borda do quadro e virava uma faixa reta, que nos chefes ampliados aparecia como um retângulo escuro em volta deles. Toda a arte foi reprocessada (sem gerar imagens).
+
+## Equipamento visível (21/10/2026)
+
+Cada herói ganha uma arte **sem equipamento** (`<herói>_bare` em `art/manifest.mjs`), feita pela edição da imagem base original (`edit:`), então o estilo não muda; as folhas de quadros saem dessa nova base. Depois de processar, marcam-se em `src/art/heroRig.ts` os pontos de cada quadro (mão da frente com o ângulo da arma, mão de trás, costas) e do retrato. A arma é desenhada atrás do corpo, para o punho fechar por cima do cabo. Os ícones de arma têm o ponto do cabo e a direção da lâmina em `GRIPS`.

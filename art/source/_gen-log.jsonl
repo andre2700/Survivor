@@ -144,3 +144,8 @@
 {"at":"2026-10-20T22:28:32.041Z","model":"gemini-3.1-flash-image","out":"art/source/item_idol.png","tokens":1763}
 {"at":"2026-10-20T22:28:33.394Z","model":"gemini-3.1-flash-image","out":"art/source/icon_dust.png","tokens":1737}
 {"at":"2026-10-20T22:28:38.651Z","model":"gemini-3.1-flash-image","out":"art/source/icon_anvil.png","tokens":1762}
+{"at":"2026-10-21T00:07:59.831Z","model":"gemini-3-pro-image","out":"art/source/hero_knight_bare.png","tokens":1765}
+{"at":"2026-10-21T00:08:23.682Z","model":"gemini-3-pro-image","out":"art/source/hero_knight_bare.png","tokens":1813}
+{"at":"2026-10-21T00:08:44.027Z","model":"gemini-3-pro-image","out":"art/source/hero_knight_bare_sheet.png","tokens":2271}
+{"at":"2026-10-21T00:08:44.350Z","model":"gemini-3-pro-image","out":"art/source/hero_knight_bare_action2.png","tokens":2080}
+{"at":"2026-10-21T00:08:44.729Z","model":"gemini-3-pro-image","out":"art/source/hero_knight_bare_action.png","tokens":2288}

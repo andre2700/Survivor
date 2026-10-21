@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { HeroPortrait, heroLook } from '../art/heroRig';
 import { VIEW, WIDE_COL, col, isWide, pointerPos, setupCamera } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { generateTextures, groundSprite, preloadArt, scrollGround, slotsOf } from '../art/textures';
@@ -116,7 +117,8 @@ export class MenuScene extends Phaser.Scene {
     const cy = wide ? height * 0.5 : height * 0.33;
     const glow = this.add.image(heroX, cy + 70, 'aura').setScale(2.4, 1.1).setTint(0xffe9a0).setAlpha(0.6).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.95, duration: 1200, yoyo: true, repeat: -1 });
-    const hero = this.add.image(heroX, cy + 78, `portrait_${CHARACTERS[this.index].texture}`).setOrigin(0.5, 0.97).setScale(4.4);
+    const portrait = new HeroPortrait(this, heroX, cy + 78);
+    const hero = portrait.body.setScale(4.4);
     this.events.on(Phaser.Scenes.Events.UPDATE, (t: number) => {
       const pose = walkPose('hero', t / 1000, false);
       hero.setScale(4.4 * pose.sx, 4.4 * pose.sy);
@@ -145,7 +147,8 @@ export class MenuScene extends Phaser.Scene {
     const refresh = () => {
       const c = CHARACTERS[this.index];
       const unlocked = save.unlocked.includes(c.id);
-      hero.setTexture(`portrait_${c.texture}`).setTint(unlocked ? 0xffffff : 0x2a2c3a);
+      portrait.show(c, unlocked ? heroLook(save, c) : undefined);
+      hero.setTint(unlocked ? 0xffffff : 0x2a2c3a);
       name.setText(unlocked ? c.name : `${c.name} · bloqueado`);
       desc.setText(c.description);
       weaponIcon.setTexture(WEAPONS[c.weapon].icon);

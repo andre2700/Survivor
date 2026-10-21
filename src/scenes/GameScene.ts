@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { HeroRig, heroLook, rigOf } from '../art/heroRig';
 import { VIEW } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { ElementSystem } from '../systems/elements';
@@ -150,6 +151,10 @@ export class GameScene extends Phaser.Scene {
   private hurtUntil = 0;
   private playerFrame = 0;
   private playerSlots: Slots = {};
+  private playerTex = '';
+  private playerSlotName = 'idle';
+  private heroRig?: HeroRig;
+  private playerMotion = 0;
   private corpses: { img: Phaser.GameObjects.Image; life: number; total: number }[] = [];
   private spawnAcc = 0;
   private eventsDone = new Set<number>();
@@ -317,8 +322,13 @@ export class GameScene extends Phaser.Scene {
     const height = this.viewH;
     // chão e vinheta acompanham a câmera (com margem para não aparecer borda)
     this.ground = groundSprite(this, 0, 0, width + 128, height + 128, this.stage.ground).setOrigin(0).setDepth(LAYER.ground);
-    this.player = this.add.image(0, 0, 'atlas', frameName(this.char.texture)).setOrigin(0.5, 0.68);
-    this.playerSlots = slotsOf(this.char.texture);
+    // herói com equipamento visível: arte sem equipamento + arma, escudo e capa por cima
+    const rig = rigOf(this.char);
+    this.playerTex = rig ? rig.texture : this.char.texture;
+    this.player = this.add.image(0, 0, 'atlas', frameName(this.playerTex)).setOrigin(0.5, 0.68);
+    this.playerSlots = slotsOf(this.playerTex);
+    this.playerSlotName = 'idle';
+    this.heroRig = rig ? new HeroRig(this, rig, heroLook(save, this.char)) : undefined;
     this.vignette = this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(width + 40, height + 40).setDepth(LAYER.overlay);
     this.hpBar = this.add.graphics().setDepth(LAYER.fx + 4);
 
@@ -469,10 +479,11 @@ export class GameScene extends Phaser.Scene {
 
   /** Troca o quadro do herói pelo nome (idle, walk_a, attack, hurt, death, victory). */
   private setPlayerSlot(slot: string) {
+    this.playerSlotName = slot;
     const f = this.playerSlots[slot] ?? 0;
     if (f === this.playerFrame) return;
     this.playerFrame = f;
-    this.player.setFrame(frameName(this.char.texture, f));
+    this.player.setFrame(frameName(this.playerTex, f));
   }
 
   /** Mostra o quadro de ataque do herói por um instante (arma inicial disparou). */
@@ -520,6 +531,13 @@ export class GameScene extends Phaser.Scene {
     this.player.setDepth(this.player.y);
     const blinking = this.elapsed < this.invulnUntil;
     this.player.setAlpha(blinking && Math.floor(this.elapsed * 20) % 2 === 0 ? 0.4 : 1);
+    this.playerMotion += ((moving ? 1 : 0) - this.playerMotion) * Math.min(1, dt * 6);
+    this.syncRig();
+  }
+
+  /** Arma, escudo e capa acompanham o herói. */
+  private syncRig() {
+    this.heroRig?.sync(this.player, this.playerSlotName, this.elapsed, this.playerMotion);
   }
 
   private drawPlayerHp() {
@@ -1359,6 +1377,7 @@ export class GameScene extends Phaser.Scene {
     this.joy.x = this.joy.y = 0;
     this.setPlayerSlot('victory');
     this.player.setScale(1).setRotation(0);
+    this.syncRig();
     this.scene.pause();
     this.scene.pause('Hud');
     this.scene.launch('Victory', this.result(true));
@@ -1532,6 +1551,7 @@ export class GameScene extends Phaser.Scene {
     if (!victory || this.endless) {
       this.setPlayerSlot('death');
       this.player.setScale(1).setRotation(0);
+      this.syncRig();
       this.tweens.add({ targets: this.player, alpha: 0.75, duration: 500 });
     }
   }

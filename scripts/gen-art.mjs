@@ -25,7 +25,9 @@ for (const [name, a] of Object.entries(ART)) {
     jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE.replace(/Single subject.*$/s, '')} Match the art style and palette of the reference image. Subject: ${a.prompt}.` });
     continue;
   }
-  if (a.prompt) jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
+  // edit: a imagem base é a de outra arte com uma mudança (ex. o herói sem arma, escudo e capa)
+  if (a.edit) jobs.push({ out: name, ref: a.edit, prompt: `Edit the reference image and keep everything else exactly the same (character, pose, art style, outline, shading, colors, proportions): ${a.prompt}. ${BG}` });
+  else if (a.prompt) jobs.push({ out: name, ref: 'hero_knight', prompt: `${STYLE} Match exactly the art style, outline weight, shading and palette of the reference image. Subject: ${a.prompt}.` });
   if (a.role === 'vfx') {
     const poses = sheets(a).move;
     const list = poses.map((p, i) => `${i + 1}) ${p.text}`).join('; ');
