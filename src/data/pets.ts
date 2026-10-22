@@ -121,8 +121,11 @@ export const eggName = (id: PetId) => `Ovo de ${getPet(id).label}`;
 /** XP para passar do nível `level` ao próximo. */
 export const petXpToNext = (level: number) => Math.round(50 * Math.pow(1.12, level - 1));
 
-/** Força do pet: nível × estágio. */
-export const petPower = (level: number, stage: PetStage) => (1 + 0.12 * (level - 1)) * STAGE_POWER[stage];
+/** Força do pet: nível × estágio × ascensão (Supremo+N: +25% cada). */
+export const petPower = (level: number, stage: PetStage, plus = 0) => (1 + 0.12 * (level - 1)) * STAGE_POWER[stage] * (1 + 0.25 * plus);
+
+/** Nome do estágio, com a ascensão depois do Supremo (Supremo+1, Supremo+2...). */
+export const stageLabel = (stage: PetStage, plus = 0) => (plus > 0 ? `${STAGE_NAMES[stage]}+${plus}` : STAGE_NAMES[stage]);
 
 /** XP de uma partida: por minuto, por chefe e pela vitória. */
 export const runPetXp = (seconds: number, bosses: number, victory: boolean) =>
@@ -174,6 +177,21 @@ export interface Requirement {
   target: number;
   text: string;
 }
+
+/**
+ * Ascensão do Supremo (sem fim): Supremo+1, +2... Cada uma pede mais nível, mais abates com ele e
+ * Fragmentos Ancestrais, e dá +25% de força e uma aura maior.
+ */
+export function ascendRequirements(plus: number): Requirement[] {
+  return [
+    { kind: 'level', target: 40 + 5 * plus, text: `Chegar ao nível ${40 + 5 * plus}` },
+    { kind: 'kills', target: 1000 * (plus + 1), text: `Derrotar ${(1000 * (plus + 1)).toLocaleString('pt-BR')} inimigos com ele` },
+    { kind: 'shards', target: 1 + Math.floor(plus / 2), text: `${1 + Math.floor(plus / 2)} Fragmento${plus >= 2 ? 's' : ''} Ancestra${plus >= 2 ? 'is' : 'l'} (chefes no Pesadelo)` },
+  ];
+}
+
+/** Requisitos do próximo passo: evoluir (até o Supremo) ou ascender (depois dele). */
+export const nextRequirements = (def: PetDef, stage: PetStage, plus = 0) => (stage < 4 ? evoRequirements(def, stage) : ascendRequirements(plus));
 
 /** Requisitos para evoluir do estágio `stage` para o seguinte (vazio no Supremo). */
 export function evoRequirements(def: PetDef, stage: PetStage): Requirement[] {

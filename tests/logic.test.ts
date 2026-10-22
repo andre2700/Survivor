@@ -401,7 +401,7 @@ describe('pets', () => {
   });
   it('XP para no teto do estágio; evoluir pede os requisitos e gasta os materiais', () => {
     const s = migrate({});
-    s.pets.fire = { stage: 0, level: 1, xp: 0, feeds: 0, kills: 0, bossWins: 0, runs: 0, trial: false, mission: {} };
+    s.pets.fire = { stage: 0, plus: 0, level: 1, xp: 0, feeds: 0, kills: 0, bossWins: 0, runs: 0, trial: false, mission: {} };
     addPetXp(s, 'fire', 1e6);
     expect(s.pets.fire.level).toBe(STAGE_CAP[0]);
     expect(atCap(s.pets.fire)).toBe(true);
@@ -410,11 +410,18 @@ describe('pets', () => {
     for (let i = 0; i < 3; i++) feed(s, 'fire');
     expect(evolve(s, 'fire')).toBe(true);
     expect(s.pets.fire.stage).toBe(1);
-    // Adulto → Super gasta um cristal
-    s.pets.fire = { ...s.pets.fire, stage: 2, level: 22, mission: { burnKills: 1000 } };
+    // Jovem → Adulto gasta um cristal
+    s.pets.fire = { ...s.pets.fire!, stage: 2, level: 22, mission: { burnKills: 1000 } };
     s.evoCrystals = 1;
     expect(evolve(s, 'fire')).toBe(true);
     expect(s.evoCrystals).toBe(0);
+    // depois do Supremo, ascende sem fim (Supremo+1, +2...)
+    s.pets.fire = { ...s.pets.fire!, stage: 4, level: 45, kills: 2000 };
+    s.ancientShards = 1;
+    expect(evolve(s, 'fire')).toBe(true);
+    expect(s.pets.fire.stage).toBe(4);
+    expect(s.pets.fire.plus).toBe(1);
+    expect(canEvolve(s, 'fire')).toBe(false);
   });
   it('pet antigo (dragão) vira a linhagem do Fogo', () => {
     const s = migrate({ pets: { dragon: { level: 12, xp: 0 } }, activePet: 'dragon', eggs: [{ uid: 1, pet: 'dragon', need: 10, progress: 0 }] });

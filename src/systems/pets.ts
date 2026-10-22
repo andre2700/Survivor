@@ -1,9 +1,10 @@
 // Pets no save: ovos na chocadeira (o primeiro choca com o tempo de partida), chocar, XP (com o teto
 // do estágio), ração, contadores para os requisitos, evoluir e o pet ativo.
 import {
-  DUPLICATE_EGG_XP, FIRST_HATCH_SECONDS, HATCH_SECONDS, MAX_EGGS, STAGE_CAP, evoRequirements, feedCost, feedXp, getPet, hearts,
+  DUPLICATE_EGG_XP, FIRST_HATCH_SECONDS, HATCH_SECONDS, MAX_EGGS, STAGE_CAP, nextRequirements, feedCost, feedXp, getPet, hearts,
   petXpToNext, type MissionStat, type PetId, type PetStage, type Requirement,
 } from '../data/pets';
+import { dev } from './dev';
 import type { SaveData } from './save';
 
 export interface PetState {
@@ -16,6 +17,8 @@ export interface PetState {
   bossWins: number;
   /** partidas juntos (afinidade) */
   runs: number;
+  /** ascensão depois do Supremo (Supremo+N) */
+  plus: number;
   /** venceu a prova do Supremo */
   trial: boolean;
   mission: Partial<Record<MissionStat, number>>;
@@ -29,7 +32,7 @@ export interface Egg {
   progress: number;
 }
 
-export const newPet = (): PetState => ({ stage: 0, level: 1, xp: 0, feeds: 0, kills: 0, bossWins: 0, runs: 0, trial: false, mission: {} });
+export const newPet = (): PetState => ({ stage: 0, plus: 0, level: 1, xp: 0, feeds: 0, kills: 0, bossWins: 0, runs: 0, trial: false, mission: {} });
 
 /** Guarda um ovo novo (o primeiro da vida choca rápido). Devolve false se a chocadeira estiver cheia. */
 export function addEgg(save: SaveData, pet: PetId): boolean {
@@ -107,19 +110,22 @@ export function reqProgress(save: SaveData, pet: PetId, r: Requirement): number 
 
 export function canEvolve(save: SaveData, pet: PetId): boolean {
   const p = save.pets[pet];
-  if (!p || p.stage >= 4) return false;
-  return evoRequirements(getPet(pet), p.stage).every((r) => reqProgress(save, pet, r) >= r.target);
+  if (!p) return false;
+  if (dev.freeEvolve) return true;
+  return nextRequirements(getPet(pet), p.stage, p.plus).every((r) => reqProgress(save, pet, r) >= r.target);
 }
 
-/** Evolui: gasta cristais e fragmentos pedidos, sobe o estágio (o nível continua). */
+/** Evolui (ou ascende, no Supremo): gasta cristais e fragmentos pedidos (o nível continua). */
 export function evolve(save: SaveData, pet: PetId): boolean {
   if (!canEvolve(save, pet)) return false;
   const p = save.pets[pet]!;
-  for (const r of evoRequirements(getPet(pet), p.stage)) {
-    if (r.kind === 'crystals') save.evoCrystals -= r.target;
-    if (r.kind === 'shards') save.ancientShards -= r.target;
+  for (const r of nextRequirements(getPet(pet), p.stage, p.plus)) {
+    if (r.kind === 'crystals') save.evoCrystals = Math.max(0, save.evoCrystals - r.target);
+    if (r.kind === 'shards') save.ancientShards = Math.max(0, save.ancientShards - r.target);
   }
-  p.stage = (p.stage + 1) as PetStage;
+  // depois do Supremo, ascende (Supremo+1, +2...); o nível continua
+  if (p.stage < 4) p.stage = (p.stage + 1) as PetStage;
+  else p.plus++;
   return true;
 }
 

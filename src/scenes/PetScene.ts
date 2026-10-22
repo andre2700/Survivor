@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { frameHd, slotsOf } from '../art/textures';
 import { formatNumber } from '../core/format';
 import {
-  MAX_HEARTS, PETS, STAGE_CAP, STAGE_NAMES, eggName, evoRequirements, feedCost, feedXp, getPet, hearts, petXpToNext, type PetDef, type PetId,
+  MAX_HEARTS, PETS, STAGE_CAP, STAGE_NAMES, eggName, feedCost, nextRequirements, stageLabel, feedXp, getPet, hearts, petXpToNext, type PetDef, type PetId,
 } from '../data/pets';
 import { atCap, canEvolve, eggReady, evolve, feed, hatch, reqProgress, type Egg } from '../systems/pets';
 import { loadSave, writeSave } from '../systems/save';
@@ -111,8 +111,8 @@ export class PetScene extends Phaser.Scene {
     this.time.addEvent({ delay: p.flies ? 170 : 220, loop: true, callback: () => img.setFrame(slots[move[++k % move.length]] ?? 0) });
     this.tweens.add({ targets: img, y: img.y - 5, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     const tx = left + 134;
-    text(this, tx, top + 20, f.name, 17, '#ffd86a', { bold: true, strokeThickness: 4 }).setOrigin(0, 0.5);
-    text(this, tx, top + 40, `${STAGE_NAMES[st.stage]} · ${p.label}`, 11, '#c8cce0').setOrigin(0, 0.5);
+    text(this, tx, top + 20, st.plus ? `${f.name} +${st.plus}` : f.name, 17, '#ffd86a', { bold: true, strokeThickness: 4 }).setOrigin(0, 0.5);
+    text(this, tx, top + 40, `${stageLabel(st.stage, st.plus)} · ${p.label}`, 11, '#c8cce0').setOrigin(0, 0.5);
     const cap = STAGE_CAP[st.stage];
     text(this, tx, top + 60, cap === Infinity ? `Nível ${st.level}` : `Nível ${st.level}/${cap}`, 13, '#ffffff', { bold: true }).setOrigin(0, 0.5);
     // XP (no teto do estágio, a barra fica cheia e pede evolução)
@@ -128,25 +128,31 @@ export class PetScene extends Phaser.Scene {
     for (let i = 0; i < MAX_HEARTS; i++) text(this, tx + 6 + i * 12, top + 106, '♥', 12, i < hs ? '#ff5a7a' : '#3a3046', { bold: true });
     text(this, tx + 6 + MAX_HEARTS * 12, top + 106, ' Afinidade', 9, '#a8acc4').setOrigin(0, 0.5);
 
-    // linha de evolução: formas já alcançadas, a próxima em silhueta, as outras "?"
-    const ey = top + 152;
+    // linha de evolução: as formas já alcançadas e, das próximas, só a silhueta preta (cada vez maior)
+    const ey = top + 150;
     const step = (w - 60) / 4;
+    const sizes = [24, 29, 34, 40, 48];
     for (let i = 0; i < 5; i++) {
       const x = left + 30 + i * step;
-      if (i <= st.stage + 1) {
-        const e = petImage(this, x, ey, p.forms[i].texture, i === st.stage ? 40 : 32);
-        if (i > st.stage) e.setTintFill(0x1a1a28);
-      } else text(this, x, ey, '?', 18, '#4a4c5a', { bold: true });
-      text(this, x, ey + 26, STAGE_NAMES[i], 9, i === st.stage ? '#ffd86a' : i < st.stage ? '#c8cce0' : '#6a6c7a', { bold: i === st.stage });
+      const future = i > st.stage;
+      if (future) {
+        const glow = this.add.image(x, ey, 'atlas', 'glow:0').setTint(0x6a4aa0).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.35).setScale(sizes[i] / 14);
+        this.tweens.add({ targets: glow, alpha: 0.15, duration: 1200 + i * 150, yoyo: true, repeat: -1 });
+      }
+      const e = petImage(this, x, ey, p.forms[i].texture, sizes[i]);
+      if (future) e.setTintFill(0x07060c);
+      const label = i === 4 ? stageLabel(4, st.stage === 4 ? st.plus : 0) : STAGE_NAMES[i];
+      text(this, x, ey + 30, label, 9, i === st.stage ? '#ffd86a' : i < st.stage ? '#c8cce0' : '#6a6c7a', { bold: i === st.stage });
       if (i < 4) text(this, x + step / 2, ey, '›', 16, '#6a6c7a', { bold: true });
     }
     text(this, cx, top + 200, f.skill, 11, '#ffe9a0', { wrap: w - 30 });
 
     // requisitos da próxima evolução
     let ry = top + 226;
-    const reqs = evoRequirements(p, st.stage);
-    if (reqs.length) {
-      text(this, left + 16, ry, `PARA EVOLUIR PARA ${STAGE_NAMES[st.stage + 1].toUpperCase()}`, 10, '#ffd86a', { bold: true }).setOrigin(0, 0.5);
+    const reqs = nextRequirements(p, st.stage, st.plus);
+    {
+      const next = st.stage < 4 ? `PARA EVOLUIR PARA ${STAGE_NAMES[st.stage + 1].toUpperCase()}` : `PARA ASCENDER A SUPREMO+${st.plus + 1} (+25% DE FORÇA)`;
+      text(this, left + 16, ry, next, 10, '#ffd86a', { bold: true }).setOrigin(0, 0.5);
       ry += 18;
       for (const r of reqs) {
         const have = Math.min(r.target, reqProgress(save, p.id, r));
@@ -155,12 +161,12 @@ export class PetScene extends Phaser.Scene {
         if (r.target > 1) text(this, left + w - 16, ry, `${formatNumber(have)}/${formatNumber(r.target)}`, 10, done ? '#8cf08a' : '#a8acc4', { bold: true }).setOrigin(1, 0.5);
         ry += Math.max(17, line.displayHeight + 4);
       }
-    } else text(this, cx, ry + 10, 'Forma final! O mais forte da linhagem.', 11, '#ffd86a', { bold: true });
+    }
 
     // botões
     const by = top + h - 26;
     if (canEvolve(save, p.id)) {
-      const b = button(this, cx - 74, by, 'EVOLUIR!', () => this.evolvePet(p), { width: 136, height: 34, size: 15, variant: 'primary' });
+      const b = button(this, cx - 74, by, st.stage < 4 ? 'EVOLUIR!' : 'ASCENDER!', () => this.evolvePet(p), { width: 136, height: 34, size: 15, variant: 'primary' });
       this.tweens.add({ targets: b, scale: 1.06, duration: 500, yoyo: true, repeat: -1 });
     } else {
       const cost = feedCost(st.level);
@@ -264,6 +270,7 @@ export class PetScene extends Phaser.Scene {
     if (!evolve(save, p.id)) return;
     writeSave(save);
     const to = save.pets[p.id]!.stage;
+    if (from === 4) return this.ascend(p, save.pets[p.id]!.plus);
     const { cx, cy } = this.stageOverlay();
     const rays = this.add.image(cx, cy, 'aura').setTint(0xffe9a0).setBlendMode(Phaser.BlendModes.ADD).setDepth(50.5).setScale(3).setAlpha(0);
     this.tweens.add({ targets: rays, alpha: 0.8, scale: 5, angle: 180, duration: 2600 });
@@ -301,6 +308,32 @@ export class PetScene extends Phaser.Scene {
       text(this, cx, cy + 105, p.forms[to].name, 20, '#ffd86a', { bold: true, strokeThickness: 5 }).setDepth(53);
       text(this, cx, cy + 132, `${STAGE_NAMES[to]} · ${p.forms[to].skill}`, 11, '#ffe9a0', { wrap: VIEW.width - 60 }).setDepth(53);
       this.finish(p.id, 2600);
+    });
+  }
+
+  /** Ascensão do Supremo: o pet se enche de luz, a aura cresce e explode num clarão. */
+  private ascend(p: PetDef, plus: number) {
+    const { cx, cy } = this.stageOverlay();
+    const f = p.forms[4];
+    const aura = this.add.image(cx, cy, 'atlas', 'glow:0').setTint(0xffd86a).setBlendMode(Phaser.BlendModes.ADD).setDepth(50.5).setScale(2).setAlpha(0.6);
+    const pet = petImage(this, cx, cy, f.texture, 160).setDepth(51);
+    const title = text(this, cx, cy - 140, `${f.name} está ascendendo...`, 15, '#ffffff', { bold: true, strokeThickness: 4 }).setDepth(53);
+    sfx('select');
+    this.tweens.add({ targets: aura, scale: 14, alpha: 0.9, duration: 1800, ease: 'Quad.In' });
+    this.tweens.add({ targets: pet, y: cy - 8, duration: 220, yoyo: true, repeat: 3 });
+    this.time.delayedCall(1100, () => pet.setTintFill(0xfff6c0));
+    this.time.delayedCall(1900, () => {
+      sfx('levelup');
+      this.flash(cx, cy);
+      this.cameras.main.shake(400, 0.008);
+      title.destroy();
+      pet.clearTint();
+      aura.setScale(6).setAlpha(0.5);
+      this.tweens.add({ targets: aura, scale: 7, alpha: 0.3, duration: 900, yoyo: true, repeat: -1 });
+      goldTitle(this, cx, cy - 140, 'ASCENDEU!', 30).setDepth(53);
+      text(this, cx, cy + 115, `${f.name} +${plus}`, 20, '#ffd86a', { bold: true, strokeThickness: 5 }).setDepth(53);
+      text(this, cx, cy + 142, `Supremo+${plus} · +${plus * 25}% de força`, 11, '#ffe9a0').setDepth(53);
+      this.finish(p.id, 2400);
     });
   }
 }

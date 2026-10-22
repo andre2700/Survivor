@@ -305,7 +305,7 @@ function petRow(scene: Phaser.Scene, result: RunResult, cx: number, y: number, d
   if (r.active) {
     const save = loadSave();
     const st = save.pets[r.active];
-    const name = st ? getPet(r.active).forms[st.stage].name : '';
+    const name = st ? getPet(r.active).forms[st.stage].name + (st.plus ? ` +${st.plus}` : '') : '';
     const lv = r.levels ? ` · +${r.levels} ${r.levels === 1 ? 'nível' : 'níveis'}` : '';
     const note = r.ready ? ' · PRONTO PARA EVOLUIR!' : r.capped ? ' · nível máximo: evolua!' : '';
     text(scene, cx, y + h, `${name}: +${r.xp} XP${lv}${note}`, 11, r.ready ? '#ffd86a' : '#c8cce0', { bold: r.ready });

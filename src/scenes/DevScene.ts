@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
-import { STAGE_CAP, rollEggPet } from '../data/pets';
+import { MAX_EGGS, PETS, STAGE_CAP, rollEggPet } from '../data/pets';
 import { addEgg } from '../systems/pets';
 import { RARITIES, makeItem } from '../data/items';
 import { addItems, nextUid } from '../systems/inventory';
 import { WEAPONS, WEAPON_IDS } from '../data/weapons';
 import { INFINITE_GOLD, RUN_OPTIONS, SPEED_OPTIONS, cycle, dev, setDev } from '../systems/dev';
-import { loadSave, writeSave } from '../systems/save';
+import { defaultSave, loadSave, writeSave } from '../systems/save';
 import { sfx } from '../systems/sfx';
 import { button, goldTitle, panel, text } from '../ui/theme';
 import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
@@ -20,6 +20,8 @@ const REAL_GOLD_KEY = 'survivor-dev-gold';
  */
 export class DevScene extends Phaser.Scene {
   private from = 'Menu';
+  /** "Reiniciar todo o progresso" pede um segundo toque */
+  private confirmReset = false;
 
   constructor() {
     super('Dev');
@@ -96,17 +98,33 @@ export class DevScene extends Phaser.Scene {
         }
         writeSave(save);
       }],
+      ['Ganhar todos os ovos de pet (prontos)', () => {
+        const save = loadSave();
+        save.eggSeen = true;
+        save.eggs = PETS.slice(0, MAX_EGGS).map((p) => ({ uid: save.nextItem++, pet: p.id, need: 1, progress: 1 }));
+        writeSave(save);
+      }],
+      [`Evoluções sempre liberadas: ${yes(dev.freeEvolve)}`, () => setDev({ freeEvolve: !dev.freeEvolve })],
+      [this.confirmReset ? 'TOQUE DE NOVO: apaga tudo!' : 'Reiniciar todo o progresso', () => {
+        if (!this.confirmReset) {
+          this.confirmReset = true;
+          return;
+        }
+        this.confirmReset = false;
+        writeSave(defaultSave());
+      }],
     ];
     let y = 78;
-    panel(this, lx, y + (settings.length * 36) / 2 + 4, lw - 24, settings.length * 36 + 20, 'ui_panel_dark');
+    const rowH = settings.length > 10 ? 31 : 36;
+    panel(this, lx, y + (settings.length * rowH) / 2 + 4, lw - 24, settings.length * rowH + 20, 'ui_panel_dark');
     settings.forEach(([label, fn], i) => {
-      button(this, lx, y + 22 + i * 36, label, () => {
+      button(this, lx, y + 22 + i * rowH, label, () => {
         sfx('select');
         fn();
         refresh();
-      }, { width: lw - 60, height: 30, size: 13 });
+      }, { width: lw - 60, height: rowH - 6, size: 13, variant: label.startsWith('TOQUE') ? 'primary' : undefined });
     });
-    y = wide ? 40 : y + settings.length * 36 + 28;
+    y = wide ? 40 : y + settings.length * rowH + 28;
     const rx = wide ? col(1) : width / 2;
     const rw = wide ? WIDE_COL : width;
 

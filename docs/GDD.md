@@ -171,7 +171,7 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 
 ## Pets (21/10/2026, revisto)
 
-**6 linhagens, uma por elemento, com 6 estágios:** Ovo → Bebê → Criança → Jovem → Adulto → Supremo. Os nomes e desenhos são nossos (referências de criaturas que evoluem servem só de inspiração). **O pet cresce a cada estágio:** 14, 20, 28, 38 e 52 px de altura (o herói tem 44).
+**6 linhagens, uma por elemento, com 6 estágios:** Ovo → Bebê → Criança → Jovem → Adulto → Supremo. Os nomes e desenhos são nossos (referências de criaturas que evoluem servem só de inspiração). **O pet cresce a cada estágio:** 14, 22, 34, 52 e 84 px de altura (o herói tem 44; o Supremo tem o porte de um chefe), com uma aura de poder a partir do Adulto.
 
 | Elemento | Bebê | Criança | Jovem | Adulto | Supremo |
 |---|---|---|---|---|---|
@@ -184,7 +184,7 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 
 **Arte:** cada forma tem a imagem base e uma folha com 4 quadros (2 de movimento, preparar e atacar); o balanço (flutuar, pulinhos) é por código. Cada evolução parte da imagem da forma anterior, para parecer o mesmo bicho crescendo. Cada linhagem tem o seu projétil (bola de fogo, orbe de água, lâmina de vento, pedra, orbe de luz, garras de sombra).
 
-**Kits** (o ataque básico cresce em quantidade, dano e área a cada estágio; o Adulto ganha um golpe extra a cada 8 s; o Supremo, um golpe na tela toda a cada 30 s):
+**Kits** (o ataque básico cresce em quantidade, dano e área a cada estágio, e no Adulto e no Supremo vira uma versão grandiosa: bolas de fogo gigantes, jatos d'água em linha, lâminas que atravessam e mini-tornados, pedregulhos com espinhos, pilares de luz do céu, garras gigantes; o Adulto ganha um golpe extra a cada 8 s, 50% maior no Supremo; o Supremo, um golpe na tela toda a cada 30 s):
 
 | Linhagem | Ataque básico | Adulto | Supremo |
 |---|---|---|---|
@@ -196,6 +196,10 @@ Resultado do robô (Cavaleiro, que não desvia tão bem quanto uma pessoa): Clar
 | Sombra | avança e arranha; puxa gemas; rouba ouro (Jovem+) | Frenesi: arranha vários em volta | Eclipse: a tela escurece e os inimigos sofrem |
 
 Força por estágio: ×0,6 / 1 / 1,5 / 2,2 / 3,2, vezes o nível (+12% por nível), o dano do herói e a força da fase.
+
+**Supremo+N (sem fim):** depois do Supremo o pet ascende: Supremo+1, +2... Cada ascensão pede nível 40 + 5N, 1.000 × (N+1) inimigos derrotados com ele e 1 + N/2 Fragmentos Ancestrais, e dá +25% de força e uma aura maior. Cerimônia própria ("ASCENDEU!").
+
+**Mistério das evoluções:** na tela de pets as formas ainda não alcançadas aparecem só como silhueta preta, cada vez maior, com um brilho roxo.
 
 **Teto de nível por estágio** (5, 12, 22, 35, sem teto no Supremo): no teto o XP para e a tela pede evolução. XP do próximo nível: 50 × 1,12^(nível−1). XP por partida: 10/min, 25 por chefe, 50 pela vitória. Ração (ouro): um quarto do próximo nível, preço 40 × 1,15^(nível−1).
 

@@ -18,12 +18,12 @@ const shots = (rows: [number, number, number, number, number][]): Shot[] =>
   rows.map(([every, count, damage, size, aoe]) => ({ every, count, damage, size, aoe }));
 
 const KIT: Record<PetDef['id'], Shot[]> = {
-  fire: shots([[1.6, 1, 9, 0.5, 0], [1.4, 1, 14, 0.75, 14], [1.3, 2, 17, 0.9, 28], [1.15, 3, 20, 1, 30], [1, 3, 24, 1.15, 34]]),
-  water: shots([[1.6, 1, 8, 0.5, 0], [1.4, 1, 13, 0.75, 12], [1.3, 2, 16, 0.9, 24], [1.15, 2, 19, 1, 28], [1, 3, 23, 1.15, 32]]),
-  air: shots([[1.4, 1, 7, 0.5, 0], [1.25, 1, 11, 0.75, 0], [1.15, 2, 14, 0.9, 0], [1.05, 3, 17, 1, 0], [0.95, 3, 21, 1.15, 0]]),
-  earth: shots([[1.8, 1, 10, 0.5, 0], [1.6, 1, 15, 0.75, 16], [1.5, 1, 20, 0.95, 24], [1.35, 2, 23, 1.05, 26], [1.2, 2, 28, 1.2, 30]]),
-  light: shots([[1.7, 1, 6, 0.5, 0], [1.5, 1, 11, 0.75, 0], [1.35, 2, 14, 0.9, 0], [1.2, 2, 17, 1, 14], [1.05, 3, 21, 1.15, 18]]),
-  dark: shots([[1.5, 1, 10, 0.6, 18], [1.35, 1, 15, 0.8, 20], [1.2, 1, 19, 0.95, 24], [1.1, 2, 22, 1.05, 26], [1, 2, 27, 1.2, 30]]),
+  fire: shots([[1.6, 1, 9, 0.5, 0], [1.4, 1, 14, 0.8, 16], [1.3, 2, 17, 1.05, 30], [1.2, 3, 22, 1.5, 44], [1, 4, 28, 2.1, 62]]),
+  water: shots([[1.6, 1, 8, 0.5, 0], [1.4, 1, 13, 0.8, 14], [1.3, 2, 16, 1.05, 28], [1.2, 3, 21, 1.5, 42], [1.1, 3, 27, 2, 18]]),
+  air: shots([[1.4, 1, 7, 0.5, 0], [1.25, 1, 11, 0.8, 0], [1.15, 2, 14, 1.05, 0], [1.05, 3, 19, 1.5, 0], [0.95, 3, 25, 2, 0]]),
+  earth: shots([[1.8, 1, 10, 0.5, 0], [1.6, 1, 15, 0.8, 18], [1.5, 1, 20, 1.1, 28], [1.35, 2, 26, 1.7, 44], [1.2, 3, 32, 2.4, 60]]),
+  light: shots([[1.7, 1, 6, 0.5, 0], [1.5, 1, 11, 0.8, 0], [1.35, 2, 14, 1.05, 0], [1.2, 2, 20, 1.4, 40], [1.05, 4, 26, 1.8, 52]]),
+  dark: shots([[1.5, 1, 10, 0.6, 18], [1.35, 1, 15, 0.85, 22], [1.2, 1, 19, 1.1, 28], [1.1, 2, 25, 1.6, 42], [1, 3, 31, 2.2, 58]]),
 };
 /** Projétil de cada linhagem (a Sombra ataca de perto: avança e arranha). */
 const PROJECTILE: Record<PetDef['id'], string> = {
@@ -49,6 +49,9 @@ export class PetCompanion {
   private form: PetForm;
   private slots: Slots;
   private stage: PetStage;
+  private plus = 0;
+  /** aura de poder (Adulto em diante; maior a cada ascensão) */
+  private aura?: Phaser.GameObjects.Image;
   private power: number;
   private nextShot = 1;
   private nextSpecial = SPECIAL.every;
@@ -70,10 +73,14 @@ export class PetCompanion {
     this.stage = state.stage;
     this.form = this.def.forms[this.stage];
     this.slots = slotsOf(this.form.texture);
-    this.power = petPower(state.level, this.stage);
+    this.power = petPower(state.level, this.stage, state.plus);
+    this.plus = state.plus;
     const p = sc.player;
     this.img = sc.add.image(p.x - 20, p.y, 'atlas', frameName(this.form.texture)).setOrigin(0.5, 0.95);
     this.shadow = sc.add.image(this.img.x, this.img.y, 'atlas', frameName('shadow')).setAlpha(0.45);
+    if (this.stage >= 3) {
+      this.aura = sc.add.image(0, 0, 'atlas', frameName('glow')).setTint(COLOR[this.def.id]).setBlendMode(Phaser.BlendModes.ADD).setDepth(LAYER.groundFx);
+    }
   }
 
   /** Tamanho na tela (a textura é desenhada na resolução lógica, não na dela). */
@@ -169,6 +176,10 @@ export class PetCompanion {
     const w = this.lw / 46;
     this.shadow.setPosition(this.img.x, this.img.y).setScale(w * (this.def.flies ? 0.7 : 0.9), w * 0.45).setDepth(LAYER.groundFx);
     this.img.setAlpha(p.alpha < 1 ? 0.85 : 1);
+    if (this.aura) {
+      const s = (this.stage === 4 ? 4 : 2.6) * (1 + Math.min(1.5, this.plus * 0.15));
+      this.aura.setPosition(this.img.x, this.img.y - this.lh * 0.45).setScale(s * (1 + Math.sin(t * 3) * 0.06)).setAlpha(0.28 + Math.min(0.3, this.plus * 0.04));
+    }
 
     // Sombra (Criança em diante): puxa as gemas perto dela
     if (this.def.id === 'dark' && this.stage >= 1 && t >= this.nextGems) {
@@ -224,7 +235,97 @@ export class PetCompanion {
       this.attack(t, () => targets.forEach((foe, i) => sc.time.delayedCall(i * 140, () => this.claw(foe, this.dmg(cfg.damage), cfg))));
       return;
     }
-    this.attack(t, () => targets.forEach((e, i) => sc.time.delayedCall(i * 90, () => this.shoot(e, this.dmg(cfg.damage), cfg))));
+    const d = this.dmg(cfg.damage);
+    this.attack(t, () => targets.forEach((e, i) => sc.time.delayedCall(i * 90, () => {
+      // Adulto e Supremo: versões grandes do ataque
+      if (this.def.id === 'light' && this.stage >= 3) this.pillar(e.x, e.y, cfg.aoe, d);
+      else if (this.def.id === 'water' && this.stage === 4) this.beam(e, d, cfg.aoe);
+      else if (this.def.id === 'air' && this.stage >= 3) this.blade(e, d, cfg);
+      else this.shoot(e, d, cfg);
+    })));
+  }
+
+  /** Luz: pilar de luz cai do céu sobre o alvo e explode em área. */
+  private pillar(x: number, y: number, r: number, d: number) {
+    const sc = this.sc;
+    const view = sc.cameras.main.worldView;
+    sc.weapons.drawBolt(x, y, view.y - 10, false, 0xfff0a0);
+    sc.impact(x, y, 0xfff0a0, r / 22);
+    const ring = sc.add.image(x, y, 'atlas', frameName('aura')).setTint(0xfff0a0).setBlendMode(Phaser.BlendModes.ADD).setDepth(LAYER.fx).setScale(0.3, 0.2);
+    sc.tweens.add({ targets: ring, scaleX: r / 40, scaleY: r / 55, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
+    sfx('zap');
+    sc.queryEnemies(x, y, r + 4, (e) => {
+      if ((e.x - x) ** 2 + ((e.y - y) / 0.8) ** 2 < r * r) this.hit(e, d, 0.6, 0.5);
+    });
+  }
+
+  /** Água (Supremo): jato d'água em linha que atravessa todos até o fim da mira. */
+  private beam(e: Enemy, d: number, half: number) {
+    const sc = this.sc;
+    const m = this.mouth();
+    const a = Math.atan2(e.y - m.y, e.x - m.x);
+    const len = 280;
+    const ex = m.x + Math.cos(a) * len;
+    const ey = m.y + Math.sin(a) * len;
+    const g = sc.add.graphics().setDepth(LAYER.fx).setBlendMode(Phaser.BlendModes.ADD);
+    sc.tweens.addCounter({
+      from: 0, to: 1, duration: 420,
+      onUpdate: (tw) => {
+        const k = tw.getValue() ?? 1;
+        const w = half * 2 * (k < 0.2 ? k * 5 : 1 - (k - 0.2) * 0.9);
+        g.clear().lineStyle(w * 1.4, 0x2a7ad8, 0.45).lineBetween(m.x, m.y, ex, ey)
+          .lineStyle(w, 0x41a6f6, 0.8).lineBetween(m.x, m.y, ex, ey)
+          .lineStyle(w * 0.35, 0xe8f8ff, 0.95).lineBetween(m.x, m.y, ex, ey);
+      },
+      onComplete: () => g.destroy(),
+    });
+    for (let i = 1; i <= 4; i++) sc.impact(m.x + Math.cos(a) * len * (i / 4), m.y + Math.sin(a) * len * (i / 4), 0x8fd8ff, 0.8);
+    sfx('splash');
+    const nx = Math.cos(a);
+    const ny = Math.sin(a);
+    sc.queryEnemies((m.x + ex) / 2, (m.y + ey) / 2, len / 2 + half, (foe) => {
+      const px = foe.x - m.x;
+      const py = foe.y - m.y;
+      const along = px * nx + py * ny;
+      if (along < 0 || along > len || Math.abs(px * ny - py * nx) > half + 6) return;
+      this.hit(foe, d, 1.2, 0.6);
+    });
+  }
+
+  /** Ar (Adulto em diante): lâmina que atravessa a fila de inimigos; no Supremo, um mini-tornado que puxa. */
+  private blade(e: Enemy, d: number, cfg: Shot) {
+    const sc = this.sc;
+    const m = this.mouth();
+    const a = Math.atan2(e.y - m.y, e.x - m.x);
+    const len = 300;
+    const tornado = this.stage === 4;
+    const key = tornado ? 'fx_tornado' : 'fx_wind_blade';
+    const img = sc.add.image(m.x, m.y, 'atlas', frameName(key)).setDepth(LAYER.fx)
+      .setScale(tornado ? 0.55 : cfg.size).setRotation(tornado ? 0 : a).setOrigin(0.5, tornado ? 0.8 : 0.5);
+    const hitSet = new Set<Enemy>();
+    const t0 = sc.elapsed;
+    sfx('whoosh');
+    sc.tweens.addCounter({
+      from: 0, to: 1, duration: 650,
+      onUpdate: (tw) => {
+        const k = tw.getValue() ?? 1;
+        const x = m.x + Math.cos(a) * len * k;
+        const y = m.y + Math.sin(a) * len * k;
+        img.setPosition(x, y).setFrame(loopFrame(key, sc.elapsed - t0, 12)).setAlpha(k > 0.85 ? (1 - k) * 6 : 1);
+        const r = 14 * cfg.size;
+        sc.queryEnemies(x, y, r * (tornado ? 2.4 : 1), (foe) => {
+          if (tornado && !foe.boss) {
+            // puxa para o centro do tornado
+            foe.x += (x - foe.x) * 0.08;
+            foe.y += (y - foe.y) * 0.08;
+          }
+          if (hitSet.has(foe) || (foe.x - x) ** 2 + (foe.y - y) ** 2 > r * r * (tornado ? 2.2 : 1)) return;
+          hitSet.add(foe);
+          this.hit(foe, d, 2.2, 0.4);
+        });
+      },
+      onComplete: () => img.destroy(),
+    });
   }
 
   /** Boca: frente da cabeça, do lado para onde o pet olha. */
@@ -252,7 +353,7 @@ export class PetCompanion {
       from: 0, to: 1, duration: dur,
       onUpdate: (tw) => {
         const k = tw.getValue() ?? 1;
-        ball.setPosition(m.x + (ex - m.x) * k, m.y + (ey - m.y) * k - (id === 'earth' ? Math.sin(k * Math.PI) * 30 : 0));
+        ball.setPosition(m.x + (ex - m.x) * k, m.y + (ey - m.y) * k - (id === 'earth' ? Math.sin(k * Math.PI) * (30 + this.stage * 14) : 0));
         if (id === 'earth') ball.setRotation(k * 8);
         else ball.setFrame(loopFrame(key, sc.elapsed - t0, 10));
         if (id === 'fire' && Math.random() < 0.3 + cfg.size * 0.2) sc.emitFlame(ball.x, ball.y);
@@ -272,6 +373,23 @@ export class PetCompanion {
       sc.elements.vfx('vfx_explosion', x, y + cfg.aoe * 0.4, cfg.aoe * 2, [[0, 0.04], [1, 0.05], [2, 0.1], [3, 0.2]]);
       sfx('boom');
     } else sc.impact(x, y, COLOR[id], 0.5 + cfg.size * 0.4 + cfg.aoe / 40);
+    if (this.stage >= 3 && cfg.aoe) {
+      if (id === 'earth') {
+        // pedregulho: espinhos brotam em volta da queda
+        sc.weapons.spike(x, y + 4, cfg.size * 0.7);
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          sc.weapons.spike(x + Math.cos(a) * cfg.aoe * 0.65, y + Math.sin(a) * cfg.aoe * 0.5, cfg.size * 0.45);
+        }
+        sc.cameras.main.shake(120, 0.003);
+        sfx('boom');
+      } else if (id === 'water') {
+        // a bola estoura numa onda em volta
+        const splash = sc.add.image(x, y + 8, 'atlas', frameName('fx_wave')).setOrigin(0.5, 1).setScale(cfg.aoe / 60).setDepth(LAYER.fx);
+        sc.tweens.add({ targets: splash, scaleX: cfg.aoe / 40, alpha: 0, duration: 420, onComplete: () => splash.destroy() });
+        sfx('splash');
+      } else if (id === 'dark') sc.impact(x, y, 0x5a2aa0, cfg.aoe / 20);
+    }
     // Ar: só o alvo, com empurrão forte; os outros: o alvo ou a área
     const knock = id === 'air' ? 1.5 + this.stage * 0.4 : 0.4;
     const effect = id === 'water' ? 0.5 : 0.35;
@@ -304,27 +422,29 @@ export class PetCompanion {
     const m = this.mouth();
     const a = Math.atan2(e.y - m.y, e.x - m.x);
     const d = this.dmg(KIT[this.def.id][this.stage].damage * SPECIAL.damage);
+    // no Supremo o golpe extra é maior
+    const big = this.stage === 4 ? 1.5 : 1;
     switch (this.def.id) {
-      case 'fire': return this.breath(a, d);
-      case 'water': return this.wave(a, d, m);
-      case 'air': return this.tornado(e.x, e.y, d, 1, 3);
-      case 'earth': return this.wall(d);
+      case 'fire': return this.breath(a, d, big);
+      case 'water': return this.wave(a, d, m, big, 220 * big);
+      case 'air': return this.tornado(e.x, e.y, d, big, 3);
+      case 'earth': return this.wall(d, big);
       case 'light': return this.shield();
-      case 'dark': return this.frenzy(d);
+      case 'dark': return this.frenzy(d, big);
     }
   }
 
-  private breath(a: number, d: number) {
+  private breath(a: number, d: number, big = 1) {
     const sc = this.sc;
     const m = this.mouth();
-    const range = 130;
+    const range = 130 * big;
     for (let i = 0; i < 11; i++) {
       const ai = a + (i - 5) * 0.09;
-      const img = sc.add.image(m.x, m.y, 'atlas', frameName('fx_fireball')).setRotation(ai).setScale(0.6).setDepth(LAYER.fx);
-      sc.tweens.add({ targets: img, x: m.x + Math.cos(ai) * range, y: m.y + Math.sin(ai) * range, scale: 1.4, alpha: 0, duration: 450, onComplete: () => img.destroy() });
+      const img = sc.add.image(m.x, m.y, 'atlas', frameName('fx_fireball')).setRotation(ai).setScale(0.6 * big).setDepth(LAYER.fx);
+      sc.tweens.add({ targets: img, x: m.x + Math.cos(ai) * range, y: m.y + Math.sin(ai) * range, scale: 1.4 * big, alpha: 0, duration: 450, onComplete: () => img.destroy() });
     }
     sfx('whoosh');
-    sc.floatText(this.img.x, this.img.y - 34, 'SOPRO DE FOGO!', '#ffb070', false);
+    sc.floatText(this.img.x, this.img.y - this.lh - 6, 'SOPRO DE FOGO!', '#ffb070', false);
     sc.queryEnemies(m.x, m.y, range, (e) => {
       if (Math.abs(Phaser.Math.Angle.Wrap(Math.atan2(e.y - m.y, e.x - m.x) - a)) < 0.5) this.hit(e, d, 0.8, 0.6);
     });
@@ -339,7 +459,7 @@ export class PetCompanion {
     const hitSet = new Set<Enemy>();
     const t0 = sc.elapsed;
     sfx('splash');
-    if (scale === 1) sc.floatText(this.img.x, this.img.y - 34, 'ONDA!', '#8fd8ff', false);
+    if (scale <= 1.5) sc.floatText(this.img.x, this.img.y - this.lh - 6, 'ONDA!', '#8fd8ff', false);
     sc.tweens.addCounter({
       from: 0, to: 1, duration: 900,
       onUpdate: (tw) => {
@@ -365,7 +485,7 @@ export class PetCompanion {
     const t0 = sc.elapsed;
     let next = 0;
     sfx('whoosh');
-    if (scale <= 1) sc.floatText(this.img.x, this.img.y - 34, 'TORNADO!', '#c8f8b0', false);
+    if (scale <= 1.5) sc.floatText(this.img.x, this.img.y - this.lh - 6, 'TORNADO!', '#c8f8b0', false);
     sc.tweens.addCounter({
       from: 0, to: 1, duration: time * 1000,
       onUpdate: (tw) => {
@@ -395,14 +515,15 @@ export class PetCompanion {
   }
 
   /** Terra: anel de espinhos de pedra em volta do pet, fere e atordoa. */
-  private wall(d: number) {
+  private wall(d: number, big = 1) {
     const sc = this.sc;
     const x = this.img.x;
     const y = this.img.y;
-    const r = 64;
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      sc.weapons.spike(x + Math.cos(a) * r * 0.75, y + Math.sin(a) * r * 0.6, 0.9);
+    const r = 64 * big;
+    const n = Math.round(10 * big);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      sc.weapons.spike(x + Math.cos(a) * r * 0.75, y + Math.sin(a) * r * 0.6, 0.9 * big);
     }
     sc.cameras.main.shake(150, 0.003);
     sfx('boom');
@@ -429,10 +550,10 @@ export class PetCompanion {
   }
 
   /** Sombra: rajada de arranhões em vários inimigos em volta. */
-  private frenzy(d: number) {
+  private frenzy(d: number, big = 1) {
     const sc = this.sc;
-    sc.floatText(this.img.x, this.img.y - 34, 'FRENESI!', '#c8a0ff', false);
-    sc.nearestEnemies(this.img.x, this.img.y, 6, 140).forEach((e, i) => sc.time.delayedCall(i * 90, () => this.claw(e, d / 2, KIT.dark[this.stage])));
+    sc.floatText(this.img.x, this.img.y - this.lh - 6, 'FRENESI!', '#c8a0ff', false);
+    sc.nearestEnemies(this.img.x, this.img.y, Math.round(6 * big), 140 * big).forEach((e, i) => sc.time.delayedCall(i * 90, () => this.claw(e, d / 2, KIT.dark[this.stage])));
   }
 
   /** Golpe do Supremo de cada linhagem, na tela toda. */
@@ -522,5 +643,6 @@ export class PetCompanion {
   destroy() {
     this.img.destroy();
     this.shadow.destroy();
+    this.aura?.destroy();
   }
 }
