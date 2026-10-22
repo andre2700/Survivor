@@ -230,3 +230,11 @@ Todos os eventos, golpes de chefes, armadilhas e árvores foram revistos na tela
 - **Avisos de golpe num estilo só** (`src/systems/telegraph.ts`): área translúcida com contorno forte (borda escura por baixo, aparece em qualquer chão) e um preenchimento que cresce até a hora do golpe, para ler quanto tempo falta; o contorno pulsa no fim. Faixas (investida, bote, onda, mira dos tiros do chefe) com setas na direção do golpe. Usado por chefes, monstros com habilidade, meteoros e árvores bravas.
 - **Avalanche** com arte animada (onda de neve com blocos de gelo e pedras) no lugar do retângulo; aviso com bordas tracejadas e setas andando.
 - **Lua de Sangue** com arte da lua e halo vermelho pulsando.
+
+## Animações, atlas e menus (22/10/2026)
+
+- **Pets:** todas as 25 formas das 6 linhagens têm folha de 4 quadros (2 de movimento, preparar e atacar); nenhum pet fica parado num quadro só. As 6 linhagens caem em ovos.
+- **Heróis:** o ataque tem 3 tempos: preparar (windup), golpe (attack) e acompanhamento (follow), em 0,28 s; um disparo no meio não reinicia a animação.
+- **Atlas em páginas:** as imagens do jogo são empacotadas em páginas de 2048×4096 no máximo (limite seguro de celulares simples), todas na mesma textura `atlas`.
+- **Mochila:** ordem (raridade, força, nível, tipo, novos) e filtro (tudo, armas, mão secundária, armadura, joias, com efeito), salvos entre as visitas; botão para desmanchar de uma vez os itens Comuns e Incomuns sem efeito, sem forja e não equipados (pede confirmação).
+- **Pets:** coleção ordenável (elemento, nível, estágio), com marca no pet que vai na partida; chocadeira em grade com os 6 ovos, barra de progresso em cada um, e tocar num ovo o põe para chocar primeiro (cada ovo guarda o próprio progresso).

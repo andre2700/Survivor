@@ -122,34 +122,54 @@ export function generateTextures(scene: Phaser.Scene) {
   buildAtlas(scene, parts);
 }
 
-/** Empacota as partes em prateleiras numa textura única. */
+/**
+ * Empacota as partes em prateleiras, em páginas de 2048×4096 no máximo (o limite seguro dos celulares
+ * mais simples), todas na mesma textura 'atlas' (uma fonte por página): o jogo continua usando
+ * image(x, y, 'atlas', quadro) sem saber em que página o quadro está.
+ */
 function buildAtlas(scene: Phaser.Scene, parts: AtlasPart[]) {
   const width = 2048;
+  const maxHeight = 4096;
   const pad = 2;
+  const pages: { placed: { part: AtlasPart; x: number; y: number }[]; height: number }[] = [];
+  let page = { placed: [] as { part: AtlasPart; x: number; y: number }[], height: 0 };
   let x = 0;
   let y = 0;
   let shelf = 0;
-  const placed: { part: AtlasPart; x: number; y: number }[] = [];
   for (const part of [...parts].sort((a, b) => b.h - a.h)) {
     if (x + part.w > width) {
       x = 0;
       y += shelf + pad;
       shelf = 0;
     }
-    placed.push({ part, x, y });
+    if (y + part.h > maxHeight) {
+      // página cheia: começa outra
+      page.height = y;
+      pages.push(page);
+      page = { placed: [], height: 0 };
+      x = y = shelf = 0;
+    }
+    page.placed.push({ part, x, y });
     x += part.w + pad;
     shelf = Math.max(shelf, part.h);
   }
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = y + shelf;
-  const ctx = canvas.getContext('2d')!;
-  for (const { part, x: px, y: py } of placed) ctx.drawImage(part.source, part.sx, 0, part.w, part.h, px, py, part.w, part.h);
-  const tex = scene.textures.addCanvas('atlas', canvas)!;
-  for (const { part, x: px, y: py } of placed) {
-    const f = tex.add(part.name, 0, px, py, part.w, part.h)!;
-    if (part.hd !== 1) meta(f).hd = part.hd;
-  }
+  page.height = y + shelf;
+  pages.push(page);
+  const canvases = pages.map((pg) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = Math.max(1, pg.height);
+    const ctx = canvas.getContext('2d')!;
+    for (const { part, x: px, y: py } of pg.placed) ctx.drawImage(part.source, part.sx, 0, part.w, part.h, px, py, part.w, part.h);
+    return canvas;
+  });
+  const tex = scene.textures.create('atlas', canvases as unknown as HTMLImageElement[], width, canvases[0].height)!;
+  pages.forEach((pg, k) => {
+    for (const { part, x: px, y: py } of pg.placed) {
+      const f = tex.add(part.name, k, px, py, part.w, part.h)!;
+      if (part.hd !== 1) meta(f).hd = part.hd;
+    }
+  });
 }
 
 /** Chão de grama repetido; `scroll` desloca a textura em unidades lógicas. */

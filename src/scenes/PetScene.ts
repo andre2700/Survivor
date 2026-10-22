@@ -2,14 +2,29 @@ import Phaser from 'phaser';
 import { frameHd, slotsOf } from '../art/textures';
 import { formatNumber } from '../core/format';
 import {
-  MAX_HEARTS, PETS, STAGE_CAP, STAGE_NAMES, eggName, feedCost, nextRequirements, stageLabel, feedXp, getPet, hearts, petXpToNext, type PetDef, type PetId,
+  MAX_EGGS, MAX_HEARTS, PETS, STAGE_CAP, STAGE_NAMES, eggName, feedCost, nextRequirements, stageLabel, feedXp, getPet, hearts, petXpToNext, type PetDef, type PetId,
 } from '../data/pets';
 import { atCap, canEvolve, eggReady, evolve, feed, hatch, reqProgress, type Egg } from '../systems/pets';
-import { loadSave, writeSave } from '../systems/save';
+import { loadSave, writeSave, type SaveData } from '../systems/save';
+import { getPref, nextPref } from '../ui/prefs';
 import { sfx } from '../systems/sfx';
 import { button, goldTitle, panel, text } from '../ui/theme';
 import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
 import { goldPill, menuBackground } from './MenuScenes';
+
+const PET_ORDERS = ['element', 'level', 'stage'] as const;
+type PetOrder = (typeof PET_ORDERS)[number];
+const PET_ORDER_NAMES: Record<PetOrder, string> = { element: 'ELEMENTO', level: 'NÍVEL', stage: 'ESTÁGIO' };
+
+/** Linhagens na ordem escolhida: as encontradas primeiro, as outras no fim. */
+function sortPets(save: SaveData, order: PetOrder): PetDef[] {
+  const rank = (p: PetDef) => {
+    const s = save.pets[p.id];
+    if (!s) return -1;
+    return order === 'level' ? s.level : order === 'stage' ? s.stage * 1000 + s.plus * 100 + s.level : 0;
+  };
+  return [...PETS].sort((a, b) => Number(!!save.pets[b.id]) - Number(!!save.pets[a.id]) || rank(b) - rank(a));
+}
 
 /** Imagem de uma forma de pet (quadro `slot`), do tamanho `size` (lado maior). */
 function petImage(scene: Phaser.Scene, x: number, y: number, texture: string, size: number, slot = 'walk_a') {
@@ -62,12 +77,18 @@ export class PetScene extends Phaser.Scene {
       text(this, leftX, topY + 220, 'Vença um chefe para ganhar seu primeiro ovo.\nOvos caem de chefes e elites e chocam enquanto você joga.', 11, '#c8cce0', { wrap: colW - 30 }).setAlign('center');
     }
 
-    // coleção
+    // coleção (ordem escolhida; as linhagens não encontradas ficam no fim, como "?")
     let y = wide ? topY + 14 : topY + cardH + 22;
-    text(this, rightX, y, `COLEÇÃO · ${owned.length}/${PETS.length}`, 12, '#ffd86a', { bold: true });
+    const order = getPref('petOrder', PET_ORDERS);
+    text(this, rightX - colW / 2 + 4, y, `COLEÇÃO · ${owned.length}/${PETS.length}`, 12, '#ffd86a', { bold: true }).setOrigin(0, 0.5);
+    button(this, rightX + colW / 2 - 56, y, `ORDEM: ${PET_ORDER_NAMES[order]}`, () => {
+      sfx('select');
+      nextPref('petOrder', PET_ORDERS);
+      this.scene.restart({ view: this.view });
+    }, { width: 108, height: 22, size: 9 });
     y += 38;
     const cell = Math.min(58, (colW - 10) / PETS.length);
-    PETS.forEach((p, i) => {
+    sortPets(save, order).forEach((p, i) => {
       const x = rightX + (i - (PETS.length - 1) / 2) * cell;
       const have = save.pets[p.id];
       const g = this.add.graphics();
@@ -76,7 +97,8 @@ export class PetScene extends Phaser.Scene {
       g.lineStyle(sel ? 3 : 1.5, sel ? 0xffd86a : have ? 0x8a8ca0 : 0x3a3a4a, 1).strokeRoundedRect(x - cell / 2 + 3, y - cell / 2 + 3, cell - 6, cell - 6, 8);
       if (have) {
         petImage(this, x, y - 3, p.forms[have.stage].texture, cell * 0.7);
-        text(this, x, y + cell / 2 - 9, `nv ${have.level}`, 9, '#ffe9a0', { bold: true, strokeThickness: 3 });
+        text(this, x, y + cell / 2 - 9, have.plus ? `+${have.plus}` : `nv ${have.level}`, 9, '#ffe9a0', { bold: true, strokeThickness: 3 });
+        if (save.activePet === p.id) text(this, x + cell / 2 - 9, y - cell / 2 + 10, '✓', 10, '#8cf08a', { bold: true, strokeThickness: 3 });
         this.add.zone(x, y, cell, cell).setInteractive({ useHandCursor: true }).on('pointerup', () => {
           sfx('select');
           this.scene.restart({ view: p.id });
@@ -84,13 +106,20 @@ export class PetScene extends Phaser.Scene {
       } else text(this, x, y - 2, '?', 22, p.available ? '#8a8ca0' : '#4a4c5a', { bold: true });
     });
     y += cell / 2 + 8;
-    text(this, rightX, y, 'Os "?" são linhagens ainda não encontradas', 10, '#8a8ca0');
+    text(this, rightX, y, 'Os "?" são linhagens ainda não encontradas · ✓ vai na partida', 9, '#8a8ca0');
 
-    // chocadeira
+    // chocadeira: todos os ovos numa grade; o primeiro é o que está chocando, e tocar num ovo o põe na frente
     y += 26;
-    text(this, rightX, y, 'CHOCADEIRA', 12, '#ffd86a', { bold: true });
-    if (!save.eggs.length) text(this, rightX, y + 24, 'Sem ovos. Chefes e elites às vezes deixam um ovo no baú.', 11, '#a8acc4', { wrap: colW - 20 });
-    else save.eggs.slice(0, 3).forEach((egg, i) => this.eggRow(egg, i, rightX, y + 34 + i * 46, colW));
+    text(this, rightX - colW / 2 + 4, y, `CHOCADEIRA · ${save.eggs.length}/${MAX_EGGS}`, 12, '#ffd86a', { bold: true }).setOrigin(0, 0.5);
+    if (!save.eggs.length) text(this, rightX, y + 26, 'Sem ovos. Chefes e elites às vezes deixam um ovo no baú.', 11, '#a8acc4', { wrap: colW - 20 });
+    else {
+      text(this, rightX + colW / 2 - 4, y, 'toque: chocar este primeiro', 9, '#8a8ca0').setOrigin(1, 0.5);
+      const ecell = Math.min(60, (colW - 10) / MAX_EGGS);
+      save.eggs.forEach((egg, i) => this.eggCard(egg, i, rightX - colW / 2 + 5 + ecell * i + ecell / 2, y + 40, ecell));
+      const first = save.eggs[0];
+      const msg = eggReady(first) ? `${eggName(first.pet)} pronto para chocar!` : `Chocando ${eggName(first.pet)}: faltam ${Math.ceil((first.need - first.progress) / 60)} min de partida`;
+      text(this, rightX, y + 40 + ecell / 2 + 16, msg, 10, eggReady(first) ? '#8cf08a' : '#c8cce0', { bold: eggReady(first) });
+    }
 
     button(this, width / 2, height - 28, 'VOLTAR', () => {
       sfx('select');
@@ -189,27 +218,30 @@ export class PetScene extends Phaser.Scene {
     }
   }
 
-  private eggRow(egg: Egg, i: number, cx: number, y: number, w: number) {
-    const p = getPet(egg.pet);
-    const left = cx - w / 2 + 16;
-    const img = this.add.image(left + 18, y, p.egg).setScale(1.5);
-    const ready = eggReady(egg);
-    if (ready) this.tweens.add({ targets: img, angle: { from: -8, to: 8 }, duration: 160, yoyo: true, repeat: -1 });
-    text(this, left + 44, y - 10, eggName(egg.pet), 12, '#ffffff', { bold: true }).setOrigin(0, 0.5);
-    if (ready) {
-      button(this, cx + w / 2 - 70, y, 'CHOCAR!', () => this.hatchEgg(egg, img), { width: 110, height: 32, size: 13, variant: 'primary' });
-      text(this, left + 44, y + 9, 'Pronto!', 10, '#8cf08a', { bold: true }).setOrigin(0, 0.5);
-      return;
-    }
-    if (i > 0) {
-      text(this, left + 44, y + 9, 'Na fila: choca depois do ovo de cima', 10, '#8a8ca0').setOrigin(0, 0.5);
-      return;
-    }
-    const bw = w - 90;
+  /** Ovo na grade da chocadeira: pronto treme; o primeiro mostra o progresso; tocar choca ou põe na frente. */
+  private eggCard(egg: Egg, i: number, x: number, y: number, cell: number) {
     const g = this.add.graphics();
-    g.fillStyle(0x0d0b16, 1).fillRoundedRect(left + 44, y + 4, bw, 8, 4);
-    g.fillStyle(0xffd86a, 1).fillRoundedRect(left + 44, y + 4, Math.max(5, bw * (egg.progress / egg.need)), 8, 4);
-    text(this, left + 44, y + 20, `Chocando: faltam ${Math.ceil((egg.need - egg.progress) / 60)} min de partida`, 9, '#a8acc4').setOrigin(0, 0.5);
+    const ready = eggReady(egg);
+    g.fillStyle(0x14121f, 0.9).fillRoundedRect(x - cell / 2 + 3, y - cell / 2 + 3, cell - 6, cell - 6, 8);
+    g.lineStyle(i === 0 || ready ? 2.5 : 1.5, ready ? 0x8cf08a : i === 0 ? 0xffd86a : 0x5a5c6a, 1).strokeRoundedRect(x - cell / 2 + 3, y - cell / 2 + 3, cell - 6, cell - 6, 8);
+    const img = this.add.image(x, y - 4, getPet(egg.pet).egg).setScale(1.25);
+    if (ready) this.tweens.add({ targets: img, angle: { from: -8, to: 8 }, duration: 160, yoyo: true, repeat: -1 });
+    // barra de progresso embaixo
+    const bw = cell - 16;
+    g.fillStyle(0x0d0b16, 1).fillRoundedRect(x - bw / 2, y + cell / 2 - 12, bw, 5, 2);
+    g.fillStyle(ready ? 0x8cf08a : 0xffd86a, 1).fillRoundedRect(x - bw / 2, y + cell / 2 - 12, Math.max(3, bw * (egg.progress / egg.need)), 5, 2);
+    if (ready) text(this, x, y - cell / 2 + 10, 'PRONTO', 8, '#8cf08a', { bold: true, strokeThickness: 3 });
+    this.add.zone(x, y, cell, cell).setInteractive({ useHandCursor: true }).on('pointerup', () => {
+      if (ready) return this.hatchEgg(egg, img);
+      if (i === 0) return;
+      // passa este ovo para a frente da fila (o progresso de cada ovo fica guardado)
+      const save = loadSave();
+      const k = save.eggs.findIndex((e) => e.uid === egg.uid);
+      if (k > 0) save.eggs.unshift(...save.eggs.splice(k, 1));
+      writeSave(save);
+      sfx('select');
+      this.scene.restart({ view: this.view });
+    });
   }
 
   /** Tela escura no centro, para as cerimônias (chocar e evoluir). */

@@ -70,7 +70,7 @@ export const PETS: PetDef[] = [
     ],
   },
   {
-    id: 'air', element: 'air', label: 'Ar', egg: 'egg_owl', stages: ['pico', 'dunas'], flies: true, available: false,
+    id: 'air', element: 'air', label: 'Ar', egg: 'egg_owl', stages: ['pico', 'dunas'], flies: true, available: true,
     mission: { stat: 'pushes', target: 2000, text: 'Empurrar 2.000 inimigos' },
     forms: [
       form('Penugem', 'pet_air_1', 'Sopros de vento que empurram', ['walk_a', 'windup']),
@@ -81,7 +81,7 @@ export const PETS: PetDef[] = [
     ],
   },
   {
-    id: 'earth', element: 'earth', label: 'Terra', egg: 'egg_golem', stages: ['ruinas', 'pico'], flies: false, available: false,
+    id: 'earth', element: 'earth', label: 'Terra', egg: 'egg_golem', stages: ['ruinas', 'pico'], flies: false, available: true,
     mission: { stat: 'stuns', target: 300, text: 'Atordoar 300 inimigos' },
     forms: [
       form('Pedrinha', 'pet_earth_1', 'Atira pedrinhas', ['walk_a', 'windup']),
@@ -92,7 +92,7 @@ export const PETS: PetDef[] = [
     ],
   },
   {
-    id: 'light', element: 'light', label: 'Luz', egg: 'egg_fairy', stages: ['clareira', 'cidadela'], flies: true, available: false,
+    id: 'light', element: 'light', label: 'Luz', egg: 'egg_fairy', stages: ['clareira', 'cidadela'], flies: true, available: true,
     mission: { stat: 'heal', target: 5000, text: 'Curar 5.000 de vida' },
     forms: [
       form('Faísca', 'pet_light_1', 'Cura o herói aos poucos e solta faíscas de luz', ['walk_a', 'windup']),
@@ -103,7 +103,7 @@ export const PETS: PetDef[] = [
     ],
   },
   {
-    id: 'dark', element: 'dark', label: 'Sombra', egg: 'egg_cat', stages: ['sombria'], flies: false, available: false,
+    id: 'dark', element: 'dark', label: 'Sombra', egg: 'egg_cat', stages: ['sombria'], flies: false, available: true,
     mission: { stat: 'gems', target: 3000, text: 'Coletar 3.000 gemas' },
     forms: [
       form('Sombrinha', 'pet_dark_1', 'Avança e arranha o inimigo', ['walk_a', 'windup']),

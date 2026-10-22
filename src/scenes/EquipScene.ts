@@ -6,6 +6,7 @@ import {
   salvageValue, type EquipSlot, type ItemInstance,
 } from '../data/items';
 import { canForge, equip, equipmentModifiers, equippedSlot, findItem, forge, salvage, unequip } from '../systems/inventory';
+import { getPref, nextPref } from '../ui/prefs';
 import { loadSave, writeSave } from '../systems/save';
 import { sfx } from '../systems/sfx';
 import { FONT, button, goldTitle, panel, px, text } from '../ui/theme';
@@ -18,6 +19,35 @@ const SLOT_ICON: Record<EquipSlot, string> = {
   weapon: 'item_blade', offhand: 'item_shield', helm: 'item_helm', armor: 'item_plate', boots: 'item_boots', cape: 'item_cape',
   ring1: 'item_ring', ring2: 'item_ring', amulet: 'item_amulet', relic: 'item_relic',
 };
+
+const BAG_ORDERS = ['rarity', 'power', 'level', 'slot', 'new'] as const;
+type BagOrder = (typeof BAG_ORDERS)[number];
+const ORDER_NAMES: Record<BagOrder, string> = { rarity: 'RARIDADE', power: 'FORÇA', level: 'NÍVEL', slot: 'TIPO', new: 'NOVOS' };
+const BAG_FILTERS = ['all', 'weapon', 'offhand', 'armor', 'jewel', 'effect'] as const;
+type BagFilter = (typeof BAG_FILTERS)[number];
+const FILTER_NAMES: Record<BagFilter, string> = { all: 'TUDO', weapon: 'ARMAS', offhand: 'MÃO 2', armor: 'ARMADURA', jewel: 'JOIAS', effect: 'C/ EFEITO' };
+const FILTER: Record<BagFilter, (it: ItemInstance) => boolean> = {
+  all: () => true,
+  weapon: (it) => baseOf(it.base).slot === 'weapon',
+  offhand: (it) => baseOf(it.base).slot === 'offhand',
+  armor: (it) => ['helm', 'armor', 'boots', 'cape'].includes(baseOf(it.base).slot),
+  jewel: (it) => ['ring', 'amulet', 'relic'].includes(baseOf(it.base).slot),
+  effect: (it) => !!it.effect,
+};
+const SLOT_ORDER = ['weapon', 'offhand', 'helm', 'armor', 'boots', 'cape', 'ring', 'amulet', 'relic'];
+
+/** Itens na ordem escolhida (empates: mais raro e mais forte primeiro). */
+function sortItems(items: ItemInstance[], order: BagOrder) {
+  const tie = (a: ItemInstance, b: ItemInstance) => b.rarity - a.rarity || itemPower(b) - itemPower(a);
+  const by: Record<BagOrder, (a: ItemInstance, b: ItemInstance) => number> = {
+    rarity: tie,
+    power: (a, b) => itemPower(b) - itemPower(a) || tie(a, b),
+    level: (a, b) => b.ilvl - a.ilvl || tie(a, b),
+    slot: (a, b) => SLOT_ORDER.indexOf(baseOf(a.base).slot) - SLOT_ORDER.indexOf(baseOf(b.base).slot) || tie(a, b),
+    new: (a, b) => b.uid - a.uid,
+  };
+  return [...items].sort(by[order]);
+}
 
 /** Resumo dos atributos que o equipamento soma (os mais relevantes). */
 function equipmentSummary(mods: ReturnType<typeof equipmentModifiers>) {
@@ -38,6 +68,8 @@ function equipmentSummary(mods: ReturnType<typeof equipmentModifiers>) {
  */
 export class EquipScene extends Phaser.Scene {
   private scrollY = 0;
+  /** "Desmanchar comuns" pede um segundo toque */
+  private confirmJunk = false;
   private dragged = false;
   private detail: Phaser.GameObjects.Container | null = null;
 
@@ -84,12 +116,41 @@ export class EquipScene extends Phaser.Scene {
     // mochila
     const bagX = wide ? col(1) : width / 2;
     const bagW = wide ? WIDE_COL : width - 20;
-    const bagTop = wide ? 60 : sumY + sumText.displayHeight * (1 - sumText.originY) + 26;
+    const bagTop = wide ? 84 : sumY + sumText.displayHeight * (1 - sumText.originY) + 50;
     const bagBottom = height - 60;
-    text(this, bagX, bagTop - 14, `MOCHILA · ${save.items.length} itens`, 11, '#ffd86a', { bold: true });
+    // ordem e filtro da mochila (ficam salvos), e desmanchar de uma vez o que sobra de comum
+    const order = getPref('bagOrder', BAG_ORDERS);
+    const filter = getPref('bagFilter', BAG_FILTERS);
+    const items = sortItems(save.items.filter(FILTER[filter]), order);
+    const bagLeft = bagX - bagW / 2;
+    text(this, bagLeft + 2, bagTop - 34, `MOCHILA · ${items.length}${filter === 'all' ? '' : `/${save.items.length}`}`, 11, '#ffd86a', { bold: true }).setOrigin(0, 0.5);
+    const chip = (x: number, label: string, fn: () => void) =>
+      button(this, x, bagTop - 34, label, () => {
+        sfx('select');
+        fn();
+        this.scrollY = 0;
+        this.scene.restart();
+      }, { width: 104, height: 22, size: 9 });
+    chip(bagLeft + bagW - 52, `ORDEM: ${ORDER_NAMES[order]}`, () => nextPref('bagOrder', BAG_ORDERS));
+    chip(bagLeft + bagW - 160, `VER: ${FILTER_NAMES[filter]}`, () => nextPref('bagFilter', BAG_FILTERS));
+    const junk = save.items.filter((it) => it.rarity <= 1 && !it.effect && !equippedSlot(save, it.uid) && it.forge === 0);
+    if (junk.length) {
+      const dust = junk.reduce((n, it) => n + salvageValue(it), 0);
+      text(this, bagLeft + 2, bagTop - 14, this.confirmJunk ? `Toque de novo: desmanchar ${junk.length} → +${dust} pó` : `Desmanchar ${junk.length} comuns/incomuns`, 9, this.confirmJunk ? '#ff9a7a' : '#8fd8ff', { bold: true })
+        .setOrigin(0, 0.5).setInteractive({ useHandCursor: true }).on('pointerup', () => {
+          if (!this.confirmJunk) {
+            this.confirmJunk = true;
+            return this.scene.restart();
+          }
+          this.confirmJunk = false;
+          for (const it of junk) salvage(save, it.uid);
+          writeSave(save);
+          sfx('pickup');
+          this.scene.restart();
+        });
+    }
     const cols = Math.max(4, Math.floor(bagW / 58));
     const cell = bagW / cols;
-    const items = [...save.items].sort((a, b) => b.rarity - a.rarity || itemPower(b) - itemPower(a));
     const list = this.add.container(0, bagTop);
     items.forEach((it, i) => {
       const x = bagX - bagW / 2 + cell * (i % cols) + cell / 2;

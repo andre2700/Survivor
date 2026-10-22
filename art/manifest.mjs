@@ -36,7 +36,8 @@ export const FRAME_TEMPLATES = {
   special: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   // herói: ciclo de corrida completo (pé de perto à frente, passagem, pé de longe à frente)
-  hero: { move: ['idle', 'walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death', 'victory'] },
+  // ataque em 3 tempos: preparar (windup), golpe (attack) e acompanhamento do golpe (follow)
+  hero: { move: ['idle', 'walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death', 'victory', 'windup', 'follow'] },
   // pet: uma folha só com 2 quadros de movimento, preparar e atacar (animado também por código)
   pet: { move: ['walk_a', 'walk_b', 'windup', 'attack'], action: [] },
   // efeito visual animado (reações, explosões, ondas): até 4 quadros numa folha só, descritos em
@@ -55,6 +56,7 @@ const BIPED = {
   hurt: 'recoiling from a hit: flinching backwards, eyes squeezed shut, grimacing in pain',
   death: 'defeated: collapsed lying flat on the ground, eyes closed, weapon dropped beside the body',
   victory: 'celebrating victory: weapon raised high in the air, big happy smile, jumping with joy',
+  follow: 'follow-through right after the strike: the weapon swung all the way through to the low front, body twisted forward, dynamic',
 };
 // heróis correm (mais tempo de tela e mais energia): mesmo ciclo de pés, corpo em posição de corrida
 const RUN = {
@@ -123,14 +125,22 @@ export const ART = {
   hero_knight: {
     h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'BOTH the sword (blade clearly visible, pointing forward and up) and the round blue steel shield; the sword never disappears',
     prompt: `a brave young knight hero in steel armor with a blue cape, a sword in one hand and a round blue steel shield with a gold rim on the other arm, ${CHAR}, heroic stance`,
-    poses: { attack: 'slashing the sword forward to the RIGHT in a wide arc, shield held up in front of the body, dynamic' },
+    poses: {
+      attack: 'slashing the sword forward to the RIGHT in a wide arc, shield held up in front of the body, dynamic',
+      windup: 'coiling to strike: the sword raised high behind the shoulder, shield forward, weight on the back foot',
+      follow: 'follow-through after the slash: the sword swept all the way down to the lower front, shield still up, body leaning forward',
+    },
   },
-  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'the tall magic staff with the glowing purple crystal firmly in the front hand', prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
-  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'a dagger in each hand', prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
+  hero_mage: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'the tall magic staff with the glowing purple crystal firmly in the front hand', poses: { windup: 'pulling the staff back, gathering glowing purple magic at the crystal, robe swirling', follow: 'staff thrust forward to the RIGHT, a burst of purple magic sparkles released from the crystal' }, prompt: `a young female mage hero with a tall pointy purple wizard hat with gold trim, purple robe, blond hair, holding a magic staff with a glowing crystal, ${CHAR}, confident stance` },
+  hero_ranger: { h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'a dagger in each hand', poses: { windup: 'crouched low, both daggers drawn back and crossed, ready to lunge', follow: 'after a lunge to the RIGHT: both daggers extended forward, body stretched low' }, prompt: `an agile female ranger huntress hero with a green hood and green cape, leather tunic, holding two daggers, ${CHAR}, ready stance` },
   hero_barbarian: {
     h: 44, hd: 3, portrait: 8, shadow: true, role: 'hero', body: 'biped', hold: 'the huge double-bladed great axe gripped with BOTH hands on the long handle',
     prompt: `a muscular barbarian hero with red hair and red beard, horned steel helmet, bare chest with fur shoulder pad, leather pants, gripping a huge double-bladed two-handed great axe with BOTH hands, ${CHAR}, fierce stance`,
-    poses: { attack: 'chopping down hard with the huge great axe held in both hands: axe head low in front to the RIGHT, body leaning forward, dynamic' },
+    poses: {
+      attack: 'chopping down hard with the huge great axe held in both hands: axe head low in front to the RIGHT, body leaning forward, dynamic',
+      windup: 'the huge great axe raised high over the head with both hands, back arched, ready to chop',
+      follow: 'follow-through after the chop: the great axe buried low in the ground in front, knees bent, body hunched forward',
+    },
   },
   // pets: Bebê, Criança, Jovem, Adulto e Supremo, cada estágio maior (14, 22, 34, 52 e 84 px de altura: o Supremo tem o porte de um chefe). Cada forma tem a imagem base e uma
   // folha com 2 quadros de movimento, preparar e atacar. As evoluções partem da forma anterior.
@@ -174,7 +184,7 @@ export const ART = {
   pet_light_2: { h: 22, hd: 4, role: 'pet', ref: 'pet_light_1', poses: PET_FLYER('a small sparkle of light cast from the wand'), prompt: `the SAME creature from the reference image, evolved: a tiny cute fairy girl with dragonfly wings, a yellow and white dress, golden hair, holding a little glowing star wand, flying, still recognizably the same creature, same colors and art style, ${CHAR}` },
   pet_light_3: { h: 34, hd: 4, role: 'pet', ref: 'pet_light_2', poses: PET_FLYER('a beam of light cast from the staff'), prompt: `the SAME creature from the reference image, evolved: clearly older and different: a TEENAGE light fairy, noticeably taller and more elegant, with FOUR large shimmering golden wings, a flowing white and gold robe, long golden hair with a star tiara, holding a tall staff topped with a glowing star, flying, still recognizably the same creature, same colors and art style, ${CHAR}` },
   pet_light_4: { h: 52, hd: 4, role: 'pet', ref: 'pet_light_3', poses: PET_FLYER('a radiant spear of light thrown forward'), prompt: `the SAME creature from the reference image, evolved: an angelic warrior maiden: white and gold armor, a glowing halo, four feathered white-gold wings, a spear of light, flying, powerful, still recognizably the same creature, same colors and art style, ${CHAR}` },
-  pet_light_5: { h: 84, hd: 4, role: 'pet', wideSheets: true, ref: 'pet_light_4', poses: PET_FLYER('a massive holy light blast from the raised sword'), prompt: `the SAME creature from the reference image, evolved: DRAMATICALLY transformed into its ultimate form, a radiant archangel: SIX huge glowing golden wings, ornate golden full plate armor with white gems, a blazing sun halo behind the head, a flaming holy greatsword of light, a flowing white cape; clearly far more powerful and majestic than the reference, still recognizably the same creature, same colors and art style, ${CHAR}` },
+  pet_light_5: { h: 84, hd: 4, role: 'pet', wideSheets: true, ref: 'pet_light_4', poses: PET_FLYER('a compact burst of holy light right at the tip of the sword swung forward, the light touching the sword (not a separate beam)'), prompt: `the SAME creature from the reference image, evolved: DRAMATICALLY transformed into its ultimate form, a radiant archangel: SIX huge glowing golden wings, ornate golden full plate armor with white gems, a blazing sun halo behind the head, a flaming holy greatsword of light, a flowing white cape; clearly far more powerful and majestic than the reference, still recognizably the same creature, same colors and art style, ${CHAR}` },
   // linhagem da Sombra
   pet_dark_1: { h: 14, hd: 4, role: 'pet', poses: PET_BLOB('a tiny shadow swipe'), prompt: `a tiny round baby shadow blob creature, dark purple-black wispy body with little cat ears and big glowing yellow eyes, no limbs, ${CHAR}` },
   pet_dark_2: { h: 22, hd: 4, role: 'pet', ref: 'pet_dark_1', poses: PET_WALK('a quick paw swipe with shadow claws'), prompt: `the SAME creature from the reference image, evolved: a small cute dark purple kitten with big glowing yellow eyes and a wispy shadow tail, walking on four legs, still recognizably the same creature, same colors and art style, ${CHAR}` },

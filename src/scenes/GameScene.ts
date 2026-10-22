@@ -80,6 +80,9 @@ const BOSS_FLASH = { every: 0.9 };
 /** Corpos caídos visíveis ao mesmo tempo (os demais inimigos só somem). */
 const MAX_CORPSES = 60;
 
+/** Animação de ataque do herói (s): preparar, golpe e acompanhamento. */
+const ATTACK_ANIM = { windup: 0.06, strike: 0.1, follow: 0.12 };
+
 export interface RunResult {
   victory: boolean;
   stage: StageId;
@@ -158,6 +161,7 @@ export class GameScene extends Phaser.Scene {
   private pendingLevels = 0;
   invulnUntil = 0;
   private attackUntil = 0;
+  private attackAt = 0;
   private hurtUntil = 0;
   private playerFrame = 0;
   private playerSlots: Slots = {};
@@ -499,6 +503,13 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- Jogador ----------
 
+  /** Quadro do golpe conforme o tempo desde o disparo (heróis sem os quadros novos usam só o golpe). */
+  private attackSlot() {
+    const k = this.elapsed - this.attackAt;
+    const slot = k < ATTACK_ANIM.windup ? 'windup' : k < ATTACK_ANIM.windup + ATTACK_ANIM.strike ? 'attack' : 'follow';
+    return slot in this.playerSlots ? slot : 'attack';
+  }
+
   /** Troca o quadro do herói pelo nome (idle, walk_a, attack, hurt, death, victory). */
   private setPlayerSlot(slot: string) {
     const f = this.playerSlots[slot] ?? 0;
@@ -509,7 +520,10 @@ export class GameScene extends Phaser.Scene {
 
   /** Mostra o quadro de ataque do herói por um instante (arma inicial disparou). */
   playerAttack() {
-    this.attackUntil = this.elapsed + 0.18;
+    // golpe em 3 tempos (preparar, golpe, acompanhamento); um disparo no meio não reinicia
+    if (this.elapsed < this.attackUntil) return;
+    this.attackAt = this.elapsed;
+    this.attackUntil = this.elapsed + ATTACK_ANIM.windup + ATTACK_ANIM.strike + ATTACK_ANIM.follow;
   }
 
   private updatePlayer() {
@@ -547,7 +561,7 @@ export class GameScene extends Phaser.Scene {
       if (Math.abs(x) > 0.1) this.player.setFlipX(x < 0);
     }
     const pose = walkPose('hero', this.elapsed, moving);
-    this.setPlayerSlot(this.elapsed < this.hurtUntil ? 'hurt' : this.elapsed < this.attackUntil ? 'attack' : pose.slot);
+    this.setPlayerSlot(this.elapsed < this.hurtUntil ? 'hurt' : this.elapsed < this.attackUntil ? this.attackSlot() : pose.slot);
     this.player.setScale(pose.sx, pose.sy).setRotation(this.player.flipX ? -pose.rot : pose.rot);
     this.player.setDepth(this.player.y);
     const blinking = this.elapsed < this.invulnUntil;

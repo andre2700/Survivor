@@ -45,7 +45,8 @@ describe('arte', () => {
   it('personagens animados têm os quadros do seu papel', () => {
     const slots = (key: string) => (SPRITES as Record<string, { slots?: string[] }>)[key]?.slots ?? [];
     for (const c of CHARACTERS) {
-      expect(slots(c.texture), c.texture).toEqual(['idle', 'walk_a', 'walk_mid', 'walk_b', 'attack', 'hurt', 'death', 'victory']);
+      expect(slots(c.texture), c.texture).toEqual([...FRAME_TEMPLATES.hero.move, ...FRAME_TEMPLATES.hero.action]);
+      expect(slots(c.texture), `${c.texture}: golpe em 3 tempos`).toEqual(expect.arrayContaining(['windup', 'attack', 'follow']));
     }
     // cada criatura tem os quadros do modelo do seu papel (variantes de cor usam o da original)
     for (const e of Object.values(ENEMIES)) {
