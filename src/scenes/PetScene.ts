@@ -121,7 +121,8 @@ export class PetScene extends Phaser.Scene {
       text(this, rightX, y + 40 + ecell / 2 + 16, msg, 10, eggReady(first) ? '#8cf08a' : '#c8cce0', { bold: eggReady(first) });
     }
 
-    button(this, width / 2, height - 28, 'VOLTAR', () => {
+    // deitado, o cartão do pet ocupa a coluna esquerda inteira: o VOLTAR fica embaixo da coluna direita
+    button(this, wide ? rightX : width / 2, height - 28, 'VOLTAR', () => {
       sfx('select');
       this.scene.start('Menu');
     }, { width: 180, height: 36, size: 14 });

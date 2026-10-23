@@ -1635,6 +1635,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(victory ? 0 : 600, () => {
       this.scene.pause();
       this.scene.stop('Hud');
+      this.scene.stop('LevelUp');
       this.scene.launch('GameOver', result);
     });
     if (!victory || this.endless) {

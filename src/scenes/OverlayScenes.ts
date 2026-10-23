@@ -443,7 +443,9 @@ export class GameOverScene extends Phaser.Scene {
       text(this, rx, y + 2, `Reações: ${line}`, 12, '#9fe8ff', { bold: true, wrap: pw - 12 });
     }
 
-    text(this, lx, height - 118, `Ouro total: ${formatNumber(save.gold)}`, 14, '#ffd86a', { bold: true });
+    // deitado, a coluna da esquerda fica cheia (resultado e baú): o ouro total vai para a direita
+    if (wide) text(this, rx, y + (reactions.length ? 30 : 10), `Ouro total: ${formatNumber(save.gold)}`, 14, '#ffd86a', { bold: true });
+    else text(this, lx, height - 118, `Ouro total: ${formatNumber(save.gold)}`, 14, '#ffd86a', { bold: true });
     const restart = (target: 'Game' | 'Menu') => {
       sfx('select');
       this.scene.stop('Game');

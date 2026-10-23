@@ -163,7 +163,8 @@ function buildAtlas(scene: Phaser.Scene, parts: AtlasPart[]) {
     for (const { part, x: px, y: py } of pg.placed) ctx.drawImage(part.source, part.sx, 0, part.w, part.h, px, py, part.w, part.h);
     return canvas;
   });
-  const tex = scene.textures.create('atlas', canvases as unknown as HTMLImageElement[], width, canvases[0].height)!;
+  // sem largura/altura: cada página usa o tamanho do próprio canvas (senão os recortes das outras páginas saem errados)
+  const tex = scene.textures.create('atlas', canvases as unknown as HTMLImageElement[])!;
   pages.forEach((pg, k) => {
     for (const { part, x: px, y: py } of pg.placed) {
       const f = tex.add(part.name, k, px, py, part.w, part.h)!;
