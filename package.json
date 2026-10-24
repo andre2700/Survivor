@@ -1,0 +1,41 @@
+{
+  "name": "survivor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "build:single": "tsc --noEmit && vite build --mode single",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs",
+    "cap:sync": "npm run build && cap sync",
+    "android": "npm run cap:sync && cap open android",
+    "ios": "npm run cap:sync && cap open ios",
+    "stress": "node scripts/stress.mjs",
+    "artsheet": "node scripts/artsheet.mjs",
+    "styletest": "node scripts/style-test.mjs",
+    "deploy:pages": "bash scripts/deploy-pages.sh",
+    "balance": "node scripts/balance.mjs",
+    "audit": "node scripts/audit.mjs screenshots/audit && LANDSCAPE=1 node scripts/audit.mjs screenshots/audit-wide 844 390"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@fontsource/fredoka": "^5.3.0",
+    "@fontsource/lilita-one": "^5.3.0",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "playwright-core": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,1231 @@
+{
+ "ancient_ent": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "axe": {
+  "hd": 4
+ },
+ "bat": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "bat_air": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "blood_moon": {
+  "hd": 3
+ },
+ "bolt": {
+  "hd": 4
+ },
+ "bomb": {
+  "hd": 2
+ },
+ "bones": {
+  "hd": 2
+ },
+ "bush": {
+  "hd": 2
+ },
+ "cactus": {
+  "hd": 2
+ },
+ "cactus_spitter": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "chest": {
+  "hd": 2
+ },
+ "cobweb": {
+  "hd": 2
+ },
+ "coin": {
+  "hd": 4
+ },
+ "croc": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "cursed_shrine": {
+  "hd": 2
+ },
+ "dead_tree": {
+  "hd": 2
+ },
+ "demon": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "desert_rock": {
+  "hd": 2
+ },
+ "dirt": {
+  "hd": 2
+ },
+ "dirt2": {
+  "hd": 2
+ },
+ "dry_bush": {
+  "hd": 2
+ },
+ "egg_cat": {
+  "hd": 4
+ },
+ "egg_dragon": {
+  "hd": 4
+ },
+ "egg_fairy": {
+  "hd": 4
+ },
+ "egg_golem": {
+  "hd": 4
+ },
+ "egg_owl": {
+  "hd": 4
+ },
+ "egg_turtle": {
+  "hd": 4
+ },
+ "flowers": {
+  "hd": 2
+ },
+ "frog": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "frog_king": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "frog_shaman": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "frost_wraith": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "frozen_log": {
+  "hd": 2
+ },
+ "fx_avalanche": {
+  "hd": 2,
+  "frames": 3
+ },
+ "fx_fireball": {
+  "hd": 2,
+  "frames": 2
+ },
+ "fx_firering": {
+  "hd": 2,
+  "frames": 2
+ },
+ "fx_hammer": {
+  "hd": 3,
+  "frames": 2
+ },
+ "fx_light_orb": {
+  "hd": 2,
+  "frames": 2
+ },
+ "fx_rock": {
+  "hd": 2,
+  "frames": 2
+ },
+ "fx_shadow_claw": {
+  "hd": 2,
+  "frames": 2
+ },
+ "fx_spike": {
+  "hd": 2,
+  "frames": 2
+ },
+ "fx_tornado": {
+  "hd": 2,
+  "frames": 4
+ },
+ "fx_water_orb": {
+  "hd": 2,
+  "frames": 2
+ },
+ "fx_wave": {
+  "hd": 2,
+  "frames": 4
+ },
+ "fx_wind_blade": {
+  "hd": 2,
+  "frames": 2
+ },
+ "gem": {
+  "hd": 4
+ },
+ "gem_green": {
+  "hd": 4
+ },
+ "gem_red": {
+  "hd": 4
+ },
+ "glowshroom": {
+  "hd": 2
+ },
+ "goblin": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "goblin_earth": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "goblin_king": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "gravestone": {
+  "hd": 2
+ },
+ "ground": {
+  "hd": 2
+ },
+ "ground_dark": {
+  "hd": 2
+ },
+ "ground_dunes": {
+  "hd": 2
+ },
+ "ground_snow": {
+  "hd": 2
+ },
+ "ground_swamp": {
+  "hd": 2
+ },
+ "heart": {
+  "hd": 4
+ },
+ "hero_barbarian": {
+  "hd": 3,
+  "frames": 10,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory",
+   "windup",
+   "follow"
+  ]
+ },
+ "hero_knight": {
+  "hd": 3,
+  "frames": 10,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory",
+   "windup",
+   "follow"
+  ]
+ },
+ "hero_mage": {
+  "hd": 3,
+  "frames": 10,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory",
+   "windup",
+   "follow"
+  ]
+ },
+ "hero_ranger": {
+  "hd": 3,
+  "frames": 10,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death",
+   "victory",
+   "windup",
+   "follow"
+  ]
+ },
+ "ice_crystal": {
+  "hd": 2
+ },
+ "ice_dragon": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "ice_patch": {
+  "hd": 2
+ },
+ "icon_anvil": {
+  "hd": 4
+ },
+ "icon_bolt": {
+  "hd": 4
+ },
+ "icon_book": {
+  "hd": 4
+ },
+ "icon_boot": {
+  "hd": 4
+ },
+ "icon_cross": {
+  "hd": 4
+ },
+ "icon_dice": {
+  "hd": 4
+ },
+ "icon_dust": {
+  "hd": 4
+ },
+ "icon_element": {
+  "hd": 4
+ },
+ "icon_fire": {
+  "hd": 4
+ },
+ "icon_fireball": {
+  "hd": 4
+ },
+ "icon_greataxe": {
+  "hd": 4
+ },
+ "icon_hammer": {
+  "hd": 4
+ },
+ "icon_laser": {
+  "hd": 4
+ },
+ "icon_magnet": {
+  "hd": 4
+ },
+ "icon_potion": {
+  "hd": 4
+ },
+ "icon_quake": {
+  "hd": 4
+ },
+ "icon_shield": {
+  "hd": 4
+ },
+ "icon_skull": {
+  "hd": 4
+ },
+ "icon_star": {
+  "hd": 4
+ },
+ "icon_sword": {
+  "hd": 4
+ },
+ "icon_tornado": {
+  "hd": 4
+ },
+ "icon_tremor": {
+  "hd": 4
+ },
+ "icon_water": {
+  "hd": 4
+ },
+ "item_amulet": {
+  "hd": 4
+ },
+ "item_blade": {
+  "hd": 4
+ },
+ "item_boots": {
+  "hd": 4
+ },
+ "item_cape": {
+  "hd": 4
+ },
+ "item_dagger": {
+  "hd": 4
+ },
+ "item_helm": {
+  "hd": 4
+ },
+ "item_hood": {
+  "hd": 4
+ },
+ "item_idol": {
+  "hd": 4
+ },
+ "item_plate": {
+  "hd": 4
+ },
+ "item_relic": {
+  "hd": 4
+ },
+ "item_ring": {
+  "hd": 4
+ },
+ "item_robe": {
+  "hd": 4
+ },
+ "item_shield": {
+  "hd": 4
+ },
+ "item_signet": {
+  "hd": 4
+ },
+ "item_staff": {
+  "hd": 4
+ },
+ "item_tome": {
+  "hd": 4
+ },
+ "item_warhammer": {
+  "hd": 4
+ },
+ "knife": {
+  "hd": 4
+ },
+ "lilypond": {
+  "hd": 2
+ },
+ "lizard_shaman": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "mosquito": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "mossy_log": {
+  "hd": 2
+ },
+ "mud": {
+  "hd": 2
+ },
+ "mushroom": {
+  "hd": 2
+ },
+ "orb": {
+  "hd": 4
+ },
+ "orc": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "orc_chief": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "palm": {
+  "hd": 2
+ },
+ "penguin": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "pet_air_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_air_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_air_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_air_4": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_air_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dark_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dark_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dark_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dark_4": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dark_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dragon_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dragon_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_dragon_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_earth_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_earth_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_earth_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_earth_4": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_earth_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_fire_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_fire_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_light_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_light_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_light_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_light_4": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_light_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_1": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_2": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_3": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_4": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "pet_water_5": {
+  "hd": 4,
+  "frames": 4,
+  "slots": [
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack"
+  ]
+ },
+ "portrait_hero_barbarian": {
+  "hd": 8
+ },
+ "portrait_hero_knight": {
+  "hd": 8
+ },
+ "portrait_hero_mage": {
+  "hd": 8
+ },
+ "portrait_hero_ranger": {
+  "hd": 8
+ },
+ "proj_axe": {
+  "hd": 2
+ },
+ "proj_bolt": {
+  "hd": 2
+ },
+ "proj_knife": {
+  "hd": 2
+ },
+ "proj_orb": {
+  "hd": 2
+ },
+ "quicksand": {
+  "hd": 2
+ },
+ "reeds": {
+  "hd": 2
+ },
+ "rock": {
+  "hd": 2
+ },
+ "sandworm": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "scorpion": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "scorpion_emperor": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "skeleton": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime_bomb": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime_fire": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime_magma": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime_spit": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "slime_water": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "snow_golem": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "snow_owl": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "snow_pine": {
+  "hd": 2
+ },
+ "snow_rock": {
+  "hd": 2
+ },
+ "snowdrift": {
+  "hd": 2
+ },
+ "spider": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "sporeshroom": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "stump": {
+  "hd": 2
+ },
+ "swamp_tree": {
+  "hd": 2
+ },
+ "tallgrass": {
+  "hd": 2
+ },
+ "thorn_bush": {
+  "hd": 2
+ },
+ "tree": {
+  "hd": 2
+ },
+ "tree2": {
+  "hd": 2
+ },
+ "vfx_explosion": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_ice": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_lava": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_mud": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_sand": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vfx_steam": {
+  "hd": 2,
+  "frames": 4
+ },
+ "vulture": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "werewolf": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "wisp": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "witch": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "wolf": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "yeti": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ }
+}
