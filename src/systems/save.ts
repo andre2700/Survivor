@@ -2,9 +2,11 @@ import type { CharacterId } from '../data/characters';
 import type { TierProgress } from '../data/difficulty';
 import type { EquipSlot, ItemInstance } from '../data/items';
 import type { MetaId } from '../data/meta';
+import type { LifeStat } from '../data/missions';
 import type { PetId } from '../data/pets';
 import type { RunEventId, StageId } from '../data/stages';
 import { INFINITE_GOLD, dev } from './dev';
+import type { DailyState } from './progress';
 import { migratePets, type Egg, type PetState } from './pets';
 
 export interface SaveData {
@@ -42,6 +44,13 @@ export interface SaveData {
   /** Cristais de Evolução (Jovem → Adulto) e Fragmentos Ancestrais (Adulto → Supremo) */
   evoCrystals: number;
   ancientShards: number;
+  /** contadores da vida toda, missões de hoje e níveis de conquista já resgatados */
+  life: Partial<Record<LifeStat, number>>;
+  daily?: DailyState;
+  achieved: Record<string, number>;
+  /** passo do tutorial da primeira partida (99 = concluído) e dicas do menu já vistas */
+  tutorial: number;
+  tips: string[];
   /** eventos já encontrados em cada fase (o mapa mostra "?" nos que faltam) */
   seen: Partial<Record<StageId, RunEventId[]>>;
 }
@@ -73,6 +82,10 @@ export function defaultSave(): SaveData {
     eggSeen: false,
     evoCrystals: 0,
     ancientShards: 0,
+    life: {},
+    achieved: {},
+    tutorial: 0,
+    tips: [],
     seen: {},
   };
 }
@@ -89,6 +102,8 @@ export function migrate(raw: Record<string, unknown>): SaveData {
     delete data.stars;
   }
   migratePets(data);
+  // jogador que já tinha partidas antes do tutorial existir não precisa dele
+  if (raw.tutorial === undefined && ((raw.bestTime as number) > 0 || (raw.victories as number) > 0)) data.tutorial = 99;
   if (raw.version !== 2) {
     const renames: Record<string, MetaId> = { might: 'power', armor: 'defense', speed: 'moveSpeed', growth: 'wisdom' };
     const meta: Record<string, number> = {};

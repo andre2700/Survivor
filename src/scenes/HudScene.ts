@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { tutorialBubble } from './OverlayScenes';
 import { VIEW, pointerPos, setupCamera } from '../ui/view';
 import { formatNumber } from '../core/format';
 import { runDuration } from '../systems/dev';
@@ -91,7 +92,13 @@ export class HudScene extends Phaser.Scene {
     });
     const onAnnounce = (msg: string) => this.announce(msg);
     this.game$.events.on('announce', onAnnounce);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game$.events.off('announce', onAnnounce));
+    const onTutorial = (st: { text: string; hand?: boolean } | null) => this.showTutorial(st);
+    this.game$.events.on('tutorial', onTutorial);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game$.events.off('announce', onAnnounce);
+      this.game$.events.off('tutorial', onTutorial);
+    });
+    this.tutorialTip = null;
   }
 
   private onDown(pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) {
@@ -157,6 +164,33 @@ export class HudScene extends Phaser.Scene {
     this.joyBase.setVisible(false);
     this.joyKnob.setVisible(false);
     if (this.game$) this.game$.joy.x = this.game$.joy.y = 0;
+  }
+
+  private tutorialTip: Phaser.GameObjects.Container | null = null;
+
+  /** Dica do tutorial: balão embaixo do relógio; no passo de andar, uma mão arrastando no meio da tela. */
+  private showTutorial(st: { text: string; hand?: boolean } | null) {
+    const old = this.tutorialTip;
+    this.tutorialTip = null;
+    if (old) this.tweens.add({ targets: old, alpha: 0, duration: 200, onComplete: () => old.destroy() });
+    if (!st) return;
+    const w = VIEW.screenWidth;
+    const tip = tutorialBubble(this, w / 2, 112, st.text, Math.min(w - 30, 380));
+    if (st.hand) {
+      // mão (dedo) arrastando para os lados, com um rastro
+      const y = VIEW.height * 0.68;
+      const hand = this.add.container(w / 2 - 50, y);
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff, 0.9).fillCircle(0, 0, 13).lineStyle(3, 0x2a1206, 1).strokeCircle(0, 0, 13);
+      g.fillStyle(0xffffff, 0.9).fillRoundedRect(-6, 4, 12, 26, 5).lineStyle(3, 0x2a1206, 1).strokeRoundedRect(-6, 4, 12, 26, 5);
+      const ring = this.add.circle(0, 0, 18).setStrokeStyle(3, 0xffe9a0, 0.9);
+      hand.add([ring, g]);
+      tip.add(hand);
+      hand.setPosition(-50, y - 112);
+      this.tweens.add({ targets: hand, x: 50, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      this.tweens.add({ targets: ring, scale: 1.6, alpha: 0, duration: 900, repeat: -1 });
+    }
+    this.tutorialTip = tip;
   }
 
   private announce(msg: string) {

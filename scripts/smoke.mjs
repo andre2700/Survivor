@@ -108,7 +108,8 @@ await shot('07-pause');
 await run(() => window.__game.scene.getScene('Game').resumeFromPause());
 
 // os três chefes (5, 10 e 15 min): vence um por um; o final se transforma (fase 2) antes de cair
-await run(() => { window.__game.scene.getScene('Game').elapsed = 900; });
+// o herói (nível 1) não pode cair na luta: o teste é dos chefes, não da sobrevivência
+await run(() => { const g = window.__game.scene.getScene('Game'); g.elapsed = 900; g.stats.maxHp = g.hp = 1e9; });
 await until(() => !!window.__game.scene.getScene('Game').boss);
 await wait(1500);
 await shot('08-boss');

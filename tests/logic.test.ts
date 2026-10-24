@@ -1,3 +1,5 @@
+import { ACHIEVEMENTS, DAILY_COUNT, dailyFor } from '../src/data/missions';
+import { achievementReady, claimAchievement, claimDaily, claimDailyBonus, daily, pendingRewards, recordRun } from '../src/systems/progress';
 import { PETS, STAGE_CAP, eggChance, evoRequirements, getPet, petXpToNext, rollEggPet } from '../src/data/pets';
 import { addEgg, addPetXp, atCap, canEvolve, evolve, feed, hatch, incubate } from '../src/systems/pets';
 import { BAG_SIZE, forgeCost, itemPower, lootCount, makeItem, rollRarity as rollItemRarity } from '../src/data/items';
@@ -438,5 +440,38 @@ describe('pets', () => {
       expect(SPRITES).toHaveProperty(p.egg);
       for (const f of p.forms) expect((SPRITES as Record<string, { slots?: string[] }>)[f.texture]?.slots).toEqual(['walk_a', 'walk_b', 'windup', 'attack']);
     }
+  });
+});
+
+describe('missões e conquistas', () => {
+  it('3 diárias por dia, fixas pela data e sem contador repetido', () => {
+    const a = dailyFor('2026-10-24');
+    expect(a).toHaveLength(DAILY_COUNT);
+    expect(dailyFor('2026-10-24')).toEqual(a);
+    expect(new Set(a.map((m) => m.stat)).size).toBe(DAILY_COUNT);
+  });
+  it('a partida soma; resgatar dá ouro uma vez; as 3 abrem o baú diário', () => {
+    const s = migrate({});
+    const list = dailyFor(daily(s).day);
+    const run: Record<string, number> = {};
+    for (const m of list) run[m.stat] = m.target;
+    recordRun(s, run);
+    expect(pendingRewards(s)).toBeGreaterThanOrEqual(DAILY_COUNT);
+    const gold = s.gold;
+    for (let i = 0; i < DAILY_COUNT; i++) expect(claimDaily(s, i)).toBeTruthy();
+    expect(claimDaily(s, 0)).toBeUndefined();
+    expect(s.gold).toBeGreaterThan(gold);
+    expect(claimDailyBonus(s)?.rarity).toBeGreaterThanOrEqual(2);
+    expect(claimDailyBonus(s)).toBeUndefined();
+  });
+  it('conquistas sobem de nível com os contadores da vida toda', () => {
+    const s = migrate({});
+    const kills = ACHIEVEMENTS.find((a) => a.id === 'kills')!;
+    expect(achievementReady(s, kills)).toBe(false);
+    recordRun(s, { kills: 6000 });
+    expect(claimAchievement(s, kills)).toBeTruthy();
+    expect(claimAchievement(s, kills)).toBeTruthy();
+    expect(claimAchievement(s, kills)).toBeUndefined();
+    expect(s.achieved.kills).toBe(2);
   });
 });

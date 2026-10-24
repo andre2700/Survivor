@@ -5,6 +5,7 @@ import {
   petXpToNext, type MissionStat, type PetId, type PetStage, type Requirement,
 } from '../data/pets';
 import { dev } from './dev';
+import { bump } from './progress';
 import type { SaveData } from './save';
 
 export interface PetState {
@@ -57,6 +58,7 @@ export function hatch(save: SaveData, uid: number): { pet: PetId; isNew: boolean
   if (i < 0 || !eggReady(save.eggs[i])) return undefined;
   const { pet } = save.eggs[i];
   save.eggs.splice(i, 1);
+  bump(save, 'hatched');
   if (save.pets[pet]) return { pet, isNew: false, levels: addPetXp(save, pet, DUPLICATE_EGG_XP) };
   save.pets[pet] = newPet();
   save.activePet ??= pet;
@@ -126,6 +128,7 @@ export function evolve(save: SaveData, pet: PetId): boolean {
   // depois do Supremo, ascende (Supremo+1, +2...); o nível continua
   if (p.stage < 4) p.stage = (p.stage + 1) as PetStage;
   else p.plus++;
+  bump(save, 'evolved');
   return true;
 }
 

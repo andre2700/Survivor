@@ -5,6 +5,8 @@ import { formatNumber } from '../core/format';
 import { getCharacter } from '../data/characters';
 import { TAGS } from '../data/tags';
 import { WEAPONS, type Tag, type WeaponId } from '../data/weapons';
+import { recordRun } from '../systems/progress';
+import { TUTORIAL_STEPS } from '../systems/tutorial';
 import { loadSave, writeSave } from '../systems/save';
 import { DEV_TOOLS } from '../systems/dev';
 import { sfx } from '../systems/sfx';
@@ -67,6 +69,8 @@ export class LevelUpScene extends Phaser.Scene {
     if (this.mode === 'pick') this.tweens.add({ targets: title, scale: { from: 1.3, to: 1 }, duration: 260, ease: 'Back.Out' });
     const hint = this.mode === 'banish' ? 'Toque na carta para BANIR' : this.mode === 'lock' ? 'Toque na carta para FIXAR' : `Nível ${game.level} · escolha uma melhoria`;
     text(this, width / 2, titleY + 26, hint, 12, this.mode === 'pick' ? '#c8cce0' : '#ff9a7a', { bold: this.mode !== 'pick' });
+    // tutorial: explica a escolha na primeira tela de nível
+    if (game.tutorial?.step === 2) tutorialBubble(this, width / 2, height - 40, TUTORIAL_STEPS[2].text);
 
     const showTools = (meta.reroll ?? 0) > 0 || (meta.banish ?? 0) > 0 || (meta.lock ?? 0) > 0;
     const top = titleY + 44;
@@ -201,7 +205,11 @@ export class PauseScene extends Phaser.Scene {
       game.scene.resume();
     }, { width: 220, height: 38, size: 14 });
     if (wide) statsPanel(this, game, Math.max(16, (height - 300) / 2), col(1), WIDE_COL);
-    else statsPanel(this, game, by + 96);
+    else statsPanel(this, game, by + 140);
+    button(this, bx, by + 100 + (wide ? 0 : 0), 'AJUSTES', () => {
+      this.scene.pause();
+      this.scene.launch('Settings', { from: 'Pause' });
+    }, { width: 220, height: 34, size: 13 });
     if (DEV_TOOLS) {
       button(this, 34 - VIEW.bleed, 20, 'DEV', () => {
         this.scene.pause();
@@ -210,6 +218,20 @@ export class PauseScene extends Phaser.Scene {
     }
     this.input.keyboard?.on('keydown-ESC', () => game.resumeFromPause());
   }
+}
+
+/** Balão amarelo das dicas do tutorial. */
+export function tutorialBubble(scene: Phaser.Scene, x: number, y: number, msg: string, maxW = VIEW.width - 30) {
+  const c = scene.add.container(x, y).setDepth(50);
+  const t = text(scene, 0, 0, msg, 12, '#2a1206', { bold: true, strokeThickness: 0, wrap: maxW - 24 }).setAlign('center');
+  const w = Math.min(maxW, t.width + 24);
+  const h = t.height + 16;
+  const g = scene.add.graphics();
+  g.fillStyle(0xffe9a0, 0.97).fillRoundedRect(-w / 2, -h / 2, w, h, 12).lineStyle(2.5, 0x2a1206, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
+  c.add([g, t]);
+  c.setScale(0.6).setAlpha(0);
+  scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.Out' });
+  return c;
 }
 
 /** Diminui a fonte do texto até caber em `maxW` × `maxH` (quebrando linhas se tiver quebra automática). */
@@ -386,6 +408,11 @@ export class GameOverScene extends Phaser.Scene {
     save.bestKills = Math.max(save.bestKills, result.kills);
     save.bestCycle = Math.max(save.bestCycle ?? 0, result.cycle);
     if (result.victory && !result.endless) save.victories++;
+    recordRun(save, {
+      runs: 1, kills: result.kills, seconds: Math.floor(result.time), bosses: result.bosses, gems: result.gems,
+      reactions: result.reactionCount, elites: result.elites, petRuns: result.withPet ? 1 : 0, gold: result.gold,
+      victories: result.victory && !result.endless ? 1 : 0,
+    });
     writeSave(save);
 
     dim(this, 0.84);

@@ -6,6 +6,8 @@ import { addItems, nextUid } from '../systems/inventory';
 import { WEAPONS, WEAPON_IDS } from '../data/weapons';
 import { INFINITE_GOLD, RUN_OPTIONS, SPEED_OPTIONS, cycle, dev, setDev } from '../systems/dev';
 import { defaultSave, loadSave, writeSave } from '../systems/save';
+import { daily } from '../systems/progress';
+import { dailyFor } from '../data/missions';
 import { sfx } from '../systems/sfx';
 import { button, goldTitle, panel, text } from '../ui/theme';
 import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
@@ -102,6 +104,12 @@ export class DevScene extends Phaser.Scene {
         const save = loadSave();
         save.eggSeen = true;
         save.eggs = PETS.slice(0, MAX_EGGS).map((p) => ({ uid: save.nextItem++, pet: p.id, need: 1, progress: 1 }));
+        writeSave(save);
+      }],
+      ['Completar as missões de hoje', () => {
+        const save = loadSave();
+        const d = daily(save);
+        for (const m of dailyFor(d.day)) d.progress[m.stat] = m.target;
         writeSave(save);
       }],
       [`Evoluções sempre liberadas: ${yes(dev.freeEvolve)}`, () => setDev({ freeEvolve: !dev.freeEvolve })],

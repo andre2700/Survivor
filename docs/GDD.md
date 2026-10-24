@@ -238,3 +238,17 @@ Todos os eventos, golpes de chefes, armadilhas e árvores foram revistos na tela
 - **Atlas em páginas:** as imagens do jogo são empacotadas em páginas de 2048×4096 no máximo (limite seguro de celulares simples), todas na mesma textura `atlas`.
 - **Mochila:** ordem (raridade, força, nível, tipo, novos) e filtro (tudo, armas, mão secundária, armadura, joias, com efeito), salvos entre as visitas; botão para desmanchar de uma vez os itens Comuns e Incomuns sem efeito, sem forja e não equipados (pede confirmação).
 - **Pets:** coleção ordenável (elemento, nível, estágio), com marca no pet que vai na partida; chocadeira em grade com os 6 ovos, barra de progresso em cada um, e tocar num ovo o põe para chocar primeiro (cada ovo guarda o próprio progresso).
+
+## Tutorial, ajustes e missões (24/10/2026)
+
+**Tutorial da primeira partida** (`src/systems/tutorial.ts`): balões amarelos, um de cada vez: andar (com uma mão arrastando na tela), gemas e nível, escolher a carta (na tela de nível), avisos vermelhos no chão (aos 40 s) e chefes aos 5/10/15 min (aos 70 s). Cada passo some quando o jogador faz o que ele pede, ou depois de alguns segundos. O passo fica salvo; quem passou da carta não vê de novo. Jogadores antigos (com partidas) não veem. Nos Ajustes: "Ver o tutorial de novo".
+
+**Dicas do menu** (depois do tutorial): um balão aponta o botão que vale abrir (melhorias com ouro sobrando, equipamento com itens novos, pets com ovo pronto, missões com recompensa), uma por vez e só até o jogador tocar nele.
+
+**Ajustes** (`src/systems/settings.ts`, no menu e na pausa): som, vibração (dano no herói e chefe vencido), tremor de tela, números de dano (os destaques aparecem sempre) e idioma (inglês em breve). Ficam salvos à parte do progresso.
+
+**Missões diárias** (`src/data/missions.ts`, `src/systems/progress.ts`): 3 por dia, sorteadas pela data (todos recebem as mesmas), trocam à meia-noite. Cada uma dá ouro (150 + 100 por fase vencida) e 20 de pó; as 3 resgatadas abrem o **Baú Diário** (item Raro ou melhor e 40 de pó).
+
+**Conquistas** em níveis (estrelas): Exterminador, Caçador de Chefes, Lenda, Desbravador, Sem Medo, Sobrevivente, Alquimista, Criador, Evolução e Ferreiro. Dão ouro e pó; os níveis altos dão Cristais de Evolução e Fragmentos Ancestrais. Botão MISSÕES no menu, com selo do número de recompensas esperando.
+
+**Conferência visual:** `npm run audit` abre todas as telas, o tutorial e uma partida, em retrato e na horizontal, e salva as capturas em `screenshots/audit*` (rodar antes de publicar).

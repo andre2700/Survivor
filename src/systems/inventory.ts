@@ -5,6 +5,7 @@ import {
   BAG_SIZE, EQUIP_SLOTS, baseOf, effectPower, forgeCost, itemModifiers, itemPower, salvageValue, slotOf,
   type EffectId, type EquipSlot, type ItemInstance,
 } from '../data/items';
+import { bump } from './progress';
 import type { SaveData } from './save';
 
 export function findItem(save: SaveData, uid: number) {
@@ -67,6 +68,7 @@ export function forge(save: SaveData, uid: number): boolean {
   save.gold -= c.gold;
   save.dust -= c.dust;
   it.forge++;
+  bump(save, 'forged');
   return true;
 }
 

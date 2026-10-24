@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { Tutorial } from '../systems/tutorial';
+import { settings, vibrate } from '../systems/settings';
 import { CRYSTAL_CHANCE, CRYSTAL_TIER, SHARD_CHANCE, SHARD_TIER, TRIAL_TIER, eggChance, getPet, rollEggPet, runPetXp, type MissionStat, type PetId } from '../data/pets';
 import { PetCompanion } from '../systems/petCompanion';
 import { activePet, addEgg, addPetXp, atCap, canEvolve, incubate } from '../systems/pets';
@@ -92,6 +94,11 @@ export interface RunResult {
   bosses: number;
   /** itens do baú de fim de partida */
   loot: ItemInstance[];
+  /** para as missões e conquistas */
+  gems: number;
+  elites: number;
+  reactionCount: number;
+  withPet: boolean;
   /** pets: ovo ganho (e se a chocadeira estava cheia), XP do pet ativo e níveis que ele subiu */
   pet?: {
     egg?: PetId; full?: boolean; active?: PetId; xp: number; levels: number;
@@ -194,6 +201,8 @@ export class GameScene extends Phaser.Scene {
   private pet?: PetCompanion;
   /** inimigos derrotados queimando com o pet na partida (missão do Fogo) */
   private petBurnKills = 0;
+  /** dicas da primeira partida */
+  tutorial!: Tutorial;
   /** gemas coletadas na partida (missão da Sombra) */
   private gemsCollected = 0;
   private petReward?: RunResult['pet'];
@@ -274,6 +283,8 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const save = loadSave();
+    // sem tremor de tela (configurações): a câmera ignora os pedidos de tremor
+    if (!settings.shake) this.cameras.main.shake = () => this.cameras.main;
     this.char = getCharacter(save.selected);
     const stage = getStage(save.stage);
     this.stage = stage.playable ? stage : STAGES[0];
@@ -348,6 +359,7 @@ export class GameScene extends Phaser.Scene {
     const pet = activePet(save);
     this.pet = pet ? new PetCompanion(this, pet.id, pet) : undefined;
     this.petBurnKills = 0;
+    this.tutorial = new Tutorial(this);
     this.gemsCollected = 0;
     // itens Épicos ou melhores: brilho no chão na cor da melhor raridade equipada
     const best = bestEquippedRarity(save);
@@ -476,6 +488,7 @@ export class GameScene extends Phaser.Scene {
     this.itemFx.update(dt);
     this.pet?.update(dt);
     this.runEvents.update(dt);
+    this.tutorial.update();
     this.updateProjectiles(dt);
     this.checkContact();
     this.updatePickups(dt);
@@ -626,6 +639,7 @@ export class GameScene extends Phaser.Scene {
     if (!dev.heroImmortal) this.hp -= dmg;
     this.hurtUntil = this.elapsed + 0.25;
     this.cameras.main.shake(80, 0.004);
+    vibrate(40);
     this.player.setTintFill(0xffffff);
     this.time.delayedCall(80, () => this.player.clearTint());
     sfx('hurt');
@@ -946,7 +960,7 @@ export class GameScene extends Phaser.Scene {
       e.flashUntil = this.elapsed + 0.06;
       e.hurtUntil = this.elapsed + 0.15;
     }
-    this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
+    if (big || settings.damageNumbers) this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
     if (e.hp <= 0 && dev.enemiesImmortal) e.hp = e.maxHp;
     // Carrasco (item): inimigo comum com pouca vida morre na hora
     if (this.itemFx.executes(e)) {
@@ -1001,6 +1015,7 @@ export class GameScene extends Phaser.Scene {
       this.boss = this.mainBosses[0] ?? null;
       this.bossesDown++;
       this.cameras.main.flash(600, 255, 205, 117);
+      vibrate([60, 40, 120]);
       const final = e.def.id === finalBoss(this.stage);
       const coins = final ? 30 : 16;
       for (let i = 0; i < coins; i++) this.dropPickup('coin', x + Phaser.Math.Between(-30, 30), y + Phaser.Math.Between(-30, 30), (final ? 3 : 2) * reward);
@@ -1269,6 +1284,7 @@ export class GameScene extends Phaser.Scene {
     this.joy.x = this.joy.y = 0;
     sfx('levelup');
     this.rollCurrent();
+    this.tutorial.onLevelUp();
     this.scene.pause();
     this.scene.pause('Hud');
     this.scene.launch('LevelUp');
@@ -1309,6 +1325,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   chooseUpgrade(opt: UpgradeOption) {
+    this.tutorial.onCardPicked();
     if (opt.kind === 'gold') this.gold += 25;
     else if (opt.kind === 'heal') this.hp = Math.min(this.stats.maxHp, this.hp + 40);
     else applyOption(this.loadout, opt);
@@ -1518,6 +1535,10 @@ export class GameScene extends Phaser.Scene {
       tier: this.tier,
       bosses: this.bossesDown,
       loot: this.loot,
+      gems: this.gemsCollected,
+      elites: this.elitesKilled,
+      reactionCount: Object.values(this.elements.triggered).reduce((a, b) => a + (b ?? 0), 0),
+      withPet: !!this.pet,
       pet: this.petReward,
       stars,
       unlocked,
@@ -1630,6 +1651,7 @@ export class GameScene extends Phaser.Scene {
   endRun(victory: boolean) {
     if (this.state === 'over') return;
     this.state = 'over';
+    this.tutorial.onRunEnd();
     this.payRunBonus();
     const result = this.result(victory);
     this.time.delayedCall(victory ? 0 : 600, () => {

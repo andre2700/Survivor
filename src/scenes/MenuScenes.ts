@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import { settings } from '../systems/settings';
 import { canEvolve, eggReady } from '../systems/pets';
+import { pendingRewards } from '../systems/progress';
 import { VIEW, WIDE_COL, col, isWide, pointerPos, setupCamera } from '../ui/view';
 import { walkPose } from '../art/motion';
 import { generateTextures, groundSprite, preloadArt, scrollGround, slotsOf } from '../art/textures';
@@ -24,7 +26,7 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     generateTextures(this);
-    setSoundEnabled(loadSave().sound);
+    setSoundEnabled(settings.sound);
     this.scene.start('Menu');
   }
 }
@@ -92,13 +94,12 @@ export class MenuScene extends Phaser.Scene {
     const wide = isWide();
     const heroX = wide ? col(-1) : width / 2;
     const infoX = wide ? col(1) : width / 2;
-    const soundBtn = button(this, 34 - VIEW.bleed, 20, save.sound ? 'SOM' : 'MUDO', () => {
-      save.sound = !save.sound;
-      setSoundEnabled(save.sound);
-      writeSave(save);
-      this.scene.restart();
-    }, { width: 56, height: 26, size: 11, color: save.sound ? '#f4f4f4' : '#8a8ca0' });
-    soundBtn.setDepth(10);
+    button(this, 34 - VIEW.bleed, 20, 'AJUSTES', () => {
+      unlockAudio();
+      sfx('select');
+      this.scene.pause();
+      this.scene.launch('Settings', { from: 'Menu' });
+    }, { width: 62, height: 26, size: 10 }).setDepth(10);
     if (DEV_TOOLS) {
       button(this, 34 - VIEW.bleed, 50, 'DEV', () => {
         this.scene.pause();
@@ -182,14 +183,33 @@ export class MenuScene extends Phaser.Scene {
     button(this, heroX + arrow, cy + 30, '>', () => cycle(1), { width: 40, height: 44, size: 20 });
     refresh();
 
+    // missões: canto de cima, embaixo do ouro, com o número de recompensas esperando
+    const mx = VIEW.width + VIEW.bleed - 52;
+    button(this, mx, 54, 'MISSÕES', () => {
+      unlockAudio();
+      sfx('select');
+      this.seeTip('missions');
+      this.scene.start('Missions');
+    }, { width: 84, height: 28, size: 11, icon: 'icon_star' }).setDepth(10);
+    const pending = pendingRewards(save);
+    writeSave(save);
+    if (pending) {
+      const badge = this.add.container(mx + 40, 42).setDepth(11);
+      badge.add(this.add.circle(0, 0, 10, 0xff4a5a).setStrokeStyle(2, 0xffffff));
+      badge.add(text(this, 0, 0, String(pending), 10, '#ffffff', { bold: true }));
+      this.tweens.add({ targets: badge, scale: 1.15, duration: 500, yoyo: true, repeat: -1 });
+    }
+
     button(this, infoX - 121, cardY + 156, 'MELHORIAS', () => {
       unlockAudio();
       sfx('select');
+      this.seeTip('shop');
       this.scene.start('Shop');
     }, { width: 116, height: 38, size: 10, icon: 'icon_star' });
     button(this, infoX + 121, cardY + 156, 'PETS', () => {
       unlockAudio();
       sfx('select');
+      this.seeTip('pets');
       this.scene.start('Pets');
     }, { width: 116, height: 38, size: 12, icon: 'egg_dragon' });
     button(this, infoX, cardY + 156, 'EQUIPAMENTO', () => {
@@ -198,6 +218,7 @@ export class MenuScene extends Phaser.Scene {
       const s = loadSave();
       s.newItems = 0;
       writeSave(s);
+      this.seeTip('equip');
       this.scene.start('Equip');
     }, { width: 116, height: 38, size: 10, icon: 'item_helm' });
     // ovo pronto para chocar
@@ -220,8 +241,43 @@ export class MenuScene extends Phaser.Scene {
       text(this, infoX, height - 18, `Recorde: ${formatTime(save.bestTime)} · ${formatNumber(save.bestKills)} abates${cycleTxt}`, 11, '#a8acc4');
     }
 
+    // dica da vez (uma de cada, só depois do tutorial): aponta o botão que vale abrir agora
+    if (save.tutorial >= 99) {
+      const tips: [string, boolean, number, number, string][] = [
+        ['shop', save.gold >= 60 && !Object.values(save.meta).some(Boolean), infoX - 121, cardY + 156, 'Gaste o ouro em melhorias!'],
+        ['equip', save.items.length > 0 && !Object.keys(save.equipped).length, infoX, cardY + 156, 'Você ganhou itens: equipe!'],
+        ['pets', save.eggs.some(eggReady), infoX + 121, cardY + 156, 'Um ovo está pronto!'],
+        ['missions', pending > 0, mx, 54, 'Recompensas para resgatar!'],
+      ];
+      const tip = tips.find(([id, when]) => when && !save.tips.includes(id));
+      if (tip) this.tipBubble(tip[2], tip[3], tip[4], true);
+    }
+
     this.monsterParade(wide ? height - 70 : cardY + 210, height - 40);
     this.input.keyboard?.once('keydown-ENTER', () => this.startGame());
+  }
+
+  /** Balão de dica apontando para um botão (abaixo dele, se `below`), pulando de leve. */
+  private tipBubble(x: number, y: number, msg: string, below: boolean) {
+    const by = below ? y + 40 : y - 42;
+    const bx = Phaser.Math.Clamp(x, 90, VIEW.width - 90);
+    const c = this.add.container(bx, by).setDepth(1e6);
+    const t = text(this, 0, 0, msg, 11, '#2a1206', { bold: true, strokeThickness: 0 });
+    const w = t.width + 20;
+    const g = this.add.graphics();
+    g.fillStyle(0xffe9a0, 1).fillRoundedRect(-w / 2, -13, w, 26, 10).lineStyle(2, 0x2a1206, 1).strokeRoundedRect(-w / 2, -13, w, 26, 10);
+    const tip = x - bx;
+    if (below) g.fillStyle(0xffe9a0, 1).fillTriangle(tip - 7, -12, tip + 7, -12, tip, -22);
+    else g.fillStyle(0xffe9a0, 1).fillTriangle(tip - 7, 12, tip + 7, 12, tip, 22);
+    c.add([g, t]);
+    this.tweens.add({ targets: c, y: by + (below ? 4 : -4), duration: 500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  }
+
+  /** Marca a dica como vista (ao tocar no botão que ela aponta). */
+  private seeTip(id: string) {
+    const s = loadSave();
+    if (!s.tips.includes(id)) s.tips.push(id);
+    writeSave(s);
   }
 
   /** Monstros atravessando a parte de baixo da tela: dá vida à abertura. */

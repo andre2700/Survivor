@@ -18,7 +18,8 @@
     "artsheet": "node scripts/artsheet.mjs",
     "styletest": "node scripts/style-test.mjs",
     "deploy:pages": "bash scripts/deploy-pages.sh",
-    "balance": "node scripts/balance.mjs"
+    "balance": "node scripts/balance.mjs",
+    "audit": "node scripts/audit.mjs screenshots/audit && LANDSCAPE=1 node scripts/audit.mjs screenshots/audit-wide 844 390"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
