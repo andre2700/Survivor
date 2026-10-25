@@ -160,6 +160,22 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
     enrageAt: 0.5,
     phases: [{ speed: 1, pause: 1.3, moves: [{ kind: 'volley', weight: 3, cooldown: 4, shot: 'wave', count: 3, damage: 1.1 }, { kind: 'nova', weight: 2, cooldown: 7, shot: 'spit', count: 14, color: 0xbff0ff, damage: 1 }, { kind: 'rain', weight: 2, cooldown: 6, look: 'spike', count: 7, damage: 1.3 }, summon(['snow_owl'], 6), { kind: 'blink', weight: 1, cooldown: 7 }] }],
   },
+  // ---------- Coração do Vulcão ----------
+  salamander_queen: {
+    enrageAt: 0.45,
+    phases: [{ speed: 1, pause: 1.2, moves: [charge(3, 3), { kind: 'volley', weight: 2, cooldown: 4, shot: 'fireball', count: 3, damage: 1.1 }, summon(['salamander'], 8)] }],
+  },
+  ash_lord: {
+    enrageAt: 0.5,
+    phases: [{ speed: 1, pause: 1.3, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'fireball', count: 10, damage: 1.1 }, { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 7, damage: 1.3 }, { kind: 'blink', weight: 2, cooldown: 6 }, summon(['ember_bat'], 8)] }],
+  },
+  magma_titan: {
+    enrageAt: 0.35, phase2Name: 'Titã Desperto', phase2Tint: 0xff9a5a,
+    phases: [
+      { speed: 1, pause: 1.4, moves: [slam(3), leap(2), { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 8, damage: 1.4 }, { kind: 'volley', weight: 2, cooldown: 4, shot: 'fireball', count: 5, damage: 1.2 }] },
+      { speed: 1.25, pause: 0.9, moves: [{ kind: 'rain', weight: 3, cooldown: 4.5, look: 'meteor', count: 14, damage: 1.4 }, { kind: 'nova', weight: 3, cooldown: 5, shot: 'fireball', count: 14, damage: 1.2 }, leap(2, 2), slam(2), summon(['magma_golem', 'lava_serpent'], 4)] },
+    ],
+  },
   ice_dragon: {
     enrageAt: 0.35, phase2Name: 'Dragão de Gelo Ancestral', phase2Tint: 0x8ab8ff,
     phases: [

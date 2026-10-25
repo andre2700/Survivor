@@ -207,7 +207,7 @@ export class GameScene extends Phaser.Scene {
   private gemsCollected = 0;
   private petReward?: RunResult['pet'];
   /** árvores bravas e armadilhas */
-  private mapHazards!: MapHazards;
+  mapHazards!: MapHazards;
   /** eventos aleatórios, aliado e itens do mapa */
   runEvents!: RunEvents;
 
@@ -240,6 +240,8 @@ export class GameScene extends Phaser.Scene {
   private angryTrees: Phaser.GameObjects.Image[] = [];
   /** placas de gelo visíveis (o herói escorrega) e a velocidade com que ele desliza */
   private ice: Phaser.GameObjects.Image[] = [];
+  private lava: Phaser.GameObjects.Image[] = [];
+  private vents: Phaser.GameObjects.Image[] = [];
   private slide = new Phaser.Math.Vector2();
   /** névoa do pântano: nuvens nas bordas da tela */
   private fog: { img: Phaser.GameObjects.Image; a: number; r: number; speed: number }[] = [];
@@ -341,6 +343,8 @@ export class GameScene extends Phaser.Scene {
     this.fog = [];
     this.mud = [];
     this.ice = [];
+    this.lava = [];
+    this.vents = [];
     this.traps = [];
     this.angryTrees = [];
     this.slide.set(0, 0);
@@ -507,7 +511,7 @@ export class GameScene extends Phaser.Scene {
     this.vignette.setPosition(cam.midPoint.x - this.viewW / 2 - 20, cam.midPoint.y - this.viewH / 2 - 20);
     this.updateFog(cam.midPoint.x, cam.midPoint.y);
     this.updateDarkness();
-    this.mapHazards.update(this.angryTrees, this.traps);
+    this.mapHazards.update(this.angryTrees, this.traps, this.lava, this.vents);
     this.motes.setPosition(cam.midPoint.x, cam.midPoint.y);
     this.drawPlayerHp();
     if (this.frame % 15 === 0) this.updateDecor();
@@ -1001,6 +1005,8 @@ export class GameScene extends Phaser.Scene {
     this.particles.explode(e.boss ? 60 : e.elite ? 20 : 6, x, y);
     if (e.boss || e.elite) this.impact(x, y, 0xffcd75, e.boss ? 3 : 1.6);
     this.spawnCorpse(e);
+    // o golem de magma derrete numa poça de lava que esfria aos poucos
+    if (e.def.kind === 'magma_golem') this.mapHazards.addLava(x, y + 4, 6, 0.55);
     if (e.elite) this.elitesKilled++;
     if (this.pet && e.status.fire > this.elapsed) this.petBurnKills++;
     e.kill();
@@ -1394,6 +1400,11 @@ export class GameScene extends Phaser.Scene {
     this.spawnBoss(Math.min(2, this.bossesCalled++));
   }
 
+  /** Chama uma criatura pelo id (conferência visual das fases). */
+  devSpawn(id: EnemyId, x: number, y: number) {
+    return this.spawnEnemy(ENEMIES[id], x, y);
+  }
+
   devKillAll() {
     for (const e of [...this.active]) if (e.active && !e.boss) this.killEnemy(e, true);
   }
@@ -1732,6 +1743,7 @@ export class GameScene extends Phaser.Scene {
           img.setDepth(tall || UPRIGHT.has(tex) ? py - 6 : LAYER.groundDecor);
           if (tall) img.setData('tall', true);
           if (this.stage.angry?.includes(tex)) img.setData('angry', true);
+          if (this.stage.vents?.includes(tex)) img.setData('vent', true);
           imgs.push(img);
         }
         // armadilha: placa de pedra com runa (uma por trecho, às vezes)
@@ -1759,6 +1771,7 @@ export class GameScene extends Phaser.Scene {
             if (kind === 'quicksand') patch.setData('mud', 0.5);
             if (kind === 'cobweb') patch.setData('mud', 0.7);
             if (kind === 'ice_patch') patch.setData('ice', true);
+            if (kind === 'lava_pool') patch.setData('lava', true);
             imgs.push(patch);
           }
         }
@@ -1775,6 +1788,8 @@ export class GameScene extends Phaser.Scene {
     this.traps = [...this.decor.values()].flat().filter((i) => i.getData('trap'));
     this.mud = [...this.decor.values()].flat().filter((i) => i.getData('mud'));
     this.ice = [...this.decor.values()].flat().filter((i) => i.getData('ice'));
+    this.lava = [...this.decor.values()].flat().filter((i) => i.getData('lava'));
+    this.vents = [...this.decor.values()].flat().filter((i) => i.getData('vent'));
   }
 
   /** Árvores ficam translúcidas quando o herói passa por trás delas. */

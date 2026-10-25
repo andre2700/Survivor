@@ -18,6 +18,7 @@ const EVENT_ICON: Record<RunEventId, [string, number?]> = {
   chest: ['chest'], captive: ['hero_ranger'], surpriseBoss: ['icon_skull', 0xff7a6a], goldenGoblin: ['goblin', 0xffd84a],
   meteors: ['fx_fireball'], ambush: ['icon_skull'], tribeWar: ['scorpion'], sandstorm: ['icon_tornado', 0xe8c070],
   cursedShrine: ['cursed_shrine'], bloodMoon: ['glow', 0xd02030], blizzard: ['snowdrift'], avalanche: ['snow_rock', 0xe8f4ff],
+  eruption: ['lava_vent'], lavaRiver: ['lava_pool'],
 };
 
 /** Ajusta a imagem para caber em w × h (tamanho lógico, descontando a resolução alta da arte). */
@@ -285,10 +286,12 @@ export class StageScene extends Phaser.Scene {
 
     // perigos e tesouros
     y += 26;
-    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão, teias e árvores bravas' : st.hazard === 'ice' ? 'gelo escorregadio' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
+    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão, teias e árvores bravas' : st.hazard === 'ice' ? 'gelo escorregadio' : st.hazard === 'lava' ? 'lava e respiros vulcânicos' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
     add(this.add.text(left + 14, y, `Perigos: ${known ? hazard : '?'}`, { fontFamily: FONT, fontSize: px(10), color: '#ffb08a' }).setOrigin(0, 0.5));
-    add(this.add.text(cx + 14, y, 'Tesouros:', { fontFamily: FONT, fontSize: px(10), color: '#a0e8a0' }).setOrigin(0, 0.5));
-    ['chest', 'icon_magnet', 'bomb', 'heart'].forEach((tex, k) => add(fit(this.add.image(cx + 80 + k * 20, y, 'atlas', frameName(tex, 0)), 15, 15)));
+    // tesouros na linha de baixo: o texto dos perigos pode ser longo
+    y += 20;
+    add(this.add.text(left + 14, y, 'Tesouros:', { fontFamily: FONT, fontSize: px(10), color: '#a0e8a0' }).setOrigin(0, 0.5));
+    ['chest', 'icon_magnet', 'bomb', 'heart'].forEach((tex, k) => add(fit(this.add.image(left + 80 + k * 20, y, 'atlas', frameName(tex, 0)), 15, 15)));
 
     // objetivos (estrelas desta dificuldade)
     y += 24;

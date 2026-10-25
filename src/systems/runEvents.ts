@@ -62,6 +62,8 @@ const TITLES: Record<RunEventId, string> = {
   bloodMoon: 'LUA DE SANGUE!',
   blizzard: 'NEVASCA!',
   avalanche: 'AVALANCHE! SAIA DA FAIXA!',
+  eruption: 'ERUPÇÃO! O CÉU ESTÁ CAINDO!',
+  lavaRiver: 'RIO DE LAVA! SAIA DA FAIXA!',
 };
 
 /** Tribos da guerra quando a fase não define as suas. */
@@ -97,12 +99,16 @@ export class RunEvents {
     y: number; half: number; dir: number; start: number; x: number; g: Phaser.GameObjects.Graphics; hit: boolean; left: number; right: number;
     /** ondas de neve animadas que formam a parede (deslocamento na faixa) */
     wall: { img: Phaser.GameObjects.Image; dx: number; dy: number; phase: number }[];
+    /** rio de lava em vez de neve */
+    lava: boolean;
+    /** onde caiu a última poça de lava */
+    poolAt?: number;
   } | null = null;
   /** santuário maldito esperando o herói */
   private shrine: { img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Graphics; progress: number } | null = null;
   private war: { x: number; y: number; until: number } | null = null;
   /** tempestade de areia: fim, próximo dano, lado do vento, véu e grãos (posição na tela, 0 a 1) */
-  private storm: { kind: 'sand' | 'blood' | 'snow'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[]; moon?: Phaser.GameObjects.Image; halo?: Phaser.GameObjects.Image } | null = null;
+  private storm: { kind: 'sand' | 'blood' | 'snow' | 'ash'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[]; moon?: Phaser.GameObjects.Image; halo?: Phaser.GameObjects.Image; nextMeteor?: number } | null = null;
 
   constructor(private scene: GameScene) {}
 
@@ -147,7 +153,7 @@ export class RunEvents {
     const goal = st.objectives.find((o) => o.kind === 'event');
     if (goal && goal.kind === 'event' && !this.done.has(goal.event)) return goal.event;
     const pool = st.events.filter((e) => !(e === 'captive' && (this.captive || this.ally)) && !(e === 'goldenGoblin' && this.golden)
-      && !(e === 'tribeWar' && this.war) && !((e === 'sandstorm' || e === 'bloodMoon' || e === 'blizzard') && this.storm) && !(e === 'avalanche' && this.avalanche) && !(e === 'cursedShrine' && this.shrine));
+      && !(e === 'tribeWar' && this.war) && !((e === 'sandstorm' || e === 'bloodMoon' || e === 'blizzard' || e === 'eruption') && this.storm) && !((e === 'avalanche' || e === 'lavaRiver') && this.avalanche) && !(e === 'cursedShrine' && this.shrine));
     return pool[Math.floor(Math.random() * pool.length)] ?? 'ambush';
   }
 
@@ -160,7 +166,7 @@ export class RunEvents {
       seen.push(id);
       writeSave(save);
     }
-    this.scene.events.emit('announce', id === 'goldenGoblin' ? `UM ${this.goldenName()}! PEGUE-O!` : TITLES[id]);
+    this.scene.events.emit('announce', id === 'goldenGoblin' ? (this.goldenFem() ? `UMA ${this.goldenName()}! PEGUE-A!` : `UM ${this.goldenName()}! PEGUE-O!`) : TITLES[id]);
     sfx('boss');
     switch (id) {
       case 'chest':
@@ -185,6 +191,10 @@ export class RunEvents {
         return this.startStorm('snow');
       case 'avalanche':
         return this.startAvalanche();
+      case 'lavaRiver':
+        return this.startAvalanche(true);
+      case 'eruption':
+        return this.startStorm('ash');
       case 'cursedShrine':
         return this.startShrine();
     }
@@ -393,8 +403,13 @@ export class RunEvents {
     sc.events.emit('announce', `CHEFE SURPRESA: ${ENEMIES[id].name.toUpperCase()} GIGANTE!`);
   }
 
+  /** A criatura dourada tem nome feminino? (Salamandra) — pelo final da primeira palavra. */
+  private goldenFem() {
+    return /a$/i.test(ENEMIES[this.goldenId()].name.split(' ')[0]);
+  }
+
   private goldenName() {
-    return `${ENEMIES[this.goldenId()].name.toUpperCase()} DOURADO`;
+    return `${ENEMIES[this.goldenId()].name.toUpperCase()} ${this.goldenFem() ? 'DOURADA' : 'DOURADO'}`;
   }
 
   /** Criatura dourada da fase (cada fase tem a sua). */
@@ -541,7 +556,7 @@ export class RunEvents {
    * Cataclismo de véu. Tempestade de areia: a areia esconde a vista e o vento empurra o herói. Lua de
    * sangue: a tela fica vermelha e todos sangram. Nos dois, a cada instante herói e inimigos se ferem.
    */
-  private startStorm(kind: 'sand' | 'blood' | 'snow' = 'sand') {
+  private startStorm(kind: 'sand' | 'blood' | 'snow' | 'ash' = 'sand') {
     const sc = this.scene;
     const grains = kind !== 'blood' ? Array.from({ length: STORM.streaks }, () => ({ u: Math.random(), v: Math.random(), len: 6 + Math.random() * 18, sp: 0.5 + Math.random() * 0.7 })) : [];
     const time = kind === 'blood' ? BLOOD_MOON.time : STORM.time;
@@ -578,7 +593,26 @@ export class RunEvents {
     const v = sc.cameras.main.worldView;
     const g = s.veil.clear();
     const sand = s.kind === 'sand';
-    if (s.kind === 'snow') {
+    if (s.kind === 'ash') {
+      // erupção: céu de cinzas avermelhado, brasas subindo e meteoros caindo pela tela (cataclismo:
+      // os meteoros ferem herói e inimigos, com o aviso de sempre)
+      g.fillStyle(0x5a2010, 0.32 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
+      for (const p of s.grains) {
+        p.u += s.wind * p.sp * 0.15 * dt;
+        p.v -= p.sp * 0.3 * dt;
+        if (p.u > 1.05) p.u -= 1.1;
+        if (p.u < -0.05) p.u += 1.1;
+        const x = v.x + p.u * v.width;
+        const y = v.y + (((p.v % 1) + 1) % 1) * v.height;
+        g.fillStyle(p.len > 16 ? 0xffb050 : 0x8a8a8a, 0.8 * k).fillCircle(x, y, p.len > 16 ? 1.8 : 2.4);
+      }
+      if (t >= (s.nextMeteor ?? 0) && left > 1.5) {
+        s.nextMeteor = t + 0.55;
+        const near = Math.random() < 0.45;
+        const at = near ? this.away(0, 120) : { x: v.x + 30 + Math.random() * (v.width - 60), y: v.y + 60 + Math.random() * (v.height - 120) };
+        this.meteor(at.x, at.y);
+      }
+    } else if (s.kind === 'snow') {
       // nevasca: véu branco, flocos caindo de lado; herói e inimigos andam mais devagar
       g.fillStyle(0xd8e8f8, 0.3 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
       for (const p of s.grains) {
@@ -614,7 +648,7 @@ export class RunEvents {
       s.moon?.setPosition(mx, my).setAlpha(k).setScale(0.95 + 0.03 * Math.sin(t * 1.5));
       s.halo?.setPosition(mx, my).setAlpha(0.55 * k * pulse).setScale(7 * pulse);
     }
-    if (t < s.next) return;
+    if (t < s.next || s.kind === 'ash') return;
     s.next = t + STORM.tick;
     // cataclismo: fere o herói e os inimigos na tela (chefes perdem só 1%)
     const hero = s.kind === 'blood' ? BLOOD_MOON.hero : s.kind === 'snow' ? 0.04 : 0.05;
@@ -632,7 +666,8 @@ export class RunEvents {
    * Uma faixa larga atravessa a tela (aviso no chão por 2,6 s, o chão treme); depois uma parede de
    * neve passa por ela e esmaga quem estiver dentro: herói e inimigos. Escapar vale o objetivo.
    */
-  private startAvalanche() {
+  /** Avalanche (neve) ou rio de lava (`lava`: a parede é de lava e deixa poças no caminho). */
+  private startAvalanche(lava = false) {
     const sc = this.scene;
     const v = sc.cameras.main.worldView;
     const p = sc.player;
@@ -643,10 +678,10 @@ export class RunEvents {
     const half = AVALANCHE.half;
     // parede: ondas de neve em duas fileiras, desencontradas, cobrindo a altura da faixa
     const wall = [-0.75, -0.2, 0.35, 0.9].map((k, i) => ({
-      img: sc.add.image(0, 0, 'atlas', frameName('fx_avalanche')).setOrigin(0.82, 1).setFlipX(dir < 0).setVisible(false).setScale(1.05 - (i % 2) * 0.1),
+      img: sc.add.image(0, 0, 'atlas', frameName(lava ? 'fx_lavaflow' : 'fx_avalanche')).setOrigin(0.82, 1).setFlipX(dir < 0).setVisible(false).setScale(1.05 - (i % 2) * 0.1),
       dx: (i % 2 ? -14 : 6), dy: k * half + 22, phase: i * 0.37,
     }));
-    this.avalanche = { y, half, dir, start: sc.elapsed + AVALANCHE.warn, x: dir > 0 ? v.x - 60 : v.right + 60, g, hit: false, left: v.x - 120, right: v.right + 120, wall };
+    this.avalanche = { y, half, dir, start: sc.elapsed + AVALANCHE.warn, x: dir > 0 ? v.x - 60 : v.right + 60, g, hit: false, left: v.x - 120, right: v.right + 120, wall, lava };
     sc.cameras.main.shake(AVALANCHE.warn * 1000, 0.002);
   }
 
@@ -671,7 +706,7 @@ export class RunEvents {
         g.fillStyle(0xffffff, 0.85).fillTriangle(cx + a.dir * 14, a.y, cx - a.dir * 8, a.y - 12, cx - a.dir * 8, a.y + 12);
         g.lineStyle(2, 0xb02010, 0.9).strokeTriangle(cx + a.dir * 14, a.y, cx - a.dir * 8, a.y - 12, cx - a.dir * 8, a.y + 12);
       }
-      if (Math.random() < 0.3 + k) sc.impact(a.x + a.dir * 30, a.y + (Math.random() - 0.5) * a.half * 2, 0xffffff, 0.6);
+      if (Math.random() < 0.3 + k) sc.impact(a.x + a.dir * 30, a.y + (Math.random() - 0.5) * a.half * 2, a.lava ? 0xff8a3a : 0xffffff, 0.6);
       return;
     }
     // a parede de neve passa
@@ -680,11 +715,20 @@ export class RunEvents {
     for (const w of a.wall) {
       const wy = a.y + w.dy + Math.sin(t * 9 + w.phase * 10) * 2;
       w.img.setVisible(true).setPosition(a.x + a.dir * w.dx, wy).setDepth(wy)
-        .setFrame(loopFrame('fx_avalanche', t + w.phase, 10));
+        .setFrame(loopFrame(a.lava ? 'fx_lavaflow' : 'fx_avalanche', t + w.phase, 10));
     }
     // neve espirrando na frente e um rastro de neve que assenta atrás
-    if (Math.random() < 0.7) sc.impact(a.x + a.dir * 10, a.y + (Math.random() - 0.5) * a.half * 2, 0xffffff, 1.1);
-    if (Math.random() < 0.5) {
+    if (Math.random() < 0.7) sc.impact(a.x + a.dir * 10, a.y + (Math.random() - 0.5) * a.half * 2, a.lava ? 0xff8a3a : 0xffffff, 1.1);
+    if (a.lava) {
+      // a lava deixa poças pelo caminho, que esfriam depois de um tempo
+      // uma poça a cada 80 px percorridos (não depende da taxa de quadros)
+      a.poolAt ??= a.x;
+      if (Math.abs(a.x - a.poolAt) > 80) {
+        a.poolAt = a.x;
+        sc.mapHazards.addLava(back, a.y + (Math.random() - 0.5) * a.half * 1.2, 9, 0.5);
+      }
+      if (Math.random() < 0.4) sc.emitFlame(back - a.dir * Math.random() * 30, a.y + (Math.random() - 0.5) * a.half * 1.8);
+    } else if (Math.random() < 0.5) {
       const px = back - a.dir * Math.random() * 40;
       const py = a.y + (Math.random() - 0.5) * a.half * 1.8;
       const puff = sc.add.image(px, py, 'atlas', frameName('glow')).setTint(0xeaf6ff).setScale(1.2 + Math.random(), 0.7).setAlpha(0.7).setDepth(LAYER.groundFx);
@@ -692,16 +736,20 @@ export class RunEvents {
     }
     const inBand = (x: number, y: number) => Math.abs(y - a.y) < a.half && (a.dir > 0 ? x <= a.x && x >= back : x >= a.x && x <= back);
     const p = sc.player;
-    if (!a.hit && inBand(p.x, p.y) && sc.hurtPlayer(sc.stats.maxHp * AVALANCHE.hero)) a.hit = true;
+    // pego na faixa: não conta como escapar, mesmo se o golpe cair no tempo de invencibilidade
+    if (!a.hit && inBand(p.x, p.y)) {
+      a.hit = true;
+      sc.hurtPlayer(sc.stats.maxHp * AVALANCHE.hero);
+    }
     sc.queryEnemies(a.x, a.y, a.half + 60, (e) => {
-      if (e.active && inBand(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.03 : e.maxHp * 0.7 + 50, '#bff0ff');
+      if (e.active && inBand(e.x, e.y)) sc.elementalDamage(e, e.boss ? e.maxHp * 0.03 : e.maxHp * 0.7 + 50, a.lava ? '#ff9a5a' : '#bff0ff');
     });
     if ((a.dir > 0 && back > a.right) || (a.dir < 0 && back < a.left)) {
       g.destroy();
       for (const w of a.wall) w.img.destroy();
       if (!a.hit) {
-        sc.completed.add('avalanche');
-        sc.events.emit('announce', 'VOCÊ ESCAPOU DA AVALANCHE!');
+        sc.completed.add(a.lava ? 'lavaRiver' : 'avalanche');
+        sc.events.emit('announce', a.lava ? 'VOCÊ ESCAPOU DO RIO DE LAVA!' : 'VOCÊ ESCAPOU DA AVALANCHE!');
       }
       this.avalanche = null;
     }
@@ -759,7 +807,7 @@ export class RunEvents {
     const sc = this.scene;
     if (e.tag === 'golden') {
       sc.completed.add('goldenGoblin');
-      sc.events.emit('announce', `${this.goldenName()} PEGO!`);
+      sc.events.emit('announce', `${this.goldenName()} ${this.goldenFem() ? 'PEGA' : 'PEGO'}!`);
       for (let i = 0; i < 30; i++) sc.dropPickup('coin', e.x + Phaser.Math.Between(-30, 30), e.y + Phaser.Math.Between(-24, 24), 4);
       this.golden = null;
     } else if (e.tag === 'surprise') {

@@ -1,9 +1,11 @@
-// Perigos espalhados pelo mapa: árvores bravas (atacam quem chega perto, com aviso) e armadilhas
-// (uma placa de pedra com runa: pisou, acontece algo aleatório, bom ou ruim).
+// Perigos espalhados pelo mapa: árvores bravas (atacam quem chega perto, com aviso), armadilhas
+// (uma placa de pedra com runa: pisou, acontece algo aleatório, bom ou ruim), poças de lava (queimam
+// quem pisa, herói e inimigos) e respiros vulcânicos (explodem em coluna de fogo, com aviso).
 import Phaser from 'phaser';
 import { warnCircle } from './telegraph';
 import { ENEMIES } from '../data/enemies';
-import type { GameScene } from '../scenes/GameScene';
+import { frameName } from '../art/textures';
+import { LAYER, type GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
 
 /** Árvore brava: alcance (px), aviso (s), tempo até atacar de novo (s) e dano (em dano de contato). */
@@ -11,6 +13,12 @@ const TREE = { reach: 56, windup: 0.8, cooldown: 2.6, damage: 1.4 };
 
 /** Armadilha: raio para pisar (px) e quantas aparecem por trecho do mapa (chance). */
 export const TRAP = { radius: 14, chance: 0.14 };
+
+/** Lava: dano por segundo (fração da vida máxima do herói) e de quanto em quanto tempo queima (s). */
+const LAVA = { heroDps: 0.06, enemyDps: 0.25, tick: 0.4 };
+
+/** Respiro vulcânico: alcance para acordar (px), raio da coluna de fogo, aviso, intervalo e dano. */
+const VENT = { wake: 260, radius: 50, warn: 1.1, cooldown: [4.5, 8] as [number, number], damage: 0.12 };
 
 /** Efeitos da armadilha (sorteio igual). */
 type TrapEffect = 'boom' | 'teleport' | 'ambush' | 'treasure' | 'snare' | 'heal' | 'lightning' | 'curse';
@@ -46,12 +54,17 @@ export function trapTexture(scene: Phaser.Scene) {
 export class MapHazards {
   /** armadilhas já acionadas (o trecho do mapa pode ser recriado ao voltar) */
   private used = new Set<string>();
+  /** poças de lava passageiras (rio de lava, golem de magma): somem quando esfriam */
+  private temp: { img: Phaser.GameObjects.Image; until: number }[] = [];
+  private nextBurn = 0;
 
   constructor(private sc: GameScene) {}
 
-  update(trees: Phaser.GameObjects.Image[], traps: Phaser.GameObjects.Image[]) {
+  update(trees: Phaser.GameObjects.Image[], traps: Phaser.GameObjects.Image[], lava: Phaser.GameObjects.Image[] = [], vents: Phaser.GameObjects.Image[] = []) {
     this.updateTrees(trees);
     this.updateTraps(traps);
+    this.updateLava(lava);
+    this.updateVents(vents);
   }
 
   isUsed(key: string) {
@@ -100,6 +113,106 @@ export class MapHazards {
     }
     sc.queryEnemies(tree.x, tree.y, TREE.reach + 10, (e) => {
       if (e.active && !e.boss && (e.x - tree.x) ** 2 + ((e.y - tree.y) / 0.8) ** 2 < TREE.reach * TREE.reach) sc.elementalDamage(e, e.maxHp * 0.5, '#c8b8d8');
+    });
+  }
+
+  // ---------- Lava ----------
+
+  /** Poça de lava passageira em (x, y) que esfria em `seconds`. */
+  addLava(x: number, y: number, seconds: number, scale = 0.7) {
+    const sc = this.sc;
+    if (this.temp.length > 40) return;
+    const img = sc.add.image(x, y, 'atlas', frameName('lava_pool')).setScale(scale * 0.3).setDepth(LAYER.groundDecor - 1).setFlipX(Math.random() < 0.5);
+    sc.tweens.add({ targets: img, scale, duration: 260, ease: 'Back.Out' });
+    img.setData('lava', true);
+    this.temp.push({ img, until: sc.elapsed + seconds });
+  }
+
+  private inside(m: Phaser.GameObjects.Image, x: number, y: number) {
+    return ((x - m.x) / (m.displayWidth * 0.42)) ** 2 + ((y - m.y) / (m.displayHeight * 0.38)) ** 2 < 1;
+  }
+
+  private updateLava(lava: Phaser.GameObjects.Image[]) {
+    const sc = this.sc;
+    const t = sc.elapsed;
+    // as passageiras esfriam: escurecem e somem
+    this.temp = this.temp.filter((l) => {
+      const left = l.until - t;
+      if (left <= 0) {
+        l.img.destroy();
+        return false;
+      }
+      if (left < 1.5) l.img.setAlpha(left / 1.5).setTint(Phaser.Display.Color.GetColor(255, 120 + 90 * (left / 1.5), 90 + 120 * (left / 1.5)));
+      return true;
+    });
+    const pools = lava.length || this.temp.length ? [...lava, ...this.temp.map((l) => l.img)] : null;
+    if (!pools || t < this.nextBurn) return;
+    this.nextBurn = t + LAVA.tick;
+    const p = sc.player;
+    // brilho e chamas na borda das poças perto do herói
+    for (const m of pools) {
+      if (Math.abs(m.x - p.x) < 260 && Math.abs(m.y - p.y) < 420 && Math.random() < 0.5) {
+        sc.emitFlame(m.x + (Math.random() - 0.5) * m.displayWidth * 0.6, m.y + (Math.random() - 0.5) * m.displayHeight * 0.4);
+      }
+    }
+    if (pools.some((m) => this.inside(m, p.x, p.y))) {
+      sc.hurtPlayer(sc.stats.maxHp * LAVA.heroDps * LAVA.tick);
+      sc.emitFlame(p.x, p.y);
+    }
+    for (const m of pools) {
+      if (Math.abs(m.x - p.x) > 500 || Math.abs(m.y - p.y) > 600) continue;
+      sc.queryEnemies(m.x, m.y, Math.max(m.displayWidth, m.displayHeight) * 0.5, (e) => {
+        // criaturas de fogo nadam na lava
+        if (!e.active || e.boss || e.def.element === 'fire' || !this.inside(m, e.x, e.y)) return;
+        sc.elementalDamage(e, e.maxHp * LAVA.enemyDps * LAVA.tick + 2, '#ff9a5a');
+      });
+    }
+  }
+
+  // ---------- Respiros vulcânicos ----------
+
+  private updateVents(vents: Phaser.GameObjects.Image[]) {
+    const sc = this.sc;
+    const t = sc.elapsed;
+    const p = sc.player;
+    for (const v of vents) {
+      if (!v.active) continue;
+      const blowAt = (v.getData('blowAt') as number) ?? 0;
+      if (blowAt) {
+        if (Math.random() < 0.5) sc.emitFlame(v.x + (Math.random() - 0.5) * 16, v.y - 10);
+        if (t < blowAt) continue;
+        v.setData('blowAt', 0);
+        this.blow(v);
+        continue;
+      }
+      const ready = v.getData('ready') as number | undefined;
+      if (ready === undefined) {
+        // cada respiro começa num ponto diferente do ciclo
+        v.setData('ready', t + Math.random() * VENT.cooldown[1]);
+        continue;
+      }
+      if (t < ready || (p.x - v.x) ** 2 + (p.y - v.y) ** 2 > VENT.wake * VENT.wake) continue;
+      v.setData('blowAt', t + VENT.warn);
+      v.setData('ready', t + VENT.warn + Phaser.Math.FloatBetween(...VENT.cooldown));
+      warnCircle(sc, v.x, v.y - 6, VENT.radius, 0xff5020, VENT.warn);
+      sc.tweens.add({ targets: v, scaleY: { from: v.scaleY, to: v.scaleY * 1.12 }, duration: 90, yoyo: true, repeat: Math.floor((VENT.warn * 1000) / 180) - 1 });
+    }
+  }
+
+  /** Coluna de fogo: fere o herói e os inimigos dentro do círculo. */
+  private blow(v: Phaser.GameObjects.Image) {
+    const sc = this.sc;
+    const x = v.x;
+    const y = v.y - 6;
+    const r = VENT.radius;
+    sc.elements.vfx('vfx_explosion', x, y + r * 0.3, r * 2, [[0, 0.04], [1, 0.06], [2, 0.12], [3, 0.28]]);
+    for (let i = 0; i < 10; i++) sc.emitFlame(x + (Math.random() - 0.5) * 30, y - Math.random() * 60);
+    sc.impact(x, y, 0xff7a2a, 1.8);
+    sfx('boom');
+    const p = sc.player;
+    if ((p.x - x) ** 2 + (p.y - y) ** 2 < (r + 10) ** 2) sc.hurtPlayer(sc.stats.maxHp * VENT.damage);
+    sc.queryEnemies(x, y, r + 16, (e) => {
+      if (e.active && !e.boss && (e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.radius) ** 2) sc.elementalDamage(e, e.maxHp * 0.8 + 20, '#ff9a5a');
     });
   }
 

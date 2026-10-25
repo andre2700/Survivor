@@ -462,6 +462,52 @@ export const ART = {
       windup: 'rearing up with wings spread wide, inhaling, mouth glowing blue', attack: 'breathing a blast of icy frost forward to the RIGHT',
     },
   },
+  // ---------- Coração do Vulcão (fogo, épico) ----------
+  ground_volcano: { tile: true, contrast: 0.5, prompt: `a seamless tileable texture of dark volcanic ground seen from directly above, for a top-down RPG map: dark charcoal and deep brown basalt rock with soft large painterly patches and a faint warm orange glow in a few soft areas. Very clean and calm. NO lava rivers, NO rocks, NO outlines, NO dots, NO objects. Even lighting, fills the whole square image edge to edge` },
+  volcanic_rock: { h: 22, shadow: true, prompt: `a single jagged black volcanic rock with glowing orange cracks, front view, like a top-down RPG map object` },
+  obsidian: { h: 26, shadow: true, prompt: `a single cluster of shiny black obsidian crystals with purple glints, front view, like a top-down RPG map object` },
+  burnt_tree: { h: 70, shadow: true, prompt: `a single charred dead tree with black twisted branches and glowing embers in the bark, front view, like a top-down RPG map object` },
+  ash_pile: { h: 12, prompt: `a small pile of grey ash with a few tiny glowing embers, like a top-down RPG map decoration` },
+  lava_vent: { h: 20, shadow: true, prompt: `a small volcanic vent mound of dark rock with a glowing orange hole on top and a wisp of smoke, front view, like a top-down RPG map object` },
+  lava_pool: { w: 76, prompt: `a flat irregular pool of bright glowing orange and yellow lava with a dark crusted rim and a few bubbles, seen from directly above, organic blob shape, like a top-down RPG map decal` },
+  fx_lavaflow: { h: 72, facing: true, ground: true, wideSheets: true, frames: 3, role: 'vfx', effect: 'this same wall of flowing lava (same shape, size and colors as the reference), surging forward', poses: {
+    f1: 'the lava wave surging with bubbles and splashing droplets at the front', f2: 'the same lava wave, the splashes and bubbles moved forward', f3: 'the same lava wave, churning, droplets flying in new positions' }, prompt: `${FX}a huge cartoon wave of molten lava surging to the RIGHT, glowing orange and yellow with a dark crust, splashing droplets and bubbles at the front, side view, bold dark outlines` },
+  salamander: {
+    h: 22, hd: 3, shadow: true, wide: true, role: 'monster', body: 'quadruped',
+    prompt: `a fast cartoon fire salamander lizard monster with glossy red-orange skin, yellow spots and a small flame on its tail tip, ${CHAR}`,
+    poses: { walk_a: 'scurrying low, front legs forward', walk_mid: 'scurrying, legs under the body', walk_b: 'scurrying, back legs forward', attack: 'lunging forward to the RIGHT with its jaws open, a puff of flame from the mouth' },
+  },
+  ember_bat: {
+    h: 20, hd: 3, role: 'monster', body: 'flyer', wideSheets: true,
+    prompt: `a small cartoon fire bat monster with dark red leathery wings with glowing ember edges and glowing yellow eyes, flying, ${CHAR}`,
+    poses: { attack: 'diving forward to the RIGHT with fangs bared, trailing sparks' },
+  },
+  magma_golem: {
+    h: 38, hd: 3, shadow: true, role: 'monster', body: 'biped',
+    prompt: `a chunky slow magma golem monster made of dark basalt rock plates with glowing molten lava cracks between them, heavy fists, ${CHAR}`,
+    poses: { attack: 'slamming both molten fists down forward to the RIGHT' },
+  },
+  fire_imp: {
+    h: 26, hd: 3, shadow: true, role: 'special', body: 'biped',
+    prompt: `a mischievous cartoon fire imp monster with red skin, small horns, a pointy tail, bat wings and a fireball floating over its hand, ${CHAR}`,
+    poses: { windup: 'holding a growing fireball above its head with both hands, grinning', attack: 'hurling the fireball forward to the RIGHT' },
+  },
+  lava_serpent: {
+    h: 34, hd: 3, shadow: true, role: 'special', body: 'blob',
+    prompt: `a big lava serpent monster rising up, body of dark crusted rock scales with glowing molten lava between them, fanged mouth, glowing eyes, ${CHAR}`,
+    poses: {
+      walk_a: 'slithering on the surface, body curved low, no lava pool under it', walk_mid: 'slithering, body raised in an S curve, no ground under it', walk_b: 'slithering, body stretched forward, no ground under it',
+      windup: 'diving head-first down into a small splash of lava, only the tail sticking out', attack: 'erupting up from a burst of lava with its fanged mouth wide open',
+    },
+  },
+  magma_titan: {
+    h: 76, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped',
+    prompt: `a colossal volcano titan boss monster, clearly different from a simple rock golem: a hunched giant demon-like beast with a whole small ERUPTING VOLCANO growing out of its back spewing fire and smoke, two huge curved obsidian horns, a long lava-cracked tail, plates of black volcanic armor on its shoulders, a fanged jaw glowing with fire, huge clawed molten hands, ${CHAR}, menacing and epic`,
+    poses: {
+      idle: 'standing tall, lava dripping from its fists, smoke rising', walk_a: 'stomping forward, front leg forward', walk_b: 'stomping forward, back leg forward',
+      windup: 'raising both huge molten fists high over its head, lava glowing brighter', attack: 'smashing both fists into the ground in front to the RIGHT, a burst of lava and rocks',
+    },
+  },
   // objetos dos eventos (no lugar dos provisórios desenhados por código)
   chest: { h: 22, shadow: true, prompt: `a single closed wooden treasure chest with gold trim and a golden lock, front view, like a top-down RPG map object` },
   bomb: { h: 16, prompt: `a single round black cartoon bomb with a short lit fuse sparkling, like a top-down RPG map item` },

@@ -10,7 +10,7 @@ export type Mood = 'leve' | 'sério' | 'sombrio' | 'épico';
 
 /** Eventos aleatórios que podem acontecer na fase (ver systems/events.ts). */
 export type RunEventId = 'chest' | 'captive' | 'surpriseBoss' | 'goldenGoblin' | 'meteors' | 'ambush' | 'tribeWar' | 'sandstorm'
-  | 'blizzard' | 'avalanche'
+  | 'blizzard' | 'avalanche' | 'eruption' | 'lavaRiver'
   | 'cursedShrine' | 'bloodMoon';
 
 /** Tribo da guerra de tribos: nome no anúncio e criaturas dela. */
@@ -56,7 +56,9 @@ export interface StageDef {
    * perigo do mapa: névoa que esconde a borda da tela, escuridão (só a área em volta do herói fica
    * clara) ou gelo (placas de gelo onde o herói escorrega)
    */
-  hazard?: 'fog' | 'dark' | 'ice';
+  hazard?: 'fog' | 'dark' | 'ice' | 'lava';
+  /** decoração que entra em erupção quando o herói chega perto (respiros do vulcão) */
+  vents?: string[];
   /** criatura das revoadas (padrão: morcego) e do cerco (padrão: esqueleto, orc mais tarde) */
   swarm?: EnemyId;
   ring?: [EnemyId, EnemyId];
@@ -171,6 +173,25 @@ const ICE_WAVES: Wave[] = [
   { minute: 14, pool: ['penguin', 'yeti', 'frost_wraith', 'snow_golem', 'snow_owl'], rate: 9.2, max: 310, event: 'swarm' },
 ];
 
+/** Coração do Vulcão: salamandras, morcegos de brasa, golens de magma, diabretes e serpentes de lava. */
+const VOLCANO_WAVES: Wave[] = [
+  { minute: 0, pool: ['salamander', 'ember_bat'], rate: 1.7, max: 42 },
+  { minute: 1, pool: ['salamander', 'fire_imp'], rate: 2.3, max: 58 },
+  { minute: 2, pool: ['salamander', 'magma_golem', 'ember_bat'], rate: 2.9, max: 74 },
+  { minute: 3, pool: ['fire_imp', 'magma_golem', 'ember_bat'], rate: 3.3, max: 92, event: 'swarm' },
+  { minute: 4, pool: ['salamander', 'lava_serpent', 'magma_golem', 'ember_bat'], rate: 3.7, max: 112 },
+  { minute: 5, pool: ['magma_golem', 'fire_imp', 'lava_serpent'], rate: 4.3, max: 132 },
+  { minute: 6, pool: ['salamander', 'magma_golem', 'lava_serpent', 'fire_imp'], rate: 4.8, max: 152, event: 'ring' },
+  { minute: 7, pool: ['ember_bat', 'magma_golem', 'fire_imp', 'lava_serpent'], rate: 5.3, max: 172, event: 'swarm' },
+  { minute: 8, pool: ['magma_golem', 'salamander', 'fire_imp'], rate: 5.9, max: 192, event: 'ring' },
+  { minute: 9, pool: ['salamander', 'magma_golem', 'lava_serpent', 'fire_imp', 'ember_bat'], rate: 6.5, max: 212, event: 'swarm' },
+  { minute: 10, pool: ['magma_golem', 'lava_serpent', 'salamander'], rate: 6.9, max: 232 },
+  { minute: 11, pool: ['magma_golem', 'fire_imp', 'lava_serpent'], rate: 7.4, max: 252, event: 'ring' },
+  { minute: 12, pool: ['ember_bat', 'magma_golem', 'lava_serpent', 'fire_imp'], rate: 7.9, max: 272, event: 'swarm' },
+  { minute: 13, pool: ['magma_golem', 'salamander', 'lava_serpent'], rate: 8.4, max: 292, event: 'ring' },
+  { minute: 14, pool: ['salamander', 'magma_golem', 'lava_serpent', 'fire_imp', 'ember_bat'], rate: 9.3, max: 312, event: 'swarm' },
+];
+
 /** Fase futura: aparece no mapa, ainda sem arte própria. */
 function soon(id: StageId, name: string, subtitle: string, mood: Mood, elements: string, color: number): StageDef {
   return {
@@ -266,7 +287,21 @@ export const STAGES: StageDef[] = [
       { kind: 'kills', n: 5000, text: 'Derrote 5.000 inimigos' },
     ],
   },
-  soon('vulcao', 'Coração do Vulcão', 'O chão ferve sob seus pés', 'épico', 'fogo', 0xe8502a),
+  {
+    id: 'vulcao', name: 'Coração do Vulcão', subtitle: 'O chão ferve sob seus pés', mood: 'épico', elements: 'fogo', playable: true,
+    tint: { ground: 0xffffff, decor: 0xffffff, sky: '#3a1a12' }, color: 0xe8502a,
+    ground: 'ground_volcano', hazard: 'lava', swarm: 'ember_bat', ring: ['salamander', 'magma_golem'], golden: 'salamander', vents: ['lava_vent'],
+    decor: { volcanic_rock: 10, obsidian: 7, burnt_tree: 5, ash_pile: 16, lava_vent: 5 },
+    tall: ['burnt_tree'], patches: ['lava_pool'],
+    tribes: [{ name: 'Salamandras', pool: ['salamander', 'salamander', 'lava_serpent'] }, { name: 'Golens', pool: ['magma_golem', 'magma_golem', 'fire_imp'] }],
+    waves: VOLCANO_WAVES, bosses: ['salamander_queen', 'ash_lord', 'magma_titan'], difficulty: 24,
+    events: ['chest', 'captive', 'surpriseBoss', 'eruption', 'lavaRiver', 'goldenGoblin', 'tribeWar', 'ambush'],
+    objectives: [
+      { kind: 'boss', text: 'Derrote o Titã de Magma' },
+      { kind: 'event', event: 'lavaRiver', text: 'Escape de um rio de lava' },
+      { kind: 'kills', n: 6000, text: 'Derrote 6.000 inimigos' },
+    ],
+  },
   soon('ruinas', 'Ruínas Malditas', 'Um reino caído e seus fantasmas', 'épico', 'mistos', 0x8a6ab0),
   soon('cidadela', 'Cidadela Demoníaca', 'O fim da jornada', 'épico', 'todos', 0xb0202a),
 ];

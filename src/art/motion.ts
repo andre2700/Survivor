@@ -54,6 +54,13 @@ const GAITS: Record<string, Gait> = {
   penguin: { fps: 9, cycle: STEP, squash: 0.04, tilt: 0.06 },
   snow_owl: { fps: 9, cycle: STEP, squash: 0.03, tilt: 0.05 },
   ice_dragon: { fps: 4, cycle: STRIDE, squash: 0.02, tilt: 0.015 },
+  // Vulcão
+  salamander: { fps: 9, cycle: STEP, squash: 0.03, tilt: 0.03 },
+  ember_bat: { fps: 12, cycle: STEP, squash: 0.03, tilt: 0.05 },
+  magma_golem: { fps: 5, cycle: STRIDE, squash: 0.03, tilt: 0.02 },
+  fire_imp: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.05 },
+  lava_serpent: { fps: 6, cycle: STEP, squash: 0.05, tilt: 0.02 },
+  magma_titan: { fps: 3.5, cycle: STRIDE, squash: 0.02, tilt: 0.015 },
 };
 
 export interface Pose {

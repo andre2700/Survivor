@@ -8,7 +8,8 @@ export type EnemyId = 'slime' | 'bat' | 'goblin' | 'wolf' | 'skeleton' | 'orc' |
   | 'werewolf' | 'wisp' | 'spider' | 'witch' | 'ancient_ent'
   | 'king_slime' | 'alpha_wolf' | 'magma_lord' | 'goblin_warlord' | 'croc_king' | 'grand_frog_shaman'
   | 'colossal_worm' | 'lizard_elder' | 'werewolf_alpha' | 'elder_witch'
-  | 'goblin_king' | 'yeti' | 'snow_golem' | 'frost_wraith' | 'penguin' | 'snow_owl' | 'ice_dragon' | 'yeti_elder' | 'frost_queen';
+  | 'goblin_king' | 'yeti' | 'snow_golem' | 'frost_wraith' | 'penguin' | 'snow_owl' | 'ice_dragon' | 'yeti_elder' | 'frost_queen'
+  | 'salamander' | 'ember_bat' | 'magma_golem' | 'fire_imp' | 'lava_serpent' | 'magma_titan' | 'salamander_queen' | 'ash_lord';
 
 /**
  * Como o inimigo luta: corpo a corpo (encosta); à distância (mantém distância e atira, com aviso);
@@ -209,6 +210,22 @@ export const ENEMIES = {
   penguin: { id: 'penguin', kind: 'penguin', name: 'Pinguim Guerreiro', texture: 'penguin', element: 'water', hp: 24, speed: 50, damage: 9, xp: 1, scale: 1, radius: 8, knockback: 1, resist: 0 },
   snow_owl: { id: 'snow_owl', kind: 'snow_owl', name: 'Coruja da Nevasca', texture: 'snow_owl', element: 'air', hp: 16, speed: 74, damage: 8, xp: 1, scale: 1, radius: 8, knockback: 1.1, resist: 0 },
   ice_dragon: { id: 'ice_dragon', kind: 'ice_dragon', name: 'Dragão de Gelo', texture: 'ice_dragon', element: 'water', hp: 10000, speed: 44, damage: 36, xp: 220, scale: 1.3, radius: 26, knockback: 0, resist: 0.85, boss: true },
+  // ---------- Coração do Vulcão (criaturas de fogo não se queimam na lava) ----------
+  salamander: { id: 'salamander', kind: 'salamander', name: 'Salamandra', texture: 'salamander', element: 'fire', hp: 26, speed: 50, damage: 10, xp: 1, scale: 1, radius: 9, knockback: 1, resist: 0 },
+  ember_bat: { id: 'ember_bat', kind: 'ember_bat', name: 'Morcego de Brasa', texture: 'ember_bat', element: 'fire', hp: 16, speed: 76, damage: 8, xp: 1, scale: 1, radius: 8, knockback: 1.1, resist: 0 },
+  // tanque lento: ao cair, deixa uma poça de lava
+  magma_golem: { id: 'magma_golem', kind: 'magma_golem', name: 'Golem de Magma', texture: 'magma_golem', element: 'fire', hp: 110, speed: 24, damage: 17, xp: 5, scale: 1, radius: 13, knockback: 0.3, resist: 0.45 },
+  // conjurador: atira bolas de fogo que explodem
+  fire_imp: {
+    id: 'fire_imp', kind: 'fire_imp', name: 'Diabrete Lança-Chamas', texture: 'fire_imp', element: 'fire', hp: 40, speed: 40, damage: 10, xp: 3, scale: 1, radius: 9, knockback: 0.7, resist: 0.15,
+    behavior: 'caster', skill: { kind: 'fireball', damage: 1.6, cooldown: 3.8, range: 180, windup: 0.8, speed: 130, radius: 24, level: 2 },
+  },
+  // mergulha e irrompe embaixo do herói
+  lava_serpent: {
+    id: 'lava_serpent', kind: 'lava_serpent', name: 'Serpente de Lava', texture: 'lava_serpent', element: 'fire', hp: 95, speed: 36, damage: 16, xp: 4, scale: 1, radius: 12, knockback: 0.4, resist: 0.35,
+    behavior: 'burrower', skill: { kind: 'burrow', damage: 1.7, cooldown: 4.2, range: 210, windup: 0.5, speed: 160, radius: 32, level: 1 },
+  },
+  magma_titan: { id: 'magma_titan', kind: 'magma_titan', name: 'Titã de Magma', texture: 'magma_titan', element: 'fire', hp: 10500, speed: 40, damage: 40, xp: 240, scale: 1.35, radius: 28, knockback: 0, resist: 0.85, boss: true },
 } as Record<EnemyId, EnemyDef>;
 
 /**
@@ -236,6 +253,8 @@ Object.assign(ENEMIES, {
   elder_witch: giant(ENEMIES.witch, 'elder_witch', 'Bruxa Anciã', 3700, 3),
   yeti_elder: giant(ENEMIES.yeti, 'yeti_elder', 'Yeti Ancião', 1600, 3),
   frost_queen: giant(ENEMIES.frost_wraith, 'frost_queen', 'Rainha do Gelo', 4000, 3.1),
+  salamander_queen: giant(ENEMIES.salamander, 'salamander_queen', 'Salamandra Rainha', 1700, 4, { speed: 56 }),
+  ash_lord: giant(ENEMIES.fire_imp, 'ash_lord', 'Senhor das Cinzas', 4200, 3.4),
 } satisfies Partial<Record<EnemyId, EnemyDef>>);
 
 /** Cor das partículas quando o inimigo morre. */
@@ -249,5 +268,7 @@ export const DEATH_TINT: Record<EnemyId, number> = {
   scorpion: 0xe08a3a, vulture: 0x8a6a4a, cactus_spitter: 0x6ab84a, sandworm: 0xd8b880, lizard_shaman: 0x9ad050, scorpion_emperor: 0xe8c040,
   goblin_king: 0x5bb04f, yeti: 0xe8f4ff, snow_golem: 0xffffff, frost_wraith: 0x9fe8ff, penguin: 0x2a3050, snow_owl: 0xf0f0f0, ice_dragon: 0xa0e0ff,
   yeti_elder: 0xe8f4ff, frost_queen: 0x9fe8ff,
+  salamander: 0xff7a2e, ember_bat: 0xff5a1a, magma_golem: 0x3a2a2a, fire_imp: 0xe8402a, lava_serpent: 0xff6a1a, magma_titan: 0xff4a1a,
+  salamander_queen: 0xff7a2e, ash_lord: 0x8a8a8a,
   werewolf: 0x8a8f9a, wisp: 0x9af0f0, spider: 0x7a4fa8, witch: 0x7ac050, ancient_ent: 0x9a50d0,
 };

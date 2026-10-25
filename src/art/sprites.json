@@ -12,6 +12,9 @@
    "death"
   ]
  },
+ "ash_pile": {
+  "hd": 2
+ },
  "axe": {
   "hd": 4
  },
@@ -49,6 +52,9 @@
   "hd": 2
  },
  "bones": {
+  "hd": 2
+ },
+ "burnt_tree": {
   "hd": 2
  },
  "bush": {
@@ -140,6 +146,31 @@
  "egg_turtle": {
   "hd": 4
  },
+ "ember_bat": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "fire_imp": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "flowers": {
   "hd": 2
  },
@@ -212,6 +243,10 @@
  "fx_hammer": {
   "hd": 3,
   "frames": 2
+ },
+ "fx_lavaflow": {
+  "hd": 2,
+  "frames": 3
  },
  "fx_light_orb": {
   "hd": 2,
@@ -310,6 +345,9 @@
   "hd": 2
  },
  "ground_swamp": {
+  "hd": 2
+ },
+ "ground_volcano": {
   "hd": 2
  },
  "heart": {
@@ -521,6 +559,25 @@
  "knife": {
   "hd": 4
  },
+ "lava_pool": {
+  "hd": 2
+ },
+ "lava_serpent": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "lava_vent": {
+  "hd": 2
+ },
  "lilypond": {
   "hd": 2
  },
@@ -530,6 +587,31 @@
   "slots": [
    "walk_a",
    "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "magma_golem": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "magma_titan": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
    "walk_b",
    "windup",
    "attack",
@@ -556,6 +638,9 @@
   "hd": 2
  },
  "mushroom": {
+  "hd": 2
+ },
+ "obsidian": {
   "hd": 2
  },
  "orb": {
@@ -933,6 +1018,18 @@
  "rock": {
   "hd": 2
  },
+ "salamander": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "sandworm": {
   "hd": 3,
   "frames": 7,
@@ -1153,6 +1250,9 @@
  "vfx_steam": {
   "hd": 2,
   "frames": 4
+ },
+ "volcanic_rock": {
+  "hd": 2
  },
  "vulture": {
   "hd": 3,
