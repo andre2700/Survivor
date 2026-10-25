@@ -54,7 +54,7 @@ await wait(2500);
 await shot('s01_inicio');
 
 // cada criatura da fase (das ondas e dos anéis), em volta do herói
-const kinds = [...new Set(stage.waves.flatMap((w) => w.pool).concat(stage.ring ?? [], stage.swarm ? [stage.swarm] : []))];
+const kinds = [...new Set(stage.waves.flatMap((w) => w.pool).concat(stage.ring ?? [], stage.swarm ? [stage.swarm] : [], stage.sleepers ?? []))];
 console.log('criaturas:', kinds.join(', '));
 await run((ks) => {
   const g = window.__game.scene.getScene('Game');
@@ -68,6 +68,20 @@ await wait(1800);
 await shot('s02_criaturas');
 await wait(1500);
 await shot('s03_criaturas_ataque');
+
+// criaturas paradas no mapa (estátua de gárgula, mímico): dormindo e depois acordando
+if (stage.sleepers?.length) {
+  await run((ids) => {
+    const g = window.__game.scene.getScene('Game');
+    g.devKillAll();
+    ids.forEach((id, i) => g.spawnSleeper(id, g.player.x - 60 + i * 120, g.player.y - 150));
+  }, stage.sleepers);
+  await wait(800);
+  await shot('s04_dormindo');
+  await run(() => { const g = window.__game.scene.getScene('Game'); g.player.y -= 120; });
+  await wait(900);
+  await shot('s05_acordando');
+}
 
 // cada evento da fase
 for (const ev of stage.events) {

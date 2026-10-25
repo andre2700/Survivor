@@ -16,6 +16,8 @@ interface Gait {
 const STEP = ['walk_a', 'walk_mid', 'walk_b', 'walk_mid'];
 // chefe: o quadro parado faz o papel das pernas juntas
 const STRIDE = ['walk_a', 'idle', 'walk_b', 'idle'];
+// criatura que dorme no mapa: o descanso é a estátua / o baú fechado, então o passo alterna só os dois quadros
+const FLAP = ['walk_a', 'walk_b'];
 const GAITS: Record<string, Gait> = {
   // herói correndo: passo com o pé de perto, passagem, passo com o pé de longe, passagem
   hero: { fps: 10, cycle: STEP, squash: 0.025, tilt: 0.01 },
@@ -61,6 +63,15 @@ const GAITS: Record<string, Gait> = {
   fire_imp: { fps: 8, cycle: STEP, squash: 0.03, tilt: 0.05 },
   lava_serpent: { fps: 6, cycle: STEP, squash: 0.05, tilt: 0.02 },
   magma_titan: { fps: 3.5, cycle: STRIDE, squash: 0.02, tilt: 0.015 },
+  // Ruínas Malditas
+  zombie: { fps: 5, cycle: STEP, squash: 0.03, tilt: 0.06 },
+  lost_soul: { fps: 8, cycle: STEP, squash: 0.05, tilt: 0.05 },
+  phantom_knight: { fps: 6, cycle: STEP, squash: 0.02, tilt: 0.03 },
+  skeleton_archer: { fps: 7, cycle: STEP, squash: 0.025, tilt: 0.05 },
+  gargoyle: { fps: 7, cycle: FLAP, squash: 0.03, tilt: 0.05 },
+  necromancer: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.04 },
+  mimic: { fps: 6, cycle: FLAP, squash: 0.06, tilt: 0.03 },
+  lich_king: { fps: 4, cycle: STRIDE, squash: 0.02, tilt: 0.015 },
 };
 
 export interface Pose {

@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { warnCircle, warnLane } from './telegraph';
 import { frameName, loopFrame } from '../art/textures';
 import type { BossShot } from '../data/bosses';
-import type { EnemySkill } from '../data/enemies';
+import { ENEMIES, type EnemySkill } from '../data/enemies';
 import type { Enemy } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
@@ -69,6 +69,9 @@ export const WEB = { time: 1.6, speed: 0.45 };
 export class EnemySkills {
   private shots: Shot[] = [];
   private strikes: Strike[] = [];
+
+  /** onde cada conjurador vai levantar os mortos (marcado no aviso) */
+  private raisePts = new Map<Enemy, { x: number; y: number }[]>();
 
   constructor(private scene: GameScene) {}
 
@@ -248,6 +251,22 @@ export class EnemySkills {
     } else if (skill.kind === 'tornado') {
       // aviso: o vento rodando em volta do xamã
       this.ring(e.x, e.y, 22, 0x9ad050, skill.windup);
+    } else if (skill.kind === 'arrow') {
+      // aviso: linha fina de mira até o herói
+      const a = Math.atan2(ty - e.y, tx - e.x);
+      warnLane(this.scene, e.x, e.y, e.x + Math.cos(a) * (skill.range + 40), e.y + Math.sin(a) * (skill.range + 40), 5, 0xff5a2a, skill.windup);
+    } else if (skill.kind === 'raise') {
+      // aviso: círculos verdes no chão onde os mortos vão sair (entre o conjurador e o herói)
+      const n = 1 + Math.min(3, Math.floor(this.level(skill) / 3));
+      const pts: { x: number; y: number }[] = [];
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const x = (e.x + tx) / 2 + Math.cos(a) * (30 + Math.random() * 40);
+        const y = (e.y + ty) / 2 + Math.sin(a) * (24 + Math.random() * 30);
+        pts.push({ x, y });
+        this.ring(x, y, skill.radius, 0x7ae05a, skill.windup);
+      }
+      this.raisePts.set(e, pts);
     } else if (skill.kind === 'spit') {
       // estufa antes de cuspir
       this.scene.tweens.add({ targets: e, scaleY: e.baseScale * 1.25, scaleX: e.baseScale * 0.85, duration: skill.windup * 900, yoyo: true });
@@ -261,6 +280,21 @@ export class EnemySkills {
     if (skill.kind === 'explode') {
       this.explode(e.x, e.y, skill.radius, dmg);
       this.scene.elementalDamage(e, e.hp + 1, '#ffffff');
+      return;
+    }
+    if (skill.kind === 'raise') {
+      // mãos verdes saem do chão e os mortos se levantam (quem estiver no círculo leva um golpe)
+      const sc = this.scene;
+      const id = e.def.raises ?? 'zombie';
+      for (const pt of this.raisePts.get(e) ?? []) {
+        sc.impact(pt.x, pt.y, 0x7ae05a, 1.3);
+        const p = sc.player;
+        if ((p.x - pt.x) ** 2 + ((p.y - pt.y) / 0.8) ** 2 < skill.radius ** 2) sc.hurtPlayer(e.damage);
+        const m = sc.spawnEnemy(ENEMIES[id], pt.x, pt.y);
+        if (m) m.alpha = 0.2;
+      }
+      this.raisePts.delete(e);
+      sfx('boss');
       return;
     }
     const lvl = this.level(skill);
@@ -300,12 +334,13 @@ export class EnemySkills {
     if (tornado) img = this.scene.add.image(e.x, e.y, 'atlas', frameName('fx_tornado')).setOrigin(0.5, 0.92).setTint(0xe8d8a0).setScale((area * 2.4) / 60);
     else if (fireball) img = this.scene.add.image(e.x, e.y - 6, 'atlas', frameName('fx_fireball')).setTint(0xffb08a).setScale(0.9).setRotation(angle);
     else if (wave) img = this.scene.add.image(e.x, e.y, 'atlas', frameName('fx_wave')).setOrigin(0.5, 0.86).setFlipX(Math.cos(angle) < 0).setScale((area * 2) / 64).setAlpha(0.9);
+    else if (skill.kind === 'arrow') img = this.scene.add.image(e.x, e.y - 8, 'atlas', frameName('proj_knife')).setTint(0xe8dcc0).setScale(0.8).setRotation(angle);
     else img = this.scene.add.image(e.x, e.y - 6, 'atlas', frameName('glow')).setTint(color).setScale(0.35);
     img.setDepth(wave || tornado ? e.y : LAYER.fx);
     const life = fireball ? dist / skill.speed : wave ? (skill.range + 60) / skill.speed : tornado ? 4.5 : 2.4;
     this.shots.push({
       img, vx: Math.cos(angle) * skill.speed, vy: Math.sin(angle) * skill.speed, total: life, nextHit: 0,
-      life, damage: dmg, r: fireball ? 8 : wave || tornado ? area : skill.radius, kind: skill.kind, chill: CHILL_KINDS.includes(e.def.kind),
+      life, damage: dmg, r: fireball ? 8 : wave || tornado ? area : skill.radius, kind: skill.kind === 'arrow' ? 'spit' : skill.kind, chill: CHILL_KINDS.includes(e.def.kind),
       tx: e.x + Math.cos(angle) * dist, ty: e.y + Math.sin(angle) * dist, area, color,
     });
   }

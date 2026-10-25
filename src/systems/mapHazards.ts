@@ -1,6 +1,7 @@
 // Perigos espalhados pelo mapa: árvores bravas (atacam quem chega perto, com aviso), armadilhas
 // (uma placa de pedra com runa: pisou, acontece algo aleatório, bom ou ruim), poças de lava (queimam
-// quem pisa, herói e inimigos) e respiros vulcânicos (explodem em coluna de fogo, com aviso).
+// quem pisa, herói e inimigos), respiros vulcânicos (explodem em coluna de fogo, com aviso) e círculos
+// de maldição (drenam a vida do herói e cortam a regeneração).
 import Phaser from 'phaser';
 import { warnCircle } from './telegraph';
 import { ENEMIES } from '../data/enemies';
@@ -16,6 +17,9 @@ export const TRAP = { radius: 14, chance: 0.14 };
 
 /** Lava: dano por segundo (fração da vida máxima do herói) e de quanto em quanto tempo queima (s). */
 const LAVA = { heroDps: 0.06, enemyDps: 0.25, tick: 0.4 };
+
+/** Círculo de maldição: dano por segundo (fração da vida máxima do herói) e de quanto em quanto tempo. */
+const CURSE = { heroDps: 0.04, tick: 0.5 };
 
 /** Respiro vulcânico: alcance para acordar (px), raio da coluna de fogo, aviso, intervalo e dano. */
 const VENT = { wake: 260, radius: 50, warn: 1.1, cooldown: [4.5, 8] as [number, number], damage: 0.12 };
@@ -57,18 +61,46 @@ export class MapHazards {
   /** poças de lava passageiras (rio de lava, golem de magma): somem quando esfriam */
   private temp: { img: Phaser.GameObjects.Image; until: number }[] = [];
   private nextBurn = 0;
+  private nextCurse = 0;
 
   constructor(private sc: GameScene) {}
 
-  update(trees: Phaser.GameObjects.Image[], traps: Phaser.GameObjects.Image[], lava: Phaser.GameObjects.Image[] = [], vents: Phaser.GameObjects.Image[] = []) {
+  update(trees: Phaser.GameObjects.Image[], traps: Phaser.GameObjects.Image[], lava: Phaser.GameObjects.Image[] = [], vents: Phaser.GameObjects.Image[] = [], curses: Phaser.GameObjects.Image[] = []) {
     this.updateTrees(trees);
     this.updateTraps(traps);
     this.updateLava(lava);
     this.updateVents(vents);
+    this.updateCurses(curses);
+  }
+
+  // ---------- Círculos de maldição ----------
+
+  /** Dentro do círculo, o herói perde vida aos poucos e não regenera (a maldição só pega os vivos). */
+  private updateCurses(curses: Phaser.GameObjects.Image[]) {
+    const sc = this.sc;
+    const t = sc.elapsed;
+    const p = sc.player;
+    for (const c of curses) {
+      // o círculo pulsa devagar
+      c.setAlpha(0.75 + 0.25 * Math.sin(t * 2.5 + c.x * 0.01));
+    }
+    if (t < this.nextCurse) return;
+    this.nextCurse = t + CURSE.tick;
+    const inside = curses.find((m) => this.inside(m, p.x, p.y));
+    if (!inside) return;
+    sc.noRegenUntil = t + CURSE.tick + 0.1;
+    sc.hurtPlayer(sc.stats.maxHp * CURSE.heroDps * CURSE.tick);
+    // fios de alma saindo do herói para o centro do círculo
+    const g = sc.add.image(p.x, p.y - 10, 'atlas', frameName('glow')).setTint(0xb060ff).setScale(0.35).setDepth(LAYER.fx).setBlendMode(Phaser.BlendModes.ADD);
+    sc.tweens.add({ targets: g, x: inside.x, y: inside.y, alpha: 0, scale: 0.15, duration: 500, onComplete: () => g.destroy() });
   }
 
   isUsed(key: string) {
     return this.used.has(key);
+  }
+
+  markUsed(key: string) {
+    this.used.add(key);
   }
 
   // ---------- Árvores bravas ----------

@@ -242,6 +242,13 @@ export class GameScene extends Phaser.Scene {
   private ice: Phaser.GameObjects.Image[] = [];
   private lava: Phaser.GameObjects.Image[] = [];
   private vents: Phaser.GameObjects.Image[] = [];
+  private curses: Phaser.GameObjects.Image[] = [];
+  /** criaturas paradas no mapa, por trecho */
+  private sleepers = new Map<string, Enemy>();
+  /** sem regeneração até este instante (círculo de maldição) */
+  noRegenUntil = 0;
+  /** dano a mais dos inimigos enquanto o sino amaldiçoado toca (0,1 por badalada) */
+  bellBoost = 0;
   private slide = new Phaser.Math.Vector2();
   /** névoa do pântano: nuvens nas bordas da tela */
   private fog: { img: Phaser.GameObjects.Image; a: number; r: number; speed: number }[] = [];
@@ -345,6 +352,10 @@ export class GameScene extends Phaser.Scene {
     this.ice = [];
     this.lava = [];
     this.vents = [];
+    this.curses = [];
+    this.sleepers = new Map();
+    this.noRegenUntil = 0;
+    this.bellBoost = 0;
     this.traps = [];
     this.angryTrees = [];
     this.slide.set(0, 0);
@@ -501,7 +512,7 @@ export class GameScene extends Phaser.Scene {
     this.updateCorpses(dt);
     this.elements.tick(dt);
 
-    if (this.stats.regen > 0) this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
+    if (this.stats.regen > 0 && this.elapsed >= this.noRegenUntil) this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
 
     const cam = this.cameras.main;
     const vx = Math.floor(this.player.x - this.viewW / 2);
@@ -511,7 +522,7 @@ export class GameScene extends Phaser.Scene {
     this.vignette.setPosition(cam.midPoint.x - this.viewW / 2 - 20, cam.midPoint.y - this.viewH / 2 - 20);
     this.updateFog(cam.midPoint.x, cam.midPoint.y);
     this.updateDarkness();
-    this.mapHazards.update(this.angryTrees, this.traps, this.lava, this.vents);
+    this.mapHazards.update(this.angryTrees, this.traps, this.lava, this.vents, this.curses);
     this.motes.setPosition(cam.midPoint.x, cam.midPoint.y);
     this.drawPlayerHp();
     if (this.frame % 15 === 0) this.updateDecor();
@@ -615,7 +626,7 @@ export class GameScene extends Phaser.Scene {
     let touched: Enemy | null = null;
     this.grid.query(px, py, 40, (e) => {
       // o verme enterrado passa por baixo sem ferir (só fere ao irromper)
-      if (!e.active || e.burrowed || e.intangible) return;
+      if (!e.active || e.burrowed || e.intangible || e.def.object) return;
       const r = e.radius + 8;
       if ((e.x - px) ** 2 + (e.y - py) ** 2 < r * r) {
         touched = e;
@@ -638,8 +649,8 @@ export class GameScene extends Phaser.Scene {
       this.floatText(this.player.x, this.player.y - 16, 'ESQUIVA', '#a7f070');
       return false;
     }
-    // maldição do santuário: os golpes inimigos ferem 30% a mais
-    const dmg = damageTaken(amount * (this.elapsed < this.cursedUntil ? 1.3 : 1), this.stats);
+    // maldição do santuário: os golpes inimigos ferem 30% a mais; cada badalada do sino, mais 10%
+    const dmg = damageTaken(amount * (this.elapsed < this.cursedUntil ? 1.3 : 1) * (1 + this.bellBoost), this.stats);
     if (!dev.heroImmortal) this.hp -= dmg;
     this.hurtUntil = this.elapsed + 0.25;
     this.cameras.main.shake(80, 0.004);
@@ -780,6 +791,44 @@ export class GameScene extends Phaser.Scene {
         dy = py - e.y;
       }
       const d = Math.hypot(dx, dy) || 1;
+      // objeto de evento (sino): parado; só pisca ao ser atingido
+      if (e.def.object) {
+        e.alpha = 1;
+        if (e.flashUntil && t > e.flashUntil) {
+          e.flashUntil = 0;
+          this.restoreTint(e);
+        }
+        this.grid.insert(e);
+        continue;
+      }
+      // gárgula de pedra e mímico: parados no quadro de descanso até o herói chegar perto
+      if (e.sleeping) {
+        if (d < e.sleeping) this.wake(e);
+        else {
+          this.grid.insert(e);
+          continue;
+        }
+      }
+      // procissão fantasma: atravessa a tela em linha reta
+      if (e.marchX || e.marchY) {
+        e.x += e.marchX * dt;
+        e.y += e.marchY * dt + Math.sin(t * 5 + e.phase) * 10 * dt;
+        e.flipX = e.marchX < 0;
+        e.depth = e.y;
+        if (e.alpha < 0.85) e.alpha = Math.min(0.85, e.alpha + dt * 3);
+        const mp = walkPose(e.def.kind, t + e.phase, true);
+        const mf = e.slots[mp.slot] ?? 0;
+        if (mf !== e.animFrame) {
+          e.animFrame = mf;
+          e.setFrame(frameName(e.def.texture, mf));
+        }
+        if (e.flashUntil && t > e.flashUntil) {
+          e.flashUntil = 0;
+          this.restoreTint(e);
+        }
+        this.grid.insert(e);
+        continue;
+      }
       // congelado, o chefe também não ataca
       const still = e.boss && t >= e.frozenUntil && this.bossAI.update(e, d, dt);
       this.elements.update(e, t, dt);
@@ -821,7 +870,7 @@ export class GameScene extends Phaser.Scene {
         vx = -vx;
         vy = -vy;
       }
-      if (e.def.kind === 'bat' || e.def.kind === 'vulture' || e.def.kind === 'wisp') {
+      if (e.def.kind === 'bat' || e.def.kind === 'vulture' || e.def.kind === 'wisp' || e.def.kind === 'lost_soul') {
         const wob = Math.sin(t * 6 + e.phase) * 25;
         vx += (-dy / d) * wob;
         vy += (dx / d) * wob;
@@ -886,7 +935,7 @@ export class GameScene extends Phaser.Scene {
     const part = this.frame % 3;
     for (let i = part; i < list.length; i += 3) {
       const e = list[i];
-      if (e.boss) continue;
+      if (e.boss || e.def.object || e.sleeping) continue;
       this.grid.query(e.x, e.y, e.radius * 2, (o) => {
         if (o === e) return;
         const dx = e.x - o.x;
@@ -947,6 +996,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private damage(e: Enemy, dmg: number, label: string, color: string, big: boolean) {
+    if (e.sleeping) this.wake(e);
     // chefe se transformando para a fase 2: não leva dano
     if (e.boss && this.bossAI.invulnerable(e)) return;
     e.hp -= dmg;
@@ -1044,6 +1094,9 @@ export class GameScene extends Phaser.Scene {
     if (e.elite) {
       for (let i = 0; i < 8; i++) this.dropPickup('coin', x + Phaser.Math.Between(-16, 16), y + Phaser.Math.Between(-16, 16), 2 * reward);
       this.dropPickup('heart', x + 10, y, 30);
+    } else if (e.def.kind === 'mimic') {
+      // o mímico guardava um tesouro de verdade
+      for (let i = 0; i < 12; i++) this.dropPickup('coin', x + Phaser.Math.Between(-24, 24), y + Phaser.Math.Between(-20, 20), 2 * reward);
     } else if (Math.random() < 0.08) {
       this.dropPickup('coin', x + 4, y + 2, reward);
     } else if (Math.random() < 0.006) {
@@ -1398,6 +1451,32 @@ export class GameScene extends Phaser.Scene {
 
   devBoss() {
     this.spawnBoss(Math.min(2, this.bossesCalled++));
+  }
+
+  /**
+   * Criatura parada no mapa (gárgula de pedra, mímico disfarçado de baú): fica no quadro de descanso
+   * até o herói chegar a `wake` px ou acertá-la.
+   */
+  spawnSleeper(id: EnemyId, x: number, y: number) {
+    const e = this.spawnEnemy(ENEMIES[id], x, y);
+    if (!e) return null;
+    e.tag = 'sleeper';
+    e.sleeping = id === 'mimic' ? 70 : 120;
+    e.alpha = 1;
+    e.setFrame(frameName(e.def.texture, e.slots.idle ?? 0));
+    if (id === 'gargoyle') e.setTint(0xb8b8c0);
+    return e;
+  }
+
+  /** Acorda a criatura parada: a gárgula mergulha na hora, o mímico abre a boca e corre. */
+  wake(e: Enemy) {
+    if (!e.sleeping) return;
+    e.sleeping = 0;
+    this.restoreTint(e);
+    this.impact(e.x, e.y - 8, e.def.kind === 'mimic' ? 0xffd86a : 0x9a9aa8, 1.2);
+    this.floatText(e.x, e.y - 26, e.def.kind === 'mimic' ? 'MÍMICO!' : 'A ESTÁTUA ACORDOU!', e.def.kind === 'mimic' ? '#ffd86a' : '#c8c8d8', true);
+    sfx('whoosh');
+    if (e.def.skill) e.attackTimer = this.elapsed;
   }
 
   /** Chama uma criatura pelo id (conferência visual das fases). */
@@ -1757,6 +1836,18 @@ export class GameScene extends Phaser.Scene {
             imgs.push(trap);
           }
         }
+        // estátuas de gárgula e mímicos parados no mapa (cada um aparece uma vez só)
+        const sleepKey = `${key}:sleeper`;
+        const sleepers = this.stage.sleepers;
+        if (sleepers && rnd() < 0.16 && !this.mapHazards.isUsed(sleepKey)) {
+          const sx = x * CHUNK + 30 + rnd() * (CHUNK - 60);
+          const sy = y * CHUNK + 30 + rnd() * (CHUNK - 60);
+          const id = sleepers[Math.floor(rnd() * sleepers.length)];
+          if (Math.hypot(sx - this.player.x, sy - this.player.y) > 260) {
+            const e = this.spawnSleeper(id, Math.round(sx), Math.round(sy));
+            if (e) this.sleepers.set(sleepKey, e);
+          }
+        }
         // trechos de terra quebram a monotonia da grama
         if (rnd() < 0.35) {
           const dx = x * CHUNK + rnd() * CHUNK;
@@ -1772,6 +1863,7 @@ export class GameScene extends Phaser.Scene {
             if (kind === 'cobweb') patch.setData('mud', 0.7);
             if (kind === 'ice_patch') patch.setData('ice', true);
             if (kind === 'lava_pool') patch.setData('lava', true);
+            if (kind === 'curse_circle') patch.setData('curse', true);
             imgs.push(patch);
           }
         }
@@ -1782,6 +1874,13 @@ export class GameScene extends Phaser.Scene {
       if (needed.has(key)) continue;
       imgs.forEach((i) => i.destroy());
       this.decor.delete(key);
+      // a criatura parada some com o trecho (volta se ainda estiver dormindo; acordada, já foi)
+      const sl = this.sleepers.get(`${key}:sleeper`);
+      if (sl) {
+        if (sl.active && sl.sleeping && sl.tag === 'sleeper') sl.kill();
+        else this.mapHazards.markUsed(`${key}:sleeper`);
+        this.sleepers.delete(`${key}:sleeper`);
+      }
     }
     this.tallDecor = [...this.decor.values()].flat().filter((i) => i.getData('tall'));
     this.angryTrees = [...this.decor.values()].flat().filter((i) => i.getData('angry'));
@@ -1790,6 +1889,7 @@ export class GameScene extends Phaser.Scene {
     this.ice = [...this.decor.values()].flat().filter((i) => i.getData('ice'));
     this.lava = [...this.decor.values()].flat().filter((i) => i.getData('lava'));
     this.vents = [...this.decor.values()].flat().filter((i) => i.getData('vent'));
+    this.curses = [...this.decor.values()].flat().filter((i) => i.getData('curse'));
   }
 
   /** Árvores ficam translúcidas quando o herói passa por trás delas. */

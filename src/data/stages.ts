@@ -10,7 +10,7 @@ export type Mood = 'leve' | 'sério' | 'sombrio' | 'épico';
 
 /** Eventos aleatórios que podem acontecer na fase (ver systems/events.ts). */
 export type RunEventId = 'chest' | 'captive' | 'surpriseBoss' | 'goldenGoblin' | 'meteors' | 'ambush' | 'tribeWar' | 'sandstorm'
-  | 'blizzard' | 'avalanche' | 'eruption' | 'lavaRiver'
+  | 'blizzard' | 'avalanche' | 'eruption' | 'lavaRiver' | 'procession' | 'cursedBell' | 'treasureRoom'
   | 'cursedShrine' | 'bloodMoon';
 
 /** Tribo da guerra de tribos: nome no anúncio e criaturas dela. */
@@ -56,9 +56,11 @@ export interface StageDef {
    * perigo do mapa: névoa que esconde a borda da tela, escuridão (só a área em volta do herói fica
    * clara) ou gelo (placas de gelo onde o herói escorrega)
    */
-  hazard?: 'fog' | 'dark' | 'ice' | 'lava';
+  hazard?: 'fog' | 'dark' | 'ice' | 'lava' | 'curse';
   /** decoração que entra em erupção quando o herói chega perto (respiros do vulcão) */
   vents?: string[];
+  /** criaturas paradas no mapa que acordam quando o herói chega perto (gárgulas de pedra, mímicos) */
+  sleepers?: EnemyId[];
   /** criatura das revoadas (padrão: morcego) e do cerco (padrão: esqueleto, orc mais tarde) */
   swarm?: EnemyId;
   ring?: [EnemyId, EnemyId];
@@ -192,6 +194,24 @@ const VOLCANO_WAVES: Wave[] = [
   { minute: 14, pool: ['salamander', 'magma_golem', 'lava_serpent', 'fire_imp', 'ember_bat'], rate: 9.3, max: 312, event: 'swarm' },
 ];
 
+const RUINS_WAVES: Wave[] = [
+  { minute: 0, pool: ['zombie', 'lost_soul'], rate: 1.7, max: 44 },
+  { minute: 1, pool: ['zombie', 'skeleton_archer'], rate: 2.3, max: 60 },
+  { minute: 2, pool: ['zombie', 'phantom_knight', 'lost_soul'], rate: 2.9, max: 76 },
+  { minute: 3, pool: ['skeleton_archer', 'phantom_knight', 'lost_soul'], rate: 3.3, max: 94, event: 'swarm' },
+  { minute: 4, pool: ['zombie', 'gargoyle', 'necromancer', 'lost_soul'], rate: 3.7, max: 114 },
+  { minute: 5, pool: ['phantom_knight', 'skeleton_archer', 'gargoyle'], rate: 4.3, max: 134 },
+  { minute: 6, pool: ['zombie', 'phantom_knight', 'necromancer', 'skeleton_archer'], rate: 4.8, max: 154, event: 'ring' },
+  { minute: 7, pool: ['lost_soul', 'gargoyle', 'skeleton_archer', 'necromancer'], rate: 5.3, max: 174, event: 'swarm' },
+  { minute: 8, pool: ['phantom_knight', 'zombie', 'skeleton_archer'], rate: 5.9, max: 194, event: 'ring' },
+  { minute: 9, pool: ['zombie', 'phantom_knight', 'gargoyle', 'necromancer', 'lost_soul'], rate: 6.5, max: 214, event: 'swarm' },
+  { minute: 10, pool: ['phantom_knight', 'gargoyle', 'zombie'], rate: 6.9, max: 234 },
+  { minute: 11, pool: ['phantom_knight', 'skeleton_archer', 'necromancer'], rate: 7.4, max: 254, event: 'ring' },
+  { minute: 12, pool: ['lost_soul', 'phantom_knight', 'gargoyle', 'skeleton_archer'], rate: 7.9, max: 274, event: 'swarm' },
+  { minute: 13, pool: ['phantom_knight', 'zombie', 'gargoyle'], rate: 8.4, max: 294, event: 'ring' },
+  { minute: 14, pool: ['zombie', 'phantom_knight', 'gargoyle', 'necromancer', 'lost_soul'], rate: 9.3, max: 312, event: 'swarm' },
+];
+
 /** Fase futura: aparece no mapa, ainda sem arte própria. */
 function soon(id: StageId, name: string, subtitle: string, mood: Mood, elements: string, color: number): StageDef {
   return {
@@ -302,7 +322,21 @@ export const STAGES: StageDef[] = [
       { kind: 'kills', n: 6000, text: 'Derrote 6.000 inimigos' },
     ],
   },
-  soon('ruinas', 'Ruínas Malditas', 'Um reino caído e seus fantasmas', 'épico', 'mistos', 0x8a6ab0),
+  {
+    id: 'ruinas', name: 'Ruínas Malditas', subtitle: 'Um reino caído e seus fantasmas', mood: 'épico', elements: 'mistos', playable: true,
+    tint: { ground: 0xffffff, decor: 0xffffff, sky: '#241a30' }, color: 0x8a6ab0,
+    ground: 'ground_ruins', hazard: 'curse', swarm: 'lost_soul', ring: ['zombie', 'phantom_knight'], golden: 'zombie', sleepers: ['gargoyle', 'mimic'],
+    decor: { broken_pillar: 6, ruined_wall: 5, rubble: 16, ruin_brazier: 4, gravestone: 6 },
+    tall: ['broken_pillar', 'ruined_wall'], patches: ['curse_circle'],
+    tribes: [{ name: 'Mortos-Vivos', pool: ['zombie', 'zombie', 'necromancer'] }, { name: 'Fantasmas', pool: ['phantom_knight', 'lost_soul', 'lost_soul'] }],
+    waves: RUINS_WAVES, bosses: ['gargoyle_ancient', 'grand_necromancer', 'lich_king'], difficulty: 36,
+    events: ['chest', 'captive', 'surpriseBoss', 'procession', 'cursedBell', 'treasureRoom', 'goldenGoblin', 'tribeWar', 'ambush'],
+    objectives: [
+      { kind: 'boss', text: 'Derrote o Rei Lich' },
+      { kind: 'event', event: 'cursedBell', text: 'Silencie o sino amaldiçoado' },
+      { kind: 'hp', min: 0.5, text: 'Vença com metade da vida ou mais' },
+    ],
+  },
   soon('cidadela', 'Cidadela Demoníaca', 'O fim da jornada', 'épico', 'todos', 0xb0202a),
 ];
 

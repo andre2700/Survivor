@@ -129,8 +129,10 @@ async function playRun() {
         game.headlessStep(window.__sim.time, DT);
       }
       const done = g.state === 'over' || g.state === 'victory' || game.scene.isActive('Victory');
-      return { done, time: g.elapsed, bosses: g.bossesDown, gold: Math.floor(g.gold), level: g.level, victory: game.scene.isActive('Victory') || g.state === 'victory', hp: Math.round(g.hp) };
+      return { done, time: g.elapsed, bosses: g.bossesDown, gold: Math.floor(g.gold), level: g.level, victory: game.scene.isActive('Victory') || g.state === 'victory', hp: Math.round(g.hp), kills: g.kills, xp: Math.round(g.xp), gems: g.pickups.items.filter((k) => k.active).length, foes: g.activeEnemies().length, sleep: g.activeEnemies().filter((e) => e.sleeping).length, nearest: Math.round(Math.min(...g.activeEnemies().filter((e) => !e.sleeping).map((e) => Math.hypot(e.x - g.player.x, e.y - g.player.y)))), weapons: Object.keys(g.loadout.weapons).join('+') };
     });
+    // TRACE=1: andamento da partida a cada 30 s de jogo
+    if (process.env.TRACE) console.log(`  ${Math.floor(r.time)}s nv ${r.level} xp ${r.xp} abates ${r.kills} vida ${r.hp} itens no chão ${r.gems} inimigos ${r.foes} (dormindo ${r.sleep}) mais perto ${r.nearest} armas ${r.weapons}`);
     if (r.done) return r;
   }
 }

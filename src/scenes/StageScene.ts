@@ -19,6 +19,7 @@ const EVENT_ICON: Record<RunEventId, [string, number?]> = {
   meteors: ['fx_fireball'], ambush: ['icon_skull'], tribeWar: ['scorpion'], sandstorm: ['icon_tornado', 0xe8c070],
   cursedShrine: ['cursed_shrine'], bloodMoon: ['glow', 0xd02030], blizzard: ['snowdrift'], avalanche: ['snow_rock', 0xe8f4ff],
   eruption: ['lava_vent'], lavaRiver: ['lava_pool'],
+  procession: ['lost_soul'], cursedBell: ['cursed_bell'], treasureRoom: ['chest', 0xffd86a],
 };
 
 /** Ajusta a imagem para caber em w × h (tamanho lógico, descontando a resolução alta da arte). */
@@ -271,13 +272,16 @@ export class StageScene extends Phaser.Scene {
     y += 94;
     const seen = save.seen[st.id] ?? [];
     add(this.add.text(left + 14, y, 'MISTÉRIOS', { fontFamily: FONT, fontSize: px(9), fontStyle: 'bold', color: '#d6a6ff' }).setOrigin(0, 0.5));
+    // os círculos se apertam para caber na largura do painel (fases com muitos eventos)
+    const step = Math.min(26, (pw - 96 - 18) / Math.max(1, st.events.length - 1));
+    const er = Math.min(11, step / 2 - 1);
     st.events.forEach((ev, k) => {
-      const ex = left + 96 + k * 26;
-      add(this.add.circle(ex, y, 11, 0x14101e, 0.8).setStrokeStyle(1.5, known && seen.includes(ev) ? 0xd6a6ff : 0x4a4a5a));
+      const ex = left + 96 + k * step;
+      add(this.add.circle(ex, y, er, 0x14101e, 0.8).setStrokeStyle(1.5, known && seen.includes(ev) ? 0xd6a6ff : 0x4a4a5a));
       if (known && seen.includes(ev)) {
         // a criatura dourada é a da fase
         const [tex, tint] = ev === 'goldenGoblin' ? [ENEMIES[st.golden ?? st.waves[0].pool[0]].texture, 0xffd84a] : EVENT_ICON[ev];
-        const ic = add(fit(this.add.image(ex, y, 'atlas', frameName(tex, 0)), 18, 18));
+        const ic = add(fit(this.add.image(ex, y, 'atlas', frameName(tex, 0)), er * 1.6, er * 1.6));
         if (tint) ic.setTint(tint);
       } else {
         add(this.add.text(ex, y, '?', { fontFamily: '"Lilita One"', fontSize: px(12), color: '#8a8ca0' }).setOrigin(0.5));
@@ -286,7 +290,7 @@ export class StageScene extends Phaser.Scene {
 
     // perigos e tesouros
     y += 26;
-    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão, teias e árvores bravas' : st.hazard === 'ice' ? 'gelo escorregadio' : st.hazard === 'lava' ? 'lava e respiros vulcânicos' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
+    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão, teias e árvores bravas' : st.hazard === 'ice' ? 'gelo escorregadio' : st.hazard === 'lava' ? 'lava e respiros vulcânicos' : st.hazard === 'curse' ? 'maldição, estátuas e mímicos' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
     add(this.add.text(left + 14, y, `Perigos: ${known ? hazard : '?'}`, { fontFamily: FONT, fontSize: px(10), color: '#ffb08a' }).setOrigin(0, 0.5));
     // tesouros na linha de baixo: o texto dos perigos pode ser longo
     y += 20;

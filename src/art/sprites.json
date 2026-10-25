@@ -54,6 +54,9 @@
  "bones": {
   "hd": 2
  },
+ "broken_pillar": {
+  "hd": 2
+ },
  "burnt_tree": {
   "hd": 2
  },
@@ -96,6 +99,12 @@
    "hurt",
    "death"
   ]
+ },
+ "curse_circle": {
+  "hd": 2
+ },
+ "cursed_bell": {
+  "hd": 2
  },
  "cursed_shrine": {
   "hd": 2
@@ -280,6 +289,19 @@
   "hd": 2,
   "frames": 2
  },
+ "gargoyle": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "gem": {
   "hd": 4
  },
@@ -339,6 +361,9 @@
   "hd": 2
  },
  "ground_dunes": {
+  "hd": 2
+ },
+ "ground_ruins": {
   "hd": 2
  },
  "ground_snow": {
@@ -578,6 +603,19 @@
  "lava_vent": {
   "hd": 2
  },
+ "lich_king": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "lilypond": {
   "hd": 2
  },
@@ -589,6 +627,18 @@
    "walk_mid",
    "walk_b",
    "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "lost_soul": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
    "attack",
    "hurt",
    "death"
@@ -607,6 +657,19 @@
   ]
  },
  "magma_titan": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "idle",
+   "walk_a",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "mimic": {
   "hd": 3,
   "frames": 7,
   "slots": [
@@ -639,6 +702,19 @@
  },
  "mushroom": {
   "hd": 2
+ },
+ "necromancer": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "obsidian": {
   "hd": 2
@@ -985,6 +1061,18 @@
    "attack"
   ]
  },
+ "phantom_knight": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "portrait_hero_barbarian": {
   "hd": 8
  },
@@ -1016,6 +1104,15 @@
   "hd": 2
  },
  "rock": {
+  "hd": 2
+ },
+ "rubble": {
+  "hd": 2
+ },
+ "ruin_brazier": {
+  "hd": 2
+ },
+ "ruined_wall": {
   "hd": 2
  },
  "salamander": {
@@ -1069,6 +1166,18 @@
   ]
  },
  "skeleton": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "skeleton_archer": {
   "hd": 3,
   "frames": 6,
   "slots": [
@@ -1317,6 +1426,18 @@
   ]
  },
  "yeti": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "zombie": {
   "hd": 3,
   "frames": 6,
   "slots": [

@@ -4,7 +4,7 @@
 // Também espalha itens pelo mapa (ímã, bomba, cura) e diz à HUD para onde apontar as setas de borda.
 // Cada fase escolhe os seus eventos.
 import Phaser from 'phaser';
-import { warnCircle } from './telegraph';
+import { warnCircle, warnLane } from './telegraph';
 import { walkPose } from '../art/motion';
 import { frameName, loopFrame, slotsOf } from '../art/textures';
 import { CHARACTERS, type CharacterDef } from '../data/characters';
@@ -64,7 +64,15 @@ const TITLES: Record<RunEventId, string> = {
   avalanche: 'AVALANCHE! SAIA DA FAIXA!',
   eruption: 'ERUPÇÃO! O CÉU ESTÁ CAINDO!',
   lavaRiver: 'RIO DE LAVA! SAIA DA FAIXA!',
+  procession: 'PROCISSÃO FANTASMA! SAIA DO CAMINHO!',
+  cursedBell: 'O SINO AMALDIÇOADO TOCA! DESTRUA-O!',
+  treasureRoom: 'UMA SALA DO TESOURO! CUIDADO COM OS MÍMICOS',
 };
+
+/** Procissão fantasma: aviso (s), meia altura da faixa (px), velocidade das almas e quantas. */
+const PROCESSION = { warn: 2, half: 40, speed: 170, souls: 18 };
+/** Sino amaldiçoado: badalada a cada `every` s (com 1 s de brilho antes), dano no herói e nos inimigos. */
+const BELL = { every: 6, hero: 0.06, foes: 0.04, boost: 0.1, max: 100 };
 
 /** Tribos da guerra quando a fase não define as suas. */
 const DEFAULT_TRIBES: [Tribe, Tribe] = [
@@ -107,6 +115,10 @@ export class RunEvents {
   /** santuário maldito esperando o herói */
   private shrine: { img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Graphics; progress: number } | null = null;
   private war: { x: number; y: number; until: number } | null = null;
+  /** procissão fantasma: almas em marcha, quando elas chegam e se o herói foi pego */
+  private procession: { souls: Enemy[]; start: number; until: number; y: number; dir: number; hit: boolean } | null = null;
+  /** sino amaldiçoado: o sino (inimigo-objeto), a próxima badalada e o brilho de aviso */
+  private bell: { e: Enemy; next: number; glow: Phaser.GameObjects.Image; until: number } | null = null;
   /** tempestade de areia: fim, próximo dano, lado do vento, véu e grãos (posição na tela, 0 a 1) */
   private storm: { kind: 'sand' | 'blood' | 'snow' | 'ash'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[]; moon?: Phaser.GameObjects.Image; halo?: Phaser.GameObjects.Image; nextMeteor?: number } | null = null;
 
@@ -136,6 +148,8 @@ export class RunEvents {
     this.updateStorm(dt);
     this.updateShrine(dt);
     this.updateAvalanche(dt);
+    this.updateProcession();
+    this.updateBell();
     if (this.golden && (!this.golden.active || sc.elapsed > this.goldenUntil)) {
       if (this.golden.active) {
         // escapou: some numa nuvem
@@ -153,7 +167,7 @@ export class RunEvents {
     const goal = st.objectives.find((o) => o.kind === 'event');
     if (goal && goal.kind === 'event' && !this.done.has(goal.event)) return goal.event;
     const pool = st.events.filter((e) => !(e === 'captive' && (this.captive || this.ally)) && !(e === 'goldenGoblin' && this.golden)
-      && !(e === 'tribeWar' && this.war) && !((e === 'sandstorm' || e === 'bloodMoon' || e === 'blizzard' || e === 'eruption') && this.storm) && !((e === 'avalanche' || e === 'lavaRiver') && this.avalanche) && !(e === 'cursedShrine' && this.shrine));
+      && !(e === 'tribeWar' && this.war) && !(e === 'cursedBell' && this.bell) && !(e === 'procession' && this.procession) && !((e === 'sandstorm' || e === 'bloodMoon' || e === 'blizzard' || e === 'eruption') && this.storm) && !((e === 'avalanche' || e === 'lavaRiver') && this.avalanche) && !(e === 'cursedShrine' && this.shrine));
     return pool[Math.floor(Math.random() * pool.length)] ?? 'ambush';
   }
 
@@ -197,6 +211,12 @@ export class RunEvents {
         return this.startStorm('ash');
       case 'cursedShrine':
         return this.startShrine();
+      case 'procession':
+        return this.startProcession();
+      case 'cursedBell':
+        return this.startBell();
+      case 'treasureRoom':
+        return this.startTreasureRoom();
     }
   }
 
@@ -755,6 +775,135 @@ export class RunEvents {
     }
   }
 
+  // ---------- Procissão fantasma ----------
+
+  /**
+   * Uma fila de almas penadas atravessa a tela numa faixa (com aviso de 2 s). Elas não perseguem o
+   * herói: ferem quem está no caminho. Escapar sem ser tocado vale o evento.
+   */
+  private startProcession() {
+    const sc = this.scene;
+    const v = sc.cameras.main.worldView;
+    const p = sc.player;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const y = p.y + (Math.random() - 0.5) * 30;
+    const x0 = dir > 0 ? v.x - 40 : v.right + 40;
+    const x1 = dir > 0 ? v.right + 40 : v.x - 40;
+    warnLane(sc, x0, y, x1, y, PROCESSION.half, 0xb060ff, PROCESSION.warn);
+    this.procession = { souls: [], start: sc.elapsed + PROCESSION.warn, until: sc.elapsed + PROCESSION.warn + (v.width + 400) / PROCESSION.speed + 1, y, dir, hit: false };
+  }
+
+  private updateProcession() {
+    const pr = this.procession;
+    if (!pr) return;
+    const sc = this.scene;
+    const t = sc.elapsed;
+    const v = sc.cameras.main.worldView;
+    // as almas entram em fila, em duas ou três colunas desencontradas
+    if (t >= pr.start && pr.souls.length < PROCESSION.souls && t >= pr.start + pr.souls.length * 0.09) {
+      const i = pr.souls.length;
+      const x = pr.dir > 0 ? v.x - 30 - (i % 3) * 14 : v.right + 30 + (i % 3) * 14;
+      const e = sc.spawnEnemy(ENEMIES.lost_soul, x, pr.y + ((i % 3) - 1) * PROCESSION.half * 0.6);
+      if (e) {
+        e.tag = 'procession';
+        e.marchX = pr.dir * PROCESSION.speed;
+        e.marchY = 0.0001;
+        pr.souls.push(e);
+      } else pr.souls.push(null as unknown as Enemy);
+    }
+    const p = sc.player;
+    if (!pr.hit && pr.souls.some((e) => e?.active && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < (e.radius + 10) ** 2)) pr.hit = true;
+    for (const e of pr.souls) {
+      // passou da tela: some
+      if (e?.active && (pr.dir > 0 ? e.x > v.right + 80 : e.x < v.x - 80)) e.kill();
+    }
+    if (t < pr.until) return;
+    for (const e of pr.souls) if (e?.active && e.tag === 'procession') e.kill();
+    if (!pr.hit) {
+      sc.completed.add('procession');
+      sc.events.emit('announce', 'A PROCISSÃO PASSOU!');
+    }
+    this.procession = null;
+  }
+
+  // ---------- Sino amaldiçoado ----------
+
+  /**
+   * Cataclismo: um sino aparece perto e toca a cada 6 s. Cada badalada fere o herói e os inimigos e
+   * deixa os inimigos 10% mais fortes, até as armas destruírem o sino.
+   */
+  private startBell() {
+    const sc = this.scene;
+    const { x, y } = this.away(200, 260);
+    const e = sc.spawnEnemy(ENEMIES.cursed_bell, x, y);
+    if (!e) return;
+    e.tag = 'bell';
+    e.setOrigin(0.5, 0.88);
+    e.alpha = 1;
+    const glow = sc.add.image(x, y - 30, 'atlas', frameName('glow')).setTint(0xb060ff).setDepth(y + 1).setScale(1.2).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
+    this.bell = { e, next: sc.elapsed + BELL.every, glow, until: sc.elapsed + BELL.max };
+    this.guard(x, y, 6, 56);
+  }
+
+  private updateBell() {
+    const b = this.bell;
+    if (!b) return;
+    const sc = this.scene;
+    const t = sc.elapsed;
+    if (!b.e.active || t > b.until) {
+      // calou: destruído pelas armas (vale o objetivo) ou se desfez sozinho depois de muito tempo
+      const broken = !b.e.active;
+      b.glow.destroy();
+      if (b.e.active) b.e.kill();
+      sc.bellBoost = 0;
+      if (broken) {
+        sc.completed.add('cursedBell');
+        sc.events.emit('announce', 'O SINO SE CALOU!');
+        sc.impact(b.e.x, b.e.y - 20, 0xb060ff, 2.6);
+        this.placeChest(b.e.x, b.e.y + 10);
+      }
+      this.bell = null;
+      return;
+    }
+    // 1 s antes da badalada o sino brilha e treme (aviso)
+    const k = 1 - (b.next - t);
+    b.glow.setAlpha(k > 0 ? 0.3 + 0.5 * k : 0.15).setScale(1.2 + Math.max(0, k) * 0.8);
+    b.e.setAngle(k > 0 ? Math.sin(t * 30) * 4 * k : 0);
+    if (t < b.next) return;
+    b.next = t + BELL.every;
+    sc.bellBoost += BELL.boost;
+    sfx('boss');
+    sc.cameras.main.shake(260, 0.006);
+    // onda de som roxa saindo do sino
+    const ring = sc.add.image(b.e.x, b.e.y - 20, 'atlas', frameName('glow')).setTint(0xb060ff).setDepth(LAYER.fx).setScale(1).setAlpha(0.8).setBlendMode(Phaser.BlendModes.ADD);
+    sc.tweens.add({ targets: ring, scale: 9, alpha: 0, duration: 700, onComplete: () => ring.destroy() });
+    sc.screenTint(0x6a2aa0);
+    sc.hurtPlayer(sc.stats.maxHp * BELL.hero);
+    for (const e of sc.activeEnemies()) {
+      if (e.active && !e.boss && !e.def.object) sc.elementalDamage(e, e.maxHp * BELL.foes, '#d6a6ff');
+    }
+    sc.floatText(b.e.x, b.e.y - 60, `BLÉM! INIMIGOS +${Math.round(sc.bellBoost * 100)}%`, '#d6a6ff', true);
+  }
+
+  // ---------- Sala do tesouro ----------
+
+  /** Vários baús num círculo, guardados; alguns são mímicos disfarçados. */
+  private startTreasureRoom() {
+    const sc = this.scene;
+    const { x, y } = this.away(260, 320);
+    const n = 5;
+    const mimics = new Set<number>();
+    while (mimics.size < 2) mimics.add(Math.floor(Math.random() * n));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const cx = x + Math.cos(a) * 58;
+      const cy = y + Math.sin(a) * 46;
+      if (mimics.has(i)) sc.spawnSleeper('mimic', cx, cy);
+      else this.placeChest(cx, cy);
+    }
+    this.guard(x, y, 6, 110);
+  }
+
   // ---------- Santuário maldito ----------
 
   /**
@@ -835,6 +984,7 @@ export class RunEvents {
     for (const e of this.surprises) list.push({ x: e.x, y: e.y, color: 0xff6a5a });
     if (this.war) list.push({ x: this.war.x, y: this.war.y, color: 0xffa040 });
     if (this.shrine) list.push({ x: this.shrine.img.x, y: this.shrine.img.y, color: 0xb060ff });
+    if (this.bell?.e.active) list.push({ x: this.bell.e.x, y: this.bell.e.y, color: 0xb060ff });
     return list;
   }
 }

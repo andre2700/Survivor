@@ -9,7 +9,9 @@ export type EnemyId = 'slime' | 'bat' | 'goblin' | 'wolf' | 'skeleton' | 'orc' |
   | 'king_slime' | 'alpha_wolf' | 'magma_lord' | 'goblin_warlord' | 'croc_king' | 'grand_frog_shaman'
   | 'colossal_worm' | 'lizard_elder' | 'werewolf_alpha' | 'elder_witch'
   | 'goblin_king' | 'yeti' | 'snow_golem' | 'frost_wraith' | 'penguin' | 'snow_owl' | 'ice_dragon' | 'yeti_elder' | 'frost_queen'
-  | 'salamander' | 'ember_bat' | 'magma_golem' | 'fire_imp' | 'lava_serpent' | 'magma_titan' | 'salamander_queen' | 'ash_lord';
+  | 'salamander' | 'ember_bat' | 'magma_golem' | 'fire_imp' | 'lava_serpent' | 'magma_titan' | 'salamander_queen' | 'ash_lord'
+  | 'zombie' | 'lost_soul' | 'phantom_knight' | 'skeleton_archer' | 'gargoyle' | 'necromancer' | 'mimic' | 'lich_king'
+  | 'gargoyle_ancient' | 'grand_necromancer' | 'cursed_bell';
 
 /**
  * Como o inimigo luta: corpo a corpo (encosta); à distância (mantém distância e atira, com aviso);
@@ -22,9 +24,10 @@ export interface EnemySkill {
   /**
    * tiro (gosma, esporos, espinhos), teia (tiro que prende o herói), bola de fogo, onda, tornado e raio
    * (habilidades do herói), explosão, bote (avança de repente) ou toca (se enterra, anda por baixo da
-   * areia e irrompe sob o herói)
+   * areia e irrompe sob o herói), flecha (tiro rápido e reto) ou levantar os mortos (chama criaturas
+   * do chão, com aviso)
    */
-  kind: 'spit' | 'web' | 'fireball' | 'wave' | 'tornado' | 'strike' | 'explode' | 'charge' | 'burrow';
+  kind: 'spit' | 'web' | 'fireball' | 'wave' | 'tornado' | 'strike' | 'explode' | 'charge' | 'burrow' | 'arrow' | 'raise';
   /** tiros por disparo, em leque (padrão 1) */
   count?: number;
   /** dano em múltiplos do dano de contato do inimigo */
@@ -64,6 +67,10 @@ export interface EnemyDef {
   skill?: EnemySkill;
   /** chefe de fase: barra de vida na tela e pancada com aviso no chão */
   boss?: boolean;
+  /** objeto de evento (o sino amaldiçoado): não anda, não fere ao encostar e não tem animação */
+  object?: boolean;
+  /** quem o conjurador levanta do chão (habilidade "raise") */
+  raises?: EnemyId;
 }
 
 /** Números da Resistência a controle. */
@@ -225,6 +232,34 @@ export const ENEMIES = {
     id: 'lava_serpent', kind: 'lava_serpent', name: 'Serpente de Lava', texture: 'lava_serpent', element: 'fire', hp: 95, speed: 36, damage: 16, xp: 4, scale: 1, radius: 12, knockback: 0.4, resist: 0.35,
     behavior: 'burrower', skill: { kind: 'burrow', damage: 1.7, cooldown: 4.2, range: 210, windup: 0.5, speed: 160, radius: 32, level: 1 },
   },
+  // ---------- Ruínas Malditas (mortos-vivos, gárgulas e um mímico) ----------
+  zombie: { id: 'zombie', kind: 'zombie', name: 'Morto-Vivo', texture: 'zombie', element: 'earth', hp: 26, speed: 46, damage: 11, xp: 1, scale: 1, radius: 9, knockback: 0.9, resist: 0.05 },
+  lost_soul: { id: 'lost_soul', kind: 'lost_soul', name: 'Alma Penada', texture: 'lost_soul', element: 'air', hp: 16, speed: 72, damage: 8, xp: 1, scale: 1, radius: 8, knockback: 1.2, resist: 0 },
+  // investida em linha reta que atravessa tudo
+  phantom_knight: {
+    id: 'phantom_knight', kind: 'phantom_knight', name: 'Cavaleiro Fantasma', texture: 'phantom_knight', element: 'water', hp: 90, speed: 34, damage: 15, xp: 4, scale: 1, radius: 11, knockback: 0.4, resist: 0.35,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.5, cooldown: 4, range: 200, windup: 0.8, speed: 380, radius: 11, level: 1 },
+  },
+  // à distância: flechas rápidas
+  skeleton_archer: {
+    id: 'skeleton_archer', kind: 'skeleton_archer', name: 'Arqueiro Esqueleto', texture: 'skeleton_archer', element: 'earth', hp: 42, speed: 32, damage: 10, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.15,
+    behavior: 'ranged', skill: { kind: 'arrow', damage: 1.1, cooldown: 3.2, range: 200, windup: 0.8, speed: 260, radius: 6, level: 1 },
+  },
+  // estátua parada no mapa que acorda e mergulha no herói; nas ondas já chega voando
+  gargoyle: {
+    id: 'gargoyle', kind: 'gargoyle', name: 'Gárgula', texture: 'gargoyle', element: 'earth', hp: 70, speed: 46, damage: 13, xp: 3, scale: 1, radius: 10, knockback: 0.5, resist: 0.3,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.4, cooldown: 3.6, range: 180, windup: 0.6, speed: 320, radius: 10, level: 1 },
+  },
+  // conjurador: levanta mortos-vivos do chão
+  necromancer: {
+    id: 'necromancer', kind: 'necromancer', name: 'Necromante', texture: 'necromancer', element: 'earth', hp: 55, speed: 30, damage: 10, xp: 4, scale: 1, radius: 9, knockback: 0.7, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'raise', damage: 0, cooldown: 7, range: 190, windup: 1.1, speed: 0, radius: 26, level: 1 }, raises: 'zombie',
+  },
+  // baú falso: parado parece um baú; morde quem chega perto e deixa muito ouro
+  mimic: { id: 'mimic', kind: 'mimic', name: 'Mímico', texture: 'mimic', element: 'earth', hp: 160, speed: 62, damage: 16, xp: 8, scale: 1, radius: 11, knockback: 0.3, resist: 0.4 },
+  // objeto do evento: as armas acertam o sino até ele se calar
+  cursed_bell: { id: 'cursed_bell', kind: 'cursed_bell', name: 'Sino Amaldiçoado', texture: 'cursed_bell', element: 'earth', hp: 900, speed: 0, damage: 0, xp: 30, scale: 1, radius: 18, knockback: 0, resist: 0.5, object: true },
+  lich_king: { id: 'lich_king', kind: 'lich_king', name: 'Rei Lich', texture: 'lich_king', element: 'water', hp: 11500, speed: 40, damage: 44, xp: 260, scale: 1.35, radius: 26, knockback: 0, resist: 0.88, boss: true },
   magma_titan: { id: 'magma_titan', kind: 'magma_titan', name: 'Titã de Magma', texture: 'magma_titan', element: 'fire', hp: 10500, speed: 40, damage: 40, xp: 240, scale: 1.35, radius: 28, knockback: 0, resist: 0.85, boss: true },
 } as Record<EnemyId, EnemyDef>;
 
@@ -255,6 +290,8 @@ Object.assign(ENEMIES, {
   frost_queen: giant(ENEMIES.frost_wraith, 'frost_queen', 'Rainha do Gelo', 4000, 3.1),
   salamander_queen: giant(ENEMIES.salamander, 'salamander_queen', 'Salamandra Rainha', 1700, 4, { speed: 56 }),
   ash_lord: giant(ENEMIES.fire_imp, 'ash_lord', 'Senhor das Cinzas', 4200, 3.4),
+  gargoyle_ancient: giant(ENEMIES.gargoyle, 'gargoyle_ancient', 'Gárgula Ancestral', 1800, 3.4, { speed: 50 }),
+  grand_necromancer: giant(ENEMIES.necromancer, 'grand_necromancer', 'Grão-Necromante', 4500, 3.1),
 } satisfies Partial<Record<EnemyId, EnemyDef>>);
 
 /** Cor das partículas quando o inimigo morre. */
@@ -270,5 +307,7 @@ export const DEATH_TINT: Record<EnemyId, number> = {
   yeti_elder: 0xe8f4ff, frost_queen: 0x9fe8ff,
   salamander: 0xff7a2e, ember_bat: 0xff5a1a, magma_golem: 0x3a2a2a, fire_imp: 0xe8402a, lava_serpent: 0xff6a1a, magma_titan: 0xff4a1a,
   salamander_queen: 0xff7a2e, ash_lord: 0x8a8a8a,
+  zombie: 0x7a9a6a, lost_soul: 0xc8b0ff, phantom_knight: 0x9fe8ff, skeleton_archer: 0xd5d1d6, gargoyle: 0x8a8a92, necromancer: 0x7ac050, mimic: 0xc69c6d,
+  cursed_bell: 0xc8903a, lich_king: 0x7af0c0, gargoyle_ancient: 0x8a8a92, grand_necromancer: 0x7ac050,
   werewolf: 0x8a8f9a, wisp: 0x9af0f0, spider: 0x7a4fa8, witch: 0x7ac050, ancient_ent: 0x9a50d0,
 };

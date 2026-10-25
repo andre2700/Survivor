@@ -51,7 +51,7 @@ describe('arte', () => {
       expect(slots(c.texture), `${c.texture}: golpe em 3 tempos`).toEqual(expect.arrayContaining(['windup', 'attack', 'follow']));
     }
     // cada criatura tem os quadros do modelo do seu papel (variantes de cor usam o da original)
-    for (const e of Object.values(ENEMIES)) {
+    for (const e of Object.values(ENEMIES).filter((x) => !x.object)) {
       const a = ART[e.texture];
       const role = (a.variant ? ART[a.variant].role : a.role)!;
       const t = FRAME_TEMPLATES[role];

@@ -169,6 +169,22 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
     enrageAt: 0.5,
     phases: [{ speed: 1, pause: 1.3, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'fireball', count: 10, damage: 1.1 }, { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 7, damage: 1.3 }, { kind: 'blink', weight: 2, cooldown: 6 }, summon(['ember_bat'], 8)] }],
   },
+  // ---------- Ruínas Malditas ----------
+  gargoyle_ancient: {
+    enrageAt: 0.45,
+    phases: [{ speed: 1, pause: 1.2, moves: [charge(3, 3), leap(2), { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 7, color: 0x9a9aa8, damage: 1.2 }, summon(['gargoyle'], 4)] }],
+  },
+  grand_necromancer: {
+    enrageAt: 0.5,
+    phases: [{ speed: 1, pause: 1.3, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'spit', count: 12, color: 0x9af07a, damage: 1.1 }, { kind: 'blink', weight: 2, cooldown: 6 }, summon(['zombie', 'skeleton_archer'], 8, 2), { kind: 'volley', weight: 2, cooldown: 4, shot: 'spit', count: 7, color: 0x9af07a, damage: 1.2 }] }],
+  },
+  lich_king: {
+    enrageAt: 0.35, phase2Name: 'Lich Imortal', phase2Tint: 0x8affd0,
+    phases: [
+      { speed: 1, pause: 1.4, moves: [{ kind: 'rain', weight: 3, cooldown: 6, look: 'bolt', count: 8, damage: 1.4 }, { kind: 'nova', weight: 2, cooldown: 5, shot: 'spit', count: 14, color: 0x7af0c0, damage: 1.1 }, { kind: 'blink', weight: 2, cooldown: 6 }, summon(['skeleton_archer', 'zombie'], 6)] },
+      { speed: 1.25, pause: 0.9, moves: [{ kind: 'rain', weight: 3, cooldown: 4.5, look: 'bolt', count: 14, damage: 1.4 }, { kind: 'nova', weight: 3, cooldown: 4.5, shot: 'spit', count: 20, color: 0x7af0c0, damage: 1.1 }, { kind: 'volley', weight: 2, cooldown: 4, shot: 'spit', count: 9, color: 0x7af0c0, damage: 1.2 }, { kind: 'blink', weight: 2, cooldown: 5 }, summon(['phantom_knight', 'lost_soul'], 6)] },
+    ],
+  },
   magma_titan: {
     enrageAt: 0.35, phase2Name: 'Titã Desperto', phase2Tint: 0xff9a5a,
     phases: [

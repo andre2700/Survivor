@@ -35,6 +35,8 @@ export const FRAME_TEMPLATES = {
   // monstro com ataque próprio, que precisa ser visto chegando
   special: { move: ['walk_a', 'walk_mid', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   boss: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
+  // criatura parada no mapa que acorda (gárgula de pedra, mímico): o descanso é a estátua / o baú fechado
+  sleeper: { move: ['idle', 'walk_a', 'walk_b'], action: ['windup', 'attack', 'hurt', 'death'] },
   // herói: ciclo de corrida completo (pé de perto à frente, passagem, pé de longe à frente)
   // ataque em 3 tempos: preparar (windup), golpe (attack) e acompanhamento do golpe (follow)
   hero: { move: ['idle', 'walk_a', 'walk_mid', 'walk_b'], action: ['attack', 'hurt', 'death', 'victory', 'windup', 'follow'] },
@@ -506,6 +508,64 @@ export const ART = {
     poses: {
       idle: 'standing tall, lava dripping from its fists, smoke rising', walk_a: 'stomping forward, front leg forward', walk_b: 'stomping forward, back leg forward',
       windup: 'raising both huge molten fists high over its head, lava glowing brighter', attack: 'smashing both fists into the ground in front to the RIGHT, a burst of lava and rocks',
+    },
+  },
+  // ---------- Ruínas Malditas (mistos, épico) ----------
+  ground_ruins: { tile: true, contrast: 0.5, prompt: `a seamless tileable texture of old ruined stone floor seen from directly above, for a top-down RPG map: worn grey-violet flagstones half covered by dark soil and patches of dead grass, soft painterly look, muted and calm. NO objects, NO bones, NO strong outlines, NO dots. Even lighting, fills the whole square image edge to edge` },
+  broken_pillar: { h: 44, shadow: true, prompt: `a single broken ancient stone pillar with cracks, ivy and a fallen chunk at its base, front view, like a top-down RPG map object` },
+  ruined_wall: { h: 34, shadow: true, prompt: `a single short crumbling section of an ancient stone wall with a broken arch window, moss on top, front view, like a top-down RPG map object` },
+  rubble: { h: 14, shadow: true, prompt: `a small pile of grey stone rubble and broken bricks, like a top-down RPG map object` },
+  ruin_brazier: { h: 26, shadow: true, prompt: `a single old stone brazier bowl on a short pedestal burning with eerie violet ghost fire, front view, like a top-down RPG map object` },
+  curse_circle: { w: 72, prompt: `a flat glowing violet magic curse circle painted on the ground with runes and a skull sigil in the center, seen from directly above, like a top-down RPG map decal` },
+  cursed_bell: { h: 56, shadow: true, prompt: `a single huge ancient cracked bronze bell hanging from a ruined stone frame, covered in glowing violet cursed runes, front view, like a top-down RPG map object` },
+  zombie: {
+    h: 30, hd: 3, shadow: true, role: 'monster', body: 'biped',
+    prompt: `a shambling cartoon undead zombie monster with grey-green skin, torn old peasant clothes, hunched, arms reaching forward, glowing eyes, ${CHAR}`,
+    poses: { attack: 'lunging forward to the RIGHT and clawing with both hands' },
+  },
+  lost_soul: {
+    h: 20, hd: 3, role: 'monster', body: 'flyer',
+    prompt: `a small spooky lost soul ghost monster, a pale violet translucent sheet-like spirit with a sad hollow face and a long wispy tail, floating, ${CHAR}`,
+    poses: { walk_a: 'floating, tail curled up', walk_mid: 'floating, tail straight behind', walk_b: 'floating, tail curled down', attack: 'lunging forward to the RIGHT with a wailing open mouth' },
+  },
+  phantom_knight: {
+    h: 38, hd: 3, shadow: true, wide: true, role: 'monster', body: 'biped',
+    prompt: `a ghostly phantom knight monster in rusted ancient armor, its body made of glowing pale cyan spectral mist, holding a long lance, tattered cape, ${CHAR}`,
+    poses: { windup: 'crouching low with the lance pointed forward, ready to charge', attack: 'charging forward to the RIGHT with the lance, ghostly trail behind' },
+  },
+  skeleton_archer: {
+    h: 32, hd: 3, shadow: true, role: 'monster', body: 'biped', hold: 'the old bow in the front hand',
+    prompt: `a skeleton archer monster with a hooded tattered dark cloak, an old wooden bow and a quiver of arrows, glowing violet eye sockets, ${CHAR}`,
+    poses: { windup: 'drawing the bow string back, aiming to the RIGHT', attack: 'releasing an arrow to the RIGHT, the bow string snapping forward' },
+  },
+  gargoyle: {
+    h: 30, hd: 3, shadow: true, wide: true, role: 'sleeper', body: 'flyer',
+    prompt: `a grey stone gargoyle monster with bat wings, horns, a fanged grin, claws and glowing red eyes, ${CHAR}`,
+    poses: {
+      idle: 'crouched still on its haunches like a stone statue on a small pedestal, wings folded, eyes dark', walk_a: 'flying, wings up', walk_b: 'flying, wings down',
+      windup: 'waking up, wings spread wide, eyes glowing red, cracks of stone falling off', attack: 'diving forward to the RIGHT with claws out',
+    },
+  },
+  necromancer: {
+    h: 32, hd: 3, shadow: true, role: 'special', body: 'biped', hold: 'the skull staff in the front hand',
+    prompt: `a sinister necromancer monster in a dark violet hooded robe with bone ornaments, a pale skull-like face and a staff topped with a glowing green skull, ${CHAR}`,
+    poses: { windup: 'raising the skull staff high, green ghostly energy swirling', attack: 'pointing the staff at the ground in front to the RIGHT, green bony hands rising from the ground' },
+  },
+  mimic: {
+    h: 24, hd: 3, shadow: true, wide: true, role: 'sleeper', body: 'blob',
+    prompt: `a mimic monster: a wooden treasure chest with gold trim that is secretly alive, lid open like a huge mouth full of sharp teeth, a long purple tongue and small stubby legs, ${CHAR}`,
+    poses: {
+      idle: 'closed, looking exactly like a normal treasure chest with gold trim, no teeth, no legs showing', walk_a: 'hopping, lid half open showing teeth, near leg forward', walk_b: 'hopping, lid half open showing teeth, far leg forward',
+      windup: 'lid snapping open wide, tongue lashing out',
+      attack: 'lunging forward to the RIGHT, lid wide open, teeth and tongue out',
+    },
+  },
+  lich_king: {
+    h: 72, hd: 3, shadow: true, wide: true, role: 'boss', body: 'biped',
+    prompt: `a terrifying lich king boss monster: a tall skeletal undead sorcerer king in ornate dark violet and gold robes, a jagged golden crown, glowing cyan eyes, a long staff topped with a floating soul crystal, spectral green fire around its hands, ${CHAR}, menacing and epic`,
+    poses: {
+      idle: 'standing tall, floating slightly, soul crystal glowing', walk_a: 'gliding forward, robe flowing back', walk_b: 'gliding forward, robe flowing the other way',
+      windup: 'raising the staff high with both hands, lightning crackling around the crystal', attack: 'thrusting the staff forward to the RIGHT, a blast of green soul fire',
     },
   },
   // objetos dos eventos (no lugar dos provisórios desenhados por código)
