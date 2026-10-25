@@ -568,6 +568,39 @@ export const ART = {
       windup: 'raising the staff high with both hands, lightning crackling around the crystal', attack: 'thrusting the staff forward to the RIGHT, a blast of green soul fire',
     },
   },
+  // ---------- Cidadela Demoníaca (todos os elementos, épico) ----------
+  ground_citadel: { tile: true, contrast: 0.5, prompt: `a seamless tileable texture of a demonic fortress floor seen from directly above, for a top-down RPG map: dark blackened red stone tiles with thin glowing crimson cracks between some of them and soft painterly shading, muted and calm. NO objects, NO skulls, NO strong outlines, NO dots. Even lighting, fills the whole square image edge to edge` },
+  hell_spire: { h: 52, shadow: true, prompt: `a single tall jagged black obsidian spike pillar with iron chains wrapped around it and small glowing red runes, front view, like a top-down RPG map object` },
+  skull_pile: { h: 16, shadow: true, prompt: `a small pile of cartoon horned demon skulls and bones, like a top-down RPG map object` },
+  demon_brazier: { h: 30, shadow: true, prompt: `a single black iron brazier shaped like a horned demon head, burning with bright red-orange hellfire, front view, like a top-down RPG map object` },
+  demon_banner: { h: 46, shadow: true, prompt: `a single tattered dark crimson war banner with a golden horned skull emblem on a black iron pole with spikes, front view, like a top-down RPG map object` },
+  hellfire_grate: { w: 64, prompt: `a flat round black iron floor grate set into dark stone, with glowing red-orange hellfire visible through the bars, seen from directly above, like a top-down RPG map decal` },
+  demon_portal: { h: 60, shadow: true, prompt: `a single demonic summoning portal: a jagged ring of black horned stone standing upright, filled with a swirling crimson and purple vortex, small red runes around it, front view, like a top-down RPG map object` },
+  winged_imp: {
+    h: 20, hd: 3, role: 'monster', body: 'flyer', wideSheets: true,
+    prompt: `a small fast cartoon winged imp demon with dark purple skin, big leathery black wings, small curved horns, a barbed tail and a wicked grin, flying, ${CHAR}`,
+    poses: { attack: 'diving forward to the RIGHT with claws out' },
+  },
+  hellhound: {
+    h: 26, hd: 3, shadow: true, wide: true, role: 'special', body: 'quadruped',
+    prompt: `a lean cartoon hellhound demon dog with charcoal black fur, glowing cracks of fire along its body, a mane of flames, spiked collar and burning red eyes, ${CHAR}`,
+    poses: { windup: 'crouching low, ready to pounce, flames flaring', attack: 'pouncing forward to the RIGHT with jaws wide open' },
+  },
+  demon_brute: {
+    h: 42, hd: 3, shadow: true, wide: true, role: 'special', body: 'biped',
+    prompt: `a huge hulking demon brute monster with red skin, massive arms, big curved horns, spiked iron shoulder armor and a heavy spiked iron club, ${CHAR}, menacing`,
+    poses: { windup: 'raising the spiked club high over its head with both hands', attack: 'smashing the club down into the ground in front, cracks and fire bursting out' },
+  },
+  floating_eye: {
+    h: 24, hd: 3, role: 'special', body: 'flyer', wideSheets: true,
+    prompt: `a floating demonic eyeball monster: a big bloodshot eye with a crimson iris, small bat wings and dangling tentacles, flying, ${CHAR}`,
+    poses: { windup: 'eye glowing bright red, charging energy, tentacles spread', attack: 'firing a thick red laser beam forward to the RIGHT from the eye' },
+  },
+  demon_witch: {
+    h: 32, hd: 3, shadow: true, role: 'special', body: 'biped', hold: 'the crooked horned staff in the front hand',
+    prompt: `a sinister demon sorceress monster with pale red skin, black curled horns, a long dark crimson and black robe, glowing purple eyes and a crooked horned staff with a purple orb, ${CHAR}`,
+    poses: { windup: 'raising the staff, a purple curse orb swirling above it', attack: 'thrusting the staff forward to the RIGHT, shooting a purple curse bolt' },
+  },
   // objetos dos eventos (no lugar dos provisórios desenhados por código)
   chest: { h: 22, shadow: true, prompt: `a single closed wooden treasure chest with gold trim and a golden lock, front view, like a top-down RPG map object` },
   bomb: { h: 16, prompt: `a single round black cartoon bomb with a short lit fuse sparkling, like a top-down RPG map item` },

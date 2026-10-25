@@ -20,6 +20,7 @@ const EVENT_ICON: Record<RunEventId, [string, number?]> = {
   cursedShrine: ['cursed_shrine'], bloodMoon: ['glow', 0xd02030], blizzard: ['snowdrift'], avalanche: ['snow_rock', 0xe8f4ff],
   eruption: ['lava_vent'], lavaRiver: ['lava_pool'],
   procession: ['lost_soul'], cursedBell: ['cursed_bell'], treasureRoom: ['chest', 0xffd86a],
+  echoes: ['demon', 0x8a6ac8], hellRain: ['fx_fireball', 0xff4a3a], abyssPortal: ['demon_portal'],
 };
 
 /** Ajusta a imagem para caber em w × h (tamanho lógico, descontando a resolução alta da arte). */
@@ -290,7 +291,7 @@ export class StageScene extends Phaser.Scene {
 
     // perigos e tesouros
     y += 26;
-    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão, teias e árvores bravas' : st.hazard === 'ice' ? 'gelo escorregadio' : st.hazard === 'lava' ? 'lava e respiros vulcânicos' : st.hazard === 'curse' ? 'maldição, estátuas e mímicos' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
+    const hazard = st.hazard === 'fog' ? 'névoa e lama' : st.hazard === 'dark' ? 'escuridão, teias e árvores bravas' : st.hazard === 'ice' ? 'gelo escorregadio' : st.hazard === 'lava' ? 'lava e respiros vulcânicos' : st.hazard === 'curse' ? 'maldição, estátuas e mímicos' : st.hazard === 'hell' ? 'portais e grades de fogo' : st.patches?.includes('quicksand') ? 'areia movediça' : 'nenhum';
     add(this.add.text(left + 14, y, `Perigos: ${known ? hazard : '?'}`, { fontFamily: FONT, fontSize: px(10), color: '#ffb08a' }).setOrigin(0, 0.5));
     // tesouros na linha de baixo: o texto dos perigos pode ser longo
     y += 20;

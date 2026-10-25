@@ -11,6 +11,7 @@ export type Mood = 'leve' | 'sério' | 'sombrio' | 'épico';
 /** Eventos aleatórios que podem acontecer na fase (ver systems/events.ts). */
 export type RunEventId = 'chest' | 'captive' | 'surpriseBoss' | 'goldenGoblin' | 'meteors' | 'ambush' | 'tribeWar' | 'sandstorm'
   | 'blizzard' | 'avalanche' | 'eruption' | 'lavaRiver' | 'procession' | 'cursedBell' | 'treasureRoom'
+  | 'echoes' | 'hellRain' | 'abyssPortal'
   | 'cursedShrine' | 'bloodMoon';
 
 /** Tribo da guerra de tribos: nome no anúncio e criaturas dela. */
@@ -56,11 +57,13 @@ export interface StageDef {
    * perigo do mapa: névoa que esconde a borda da tela, escuridão (só a área em volta do herói fica
    * clara) ou gelo (placas de gelo onde o herói escorrega)
    */
-  hazard?: 'fog' | 'dark' | 'ice' | 'lava' | 'curse';
+  hazard?: 'fog' | 'dark' | 'ice' | 'lava' | 'curse' | 'hell';
   /** decoração que entra em erupção quando o herói chega perto (respiros do vulcão) */
   vents?: string[];
   /** criaturas paradas no mapa que acordam quando o herói chega perto (gárgulas de pedra, mímicos) */
   sleepers?: EnemyId[];
+  /** portal no mapa que solta inimigos da fase até as armas o destruírem */
+  portal?: EnemyId;
   /** criatura das revoadas (padrão: morcego) e do cerco (padrão: esqueleto, orc mais tarde) */
   swarm?: EnemyId;
   ring?: [EnemyId, EnemyId];
@@ -212,15 +215,23 @@ const RUINS_WAVES: Wave[] = [
   { minute: 14, pool: ['zombie', 'phantom_knight', 'gargoyle', 'necromancer', 'lost_soul'], rate: 9.3, max: 312, event: 'swarm' },
 ];
 
-/** Fase futura: aparece no mapa, ainda sem arte própria. */
-function soon(id: StageId, name: string, subtitle: string, mood: Mood, elements: string, color: number): StageDef {
-  return {
-    id, name, subtitle, mood, elements, playable: false, color,
-    tint: { ground: 0xffffff, decor: 0xffffff, sky: '#2f6a3a' }, decor: FOREST_DECOR,
-    waves: WAVES, bosses: ['king_slime', 'alpha_wolf', 'goblin_king'], difficulty: 1, events: [],
-    objectives: [{ kind: 'boss', text: 'Derrote o chefe' }, { kind: 'boss', text: '—' }, { kind: 'boss', text: '—' }],
-  };
-}
+const CITADEL_WAVES: Wave[] = [
+  { minute: 0, pool: ['hellhound', 'winged_imp'], rate: 1.7, max: 44 },
+  { minute: 1, pool: ['hellhound', 'floating_eye'], rate: 2.3, max: 60 },
+  { minute: 2, pool: ['hellhound', 'demon_brute', 'winged_imp'], rate: 2.9, max: 76 },
+  { minute: 3, pool: ['floating_eye', 'demon_brute', 'winged_imp'], rate: 3.3, max: 94, event: 'swarm' },
+  { minute: 4, pool: ['hellhound', 'floating_eye', 'demon_witch', 'winged_imp'], rate: 3.7, max: 114 },
+  { minute: 5, pool: ['demon_brute', 'floating_eye'], rate: 4.3, max: 134 },
+  { minute: 6, pool: ['hellhound', 'demon_brute', 'demon_witch', 'floating_eye'], rate: 4.8, max: 154, event: 'ring' },
+  { minute: 7, pool: ['winged_imp', 'floating_eye', 'demon_witch'], rate: 5.3, max: 174, event: 'swarm' },
+  { minute: 8, pool: ['demon_brute', 'hellhound', 'floating_eye'], rate: 5.9, max: 194, event: 'ring' },
+  { minute: 9, pool: ['hellhound', 'demon_brute', 'floating_eye', 'demon_witch', 'winged_imp'], rate: 6.5, max: 214, event: 'swarm' },
+  { minute: 10, pool: ['demon_brute', 'floating_eye', 'hellhound'], rate: 6.9, max: 234 },
+  { minute: 11, pool: ['demon_brute', 'floating_eye', 'demon_witch'], rate: 7.4, max: 254, event: 'ring' },
+  { minute: 12, pool: ['winged_imp', 'demon_brute', 'floating_eye'], rate: 7.9, max: 274, event: 'swarm' },
+  { minute: 13, pool: ['demon_brute', 'hellhound', 'floating_eye'], rate: 8.4, max: 294, event: 'ring' },
+  { minute: 14, pool: ['hellhound', 'demon_brute', 'floating_eye', 'demon_witch', 'winged_imp'], rate: 9.3, max: 312, event: 'swarm' },
+];
 
 export const STAGES: StageDef[] = [
   {
@@ -337,7 +348,22 @@ export const STAGES: StageDef[] = [
       { kind: 'hp', min: 0.5, text: 'Vença com metade da vida ou mais' },
     ],
   },
-  soon('cidadela', 'Cidadela Demoníaca', 'O fim da jornada', 'épico', 'todos', 0xb0202a),
+  {
+    id: 'cidadela', name: 'Cidadela Demoníaca', subtitle: 'O fim da jornada', mood: 'épico', elements: 'todos', playable: true,
+    tint: { ground: 0xffffff, decor: 0xffffff, sky: '#2a0a10' }, color: 0xb0202a,
+    ground: 'ground_citadel', hazard: 'hell', swarm: 'winged_imp', ring: ['hellhound', 'demon_brute'], golden: 'hellhound',
+    vents: ['hellfire_grate'], portal: 'demon_portal',
+    decor: { hell_spire: 6, skull_pile: 10, demon_brazier: 4, demon_banner: 4, obsidian: 5, volcanic_rock: 6 },
+    tall: ['hell_spire', 'demon_banner'], patches: ['hellfire_grate'],
+    tribes: [{ name: 'Alados', pool: ['winged_imp', 'winged_imp', 'floating_eye'] }, { name: 'Legião', pool: ['demon_brute', 'hellhound', 'hellhound'] }],
+    waves: CITADEL_WAVES, bosses: ['demon_general', 'infernal_archmage', 'demon'], difficulty: 52,
+    events: ['chest', 'captive', 'surpriseBoss', 'echoes', 'hellRain', 'abyssPortal', 'goldenGoblin', 'tribeWar', 'ambush'],
+    objectives: [
+      { kind: 'boss', text: 'Derrote o Demônio Ancestral' },
+      { kind: 'event', event: 'abyssPortal', text: 'Feche o Portal Abissal' },
+      { kind: 'kills', n: 8000, text: 'Derrote 8.000 inimigos' },
+    ],
+  },
 ];
 
 /**

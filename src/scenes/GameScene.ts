@@ -791,9 +791,10 @@ export class GameScene extends Phaser.Scene {
         dy = py - e.y;
       }
       const d = Math.hypot(dx, dy) || 1;
-      // objeto de evento (sino): parado; só pisca ao ser atingido
+      // objeto de evento (sino, portal): parado; só pisca ao ser atingido
       if (e.def.object) {
         e.alpha = 1;
+        if (e.portalEvery) this.updatePortal(e, d, t);
         if (e.flashUntil && t > e.flashUntil) {
           e.flashUntil = 0;
           this.restoreTint(e);
@@ -870,7 +871,7 @@ export class GameScene extends Phaser.Scene {
         vx = -vx;
         vy = -vy;
       }
-      if (e.def.kind === 'bat' || e.def.kind === 'vulture' || e.def.kind === 'wisp' || e.def.kind === 'lost_soul') {
+      if (e.def.kind === 'bat' || e.def.kind === 'vulture' || e.def.kind === 'wisp' || e.def.kind === 'lost_soul' || e.def.kind === 'winged_imp' || e.def.kind === 'floating_eye') {
         const wob = Math.sin(t * 6 + e.phase) * 25;
         vx += (-dy / d) * wob;
         vy += (dx / d) * wob;
@@ -881,7 +882,9 @@ export class GameScene extends Phaser.Scene {
       e.kbY *= decay;
       e.flipX = foe ? foe.x < e.x : dx < 0;
       e.depth = e.y;
-      if (e.alpha < 1) e.alpha = Math.min(1, e.alpha + dt * 3);
+      // aparece aos poucos (os ecos do passado ficam meio transparentes)
+      const alpha = e.tag === 'echo' ? 0.85 : 1;
+      if (e.alpha < alpha) e.alpha = Math.min(alpha, e.alpha + dt * 3);
       const pose = walkPose(e.def.kind, t + e.phase, slow > 0 && (vx !== 0 || vy !== 0));
       // colado no herói, mostra o quadro de ataque (mordida, golpe); quem não tem, segue andando
       // o verme enterrado aparece como o monte de areia (quadro de se enterrar)
@@ -1479,6 +1482,39 @@ export class GameScene extends Phaser.Scene {
     if (e.def.skill) e.attackTimer = this.elapsed;
   }
 
+  /**
+   * Portal demoníaco no mapa: com o herói perto, solta inimigos da onda atual em volta de si até as
+   * armas o destruírem. O redemoinho pulsa e brilha antes de cada leva.
+   */
+  spawnPortal(x: number, y: number, every = 5, n = 2, range = 420, scale = 1) {
+    const e = this.spawnEnemy(ENEMIES[this.stage.portal ?? 'demon_portal'], x, y);
+    if (!e) return null;
+    e.tag = 'portal';
+    e.alpha = 1;
+    e.baseScale *= scale;
+    e.radius *= scale;
+    e.setScale(e.baseScale).setOrigin(0.5, 0.85);
+    e.portalEvery = every;
+    e.portalN = n;
+    e.portalRange = range;
+    e.portalAt = this.elapsed + 1.5;
+    return e;
+  }
+
+  private updatePortal(e: Enemy, d: number, t: number) {
+    const k = 1 - Math.min(1, Math.max(0, e.portalAt - t));
+    e.setScale(e.baseScale * (1 + 0.04 * Math.sin(t * 4) + 0.06 * k));
+    if (d > e.portalRange || t < e.portalAt) return;
+    e.portalAt = t + e.portalEvery;
+    const pool = waveAt(Math.min(waveClock(this.elapsed), 899), this.stage.waves).pool.filter((id) => !ENEMIES[id].boss);
+    this.impact(e.x, e.y - 24 * e.baseScale, 0xff2a4a, 1.4 * e.baseScale);
+    for (let i = 0; i < e.portalN; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const m = this.spawnEnemy(ENEMIES[pool[Math.floor(Math.random() * pool.length)]], e.x + Math.cos(a) * 26, e.y + 8 + Math.sin(a) * 16);
+      if (m) m.alpha = 0.3;
+    }
+  }
+
   /** Chama uma criatura pelo id (conferência visual das fases). */
   devSpawn(id: EnemyId, x: number, y: number) {
     return this.spawnEnemy(ENEMIES[id], x, y);
@@ -1518,7 +1554,9 @@ export class GameScene extends Phaser.Scene {
     this.player.setScale(1).setRotation(0);
     this.scene.pause();
     this.scene.pause('Hud');
-    this.scene.launch('Victory', this.result(true));
+    // a primeira vitória na Cidadela (Normal) mostra o final do jogo antes da vitória
+    if (this.stage.id === 'cidadela' && this.tier === 0 && !loadSave().endingSeen) this.scene.launch('Ending', this.result(true));
+    else this.scene.launch('Victory', this.result(true));
   }
 
   /** Escolha na tela de vitória: seguir no modo infinito. */
@@ -1839,7 +1877,14 @@ export class GameScene extends Phaser.Scene {
         // estátuas de gárgula e mímicos parados no mapa (cada um aparece uma vez só)
         const sleepKey = `${key}:sleeper`;
         const sleepers = this.stage.sleepers;
-        if (sleepers && rnd() < 0.16 && !this.mapHazards.isUsed(sleepKey)) {
+        if (this.stage.portal && rnd() < 0.07 && !this.mapHazards.isUsed(sleepKey)) {
+          const sx = x * CHUNK + 40 + rnd() * (CHUNK - 80);
+          const sy = y * CHUNK + 40 + rnd() * (CHUNK - 80);
+          if (Math.hypot(sx - this.player.x, sy - this.player.y) > 300) {
+            const e = this.spawnPortal(Math.round(sx), Math.round(sy));
+            if (e) this.sleepers.set(sleepKey, e);
+          }
+        } else if (sleepers && rnd() < 0.16 && !this.mapHazards.isUsed(sleepKey)) {
           const sx = x * CHUNK + 30 + rnd() * (CHUNK - 60);
           const sy = y * CHUNK + 30 + rnd() * (CHUNK - 60);
           const id = sleepers[Math.floor(rnd() * sleepers.length)];
@@ -1864,6 +1909,8 @@ export class GameScene extends Phaser.Scene {
             if (kind === 'ice_patch') patch.setData('ice', true);
             if (kind === 'lava_pool') patch.setData('lava', true);
             if (kind === 'curse_circle') patch.setData('curse', true);
+            // grade de fogo infernal: explode como os respiros do vulcão
+            if (this.stage.vents?.includes(kind)) patch.setData('vent', true);
             imgs.push(patch);
           }
         }
@@ -1877,7 +1924,7 @@ export class GameScene extends Phaser.Scene {
       // a criatura parada some com o trecho (volta se ainda estiver dormindo; acordada, já foi)
       const sl = this.sleepers.get(`${key}:sleeper`);
       if (sl) {
-        if (sl.active && sl.sleeping && sl.tag === 'sleeper') sl.kill();
+        if (sl.active && ((sl.sleeping && sl.tag === 'sleeper') || sl.tag === 'portal')) sl.kill();
         else this.mapHazards.markUsed(`${key}:sleeper`);
         this.sleepers.delete(`${key}:sleeper`);
       }

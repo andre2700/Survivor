@@ -72,6 +72,12 @@ const GAITS: Record<string, Gait> = {
   necromancer: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.04 },
   mimic: { fps: 6, cycle: FLAP, squash: 0.06, tilt: 0.03 },
   lich_king: { fps: 4, cycle: STRIDE, squash: 0.02, tilt: 0.015 },
+  // Cidadela Demoníaca
+  winged_imp: { fps: 12, cycle: STEP, squash: 0.03, tilt: 0.06 },
+  hellhound: { fps: 10, cycle: STEP, squash: 0.03, tilt: 0.04 },
+  demon_brute: { fps: 5, cycle: STEP, squash: 0.03, tilt: 0.03 },
+  floating_eye: { fps: 7, cycle: STEP, squash: 0.05, tilt: 0.03 },
+  demon_witch: { fps: 6, cycle: STEP, squash: 0.03, tilt: 0.04 },
 };
 
 export interface Pose {

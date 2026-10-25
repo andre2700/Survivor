@@ -11,7 +11,8 @@ export type EnemyId = 'slime' | 'bat' | 'goblin' | 'wolf' | 'skeleton' | 'orc' |
   | 'goblin_king' | 'yeti' | 'snow_golem' | 'frost_wraith' | 'penguin' | 'snow_owl' | 'ice_dragon' | 'yeti_elder' | 'frost_queen'
   | 'salamander' | 'ember_bat' | 'magma_golem' | 'fire_imp' | 'lava_serpent' | 'magma_titan' | 'salamander_queen' | 'ash_lord'
   | 'zombie' | 'lost_soul' | 'phantom_knight' | 'skeleton_archer' | 'gargoyle' | 'necromancer' | 'mimic' | 'lich_king'
-  | 'gargoyle_ancient' | 'grand_necromancer' | 'cursed_bell';
+  | 'gargoyle_ancient' | 'grand_necromancer' | 'cursed_bell'
+  | 'winged_imp' | 'hellhound' | 'demon_brute' | 'floating_eye' | 'demon_witch' | 'demon_portal' | 'demon_general' | 'infernal_archmage';
 
 /**
  * Como o inimigo luta: corpo a corpo (encosta); à distância (mantém distância e atira, com aviso);
@@ -25,9 +26,10 @@ export interface EnemySkill {
    * tiro (gosma, esporos, espinhos), teia (tiro que prende o herói), bola de fogo, onda, tornado e raio
    * (habilidades do herói), explosão, bote (avança de repente) ou toca (se enterra, anda por baixo da
    * areia e irrompe sob o herói), flecha (tiro rápido e reto) ou levantar os mortos (chama criaturas
-   * do chão, com aviso)
+   * do chão, com aviso), pancada em área (círculo em volta de si) ou raio em linha (faixa de aviso e
+   * o raio inteiro de uma vez)
    */
-  kind: 'spit' | 'web' | 'fireball' | 'wave' | 'tornado' | 'strike' | 'explode' | 'charge' | 'burrow' | 'arrow' | 'raise';
+  kind: 'spit' | 'web' | 'fireball' | 'wave' | 'tornado' | 'strike' | 'explode' | 'charge' | 'burrow' | 'arrow' | 'raise' | 'slam' | 'beam';
   /** tiros por disparo, em leque (padrão 1) */
   count?: number;
   /** dano em múltiplos do dano de contato do inimigo */
@@ -259,6 +261,30 @@ export const ENEMIES = {
   mimic: { id: 'mimic', kind: 'mimic', name: 'Mímico', texture: 'mimic', element: 'earth', hp: 160, speed: 62, damage: 16, xp: 8, scale: 1, radius: 11, knockback: 0.3, resist: 0.4 },
   // objeto do evento: as armas acertam o sino até ele se calar
   cursed_bell: { id: 'cursed_bell', kind: 'cursed_bell', name: 'Sino Amaldiçoado', texture: 'cursed_bell', element: 'earth', hp: 900, speed: 0, damage: 0, xp: 30, scale: 1, radius: 18, knockback: 0, resist: 0.5, object: true },
+  // ---------- Cidadela Demoníaca ----------
+  winged_imp: { id: 'winged_imp', kind: 'winged_imp', name: 'Diabrete Alado', texture: 'winged_imp', element: 'air', hp: 18, speed: 80, damage: 9, xp: 1, scale: 1, radius: 8, knockback: 1.1, resist: 0 },
+  // bote rápido
+  hellhound: {
+    id: 'hellhound', kind: 'hellhound', name: 'Cão Infernal', texture: 'hellhound', element: 'fire', hp: 34, speed: 54, damage: 12, xp: 2, scale: 1, radius: 10, knockback: 0.7, resist: 0.15,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.3, cooldown: 3.4, range: 170, windup: 0.55, speed: 360, radius: 10, level: 1 },
+  },
+  // tanque: pancada em área em volta de si
+  demon_brute: {
+    id: 'demon_brute', kind: 'demon_brute', name: 'Brutamontes Demoníaco', texture: 'demon_brute', element: 'earth', hp: 130, speed: 26, damage: 18, xp: 5, scale: 1, radius: 14, knockback: 0.25, resist: 0.5,
+    behavior: 'caster', skill: { kind: 'slam', damage: 1.6, cooldown: 4, range: 70, windup: 0.9, speed: 0, radius: 54, level: 1 },
+  },
+  // à distância: raio em linha
+  floating_eye: {
+    id: 'floating_eye', kind: 'floating_eye', name: 'Olho Flutuante', texture: 'floating_eye', element: 'water', hp: 44, speed: 34, damage: 11, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
+    behavior: 'ranged', skill: { kind: 'beam', damage: 1.5, cooldown: 4.2, range: 240, windup: 1, speed: 0, radius: 9, level: 1 },
+  },
+  // conjuradora: bolas de maldição que deixam o herói lento
+  demon_witch: {
+    id: 'demon_witch', kind: 'demon_witch', name: 'Feiticeira Demoníaca', texture: 'demon_witch', element: 'air', hp: 50, speed: 30, damage: 10, xp: 4, scale: 1, radius: 9, knockback: 0.7, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'spit', count: 3, damage: 1.1, cooldown: 3.6, range: 190, windup: 0.7, speed: 150, radius: 9, level: 1 },
+  },
+  // portal no mapa: solta demônios até as armas o destruírem
+  demon_portal: { id: 'demon_portal', kind: 'demon_portal', name: 'Portal Demoníaco', texture: 'demon_portal', element: 'fire', hp: 1100, speed: 0, damage: 0, xp: 25, scale: 1, radius: 20, knockback: 0, resist: 0.5, object: true },
   lich_king: { id: 'lich_king', kind: 'lich_king', name: 'Rei Lich', texture: 'lich_king', element: 'water', hp: 11500, speed: 40, damage: 44, xp: 260, scale: 1.35, radius: 26, knockback: 0, resist: 0.88, boss: true },
   magma_titan: { id: 'magma_titan', kind: 'magma_titan', name: 'Titã de Magma', texture: 'magma_titan', element: 'fire', hp: 10500, speed: 40, damage: 40, xp: 240, scale: 1.35, radius: 28, knockback: 0, resist: 0.85, boss: true },
 } as Record<EnemyId, EnemyDef>;
@@ -292,6 +318,8 @@ Object.assign(ENEMIES, {
   ash_lord: giant(ENEMIES.fire_imp, 'ash_lord', 'Senhor das Cinzas', 4200, 3.4),
   gargoyle_ancient: giant(ENEMIES.gargoyle, 'gargoyle_ancient', 'Gárgula Ancestral', 1800, 3.4, { speed: 50 }),
   grand_necromancer: giant(ENEMIES.necromancer, 'grand_necromancer', 'Grão-Necromante', 4500, 3.1),
+  demon_general: giant(ENEMIES.demon_brute, 'demon_general', 'General Demoníaco', 2000, 2.6, { speed: 34 }),
+  infernal_archmage: giant(ENEMIES.demon_witch, 'infernal_archmage', 'Arquimaga Infernal', 5000, 3.1),
 } satisfies Partial<Record<EnemyId, EnemyDef>>);
 
 /** Cor das partículas quando o inimigo morre. */
@@ -308,6 +336,7 @@ export const DEATH_TINT: Record<EnemyId, number> = {
   salamander: 0xff7a2e, ember_bat: 0xff5a1a, magma_golem: 0x3a2a2a, fire_imp: 0xe8402a, lava_serpent: 0xff6a1a, magma_titan: 0xff4a1a,
   salamander_queen: 0xff7a2e, ash_lord: 0x8a8a8a,
   zombie: 0x7a9a6a, lost_soul: 0xc8b0ff, phantom_knight: 0x9fe8ff, skeleton_archer: 0xd5d1d6, gargoyle: 0x8a8a92, necromancer: 0x7ac050, mimic: 0xc69c6d,
-  cursed_bell: 0xc8903a, lich_king: 0x7af0c0, gargoyle_ancient: 0x8a8a92, grand_necromancer: 0x7ac050,
+  cursed_bell: 0xc8903a, winged_imp: 0x7a3aa8, hellhound: 0xff5a1a, demon_brute: 0xc0302a, floating_eye: 0xe84a4a, demon_witch: 0xb060ff,
+  demon_portal: 0xb02a4a, demon_general: 0xc0302a, infernal_archmage: 0xb060ff, lich_king: 0x7af0c0, gargoyle_ancient: 0x8a8a92, grand_necromancer: 0x7ac050,
   werewolf: 0x8a8f9a, wisp: 0x9af0f0, spider: 0x7a4fa8, witch: 0x7ac050, ancient_ent: 0x9a50d0,
 };

@@ -125,6 +125,41 @@
    "death"
   ]
  },
+ "demon_banner": {
+  "hd": 2
+ },
+ "demon_brazier": {
+  "hd": 2
+ },
+ "demon_brute": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "demon_portal": {
+  "hd": 2
+ },
+ "demon_witch": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
  "desert_rock": {
   "hd": 2
  },
@@ -168,6 +203,19 @@
   ]
  },
  "fire_imp": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "floating_eye": {
   "hd": 3,
   "frames": 7,
   "slots": [
@@ -357,6 +405,9 @@
  "ground": {
   "hd": 2
  },
+ "ground_citadel": {
+  "hd": 2
+ },
  "ground_dark": {
   "hd": 2
  },
@@ -377,6 +428,25 @@
  },
  "heart": {
   "hd": 4
+ },
+ "hell_spire": {
+  "hd": 2
+ },
+ "hellfire_grate": {
+  "hd": 2
+ },
+ "hellhound": {
+  "hd": 3,
+  "frames": 7,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
+   "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
  },
  "hero_barbarian": {
   "hd": 3,
@@ -1189,6 +1259,9 @@
    "death"
   ]
  },
+ "skull_pile": {
+  "hd": 2
+ },
  "slime": {
   "hd": 3,
   "frames": 6,
@@ -1383,6 +1456,18 @@
    "walk_mid",
    "walk_b",
    "windup",
+   "attack",
+   "hurt",
+   "death"
+  ]
+ },
+ "winged_imp": {
+  "hd": 3,
+  "frames": 6,
+  "slots": [
+   "walk_a",
+   "walk_mid",
+   "walk_b",
    "attack",
    "hurt",
    "death"

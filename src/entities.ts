@@ -23,9 +23,14 @@ export class Enemy extends Phaser.GameObjects.Image {
   /** último aviso de "RESISTIU" (s) */
   resistShownAt = -99;
   /** papel num evento: guarda de baú/jaula, goblin dourado, chefe surpresa, guerreiro de tribo */
-  tag: '' | 'guard' | 'golden' | 'surprise' | 'tribe' | 'sleeper' | 'procession' | 'bell' = '';
+  tag: '' | 'guard' | 'golden' | 'surprise' | 'tribe' | 'sleeper' | 'procession' | 'bell' | 'portal' | 'echo' = '';
   /** parado no mapa (gárgula de pedra, mímico): acorda quando o herói chega a esta distância; 0 = acordado */
   sleeping = 0;
+  /** portal: solta `portalN` inimigos a cada `portalEvery` s (0 = não solta) com o herói até `portalRange` px */
+  portalEvery = 0;
+  portalN = 0;
+  portalRange = 0;
+  portalAt = 0;
   /** procissão fantasma: anda em linha reta nesta velocidade, sem perseguir o herói */
   marchX = 0;
   marchY = 0;
@@ -83,6 +88,7 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.resistShownAt = -99;
     this.tag = '';
     this.sleeping = this.marchX = this.marchY = 0;
+    this.portalEvery = this.portalN = this.portalRange = this.portalAt = 0;
     const eliteMult = elite ? 10 : 1;
     this.maxHp = Math.round(def.hp * hpMult * eliteMult);
     this.hp = this.maxHp;

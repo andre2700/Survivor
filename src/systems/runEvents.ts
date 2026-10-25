@@ -12,7 +12,7 @@ import { SURPRISE_BOSS } from '../data/bosses';
 import { ENEMIES, type EnemyId } from '../data/enemies';
 import { WEAPONS, weaponStatsAt } from '../data/weapons';
 import { damageMult } from '../core/stats';
-import { stageScaling, type RunEventId, type Tribe } from '../data/stages';
+import { STAGES, stageScaling, type RunEventId, type Tribe } from '../data/stages';
 import { waveAt } from '../data/waves';
 import type { Enemy } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
@@ -67,7 +67,13 @@ const TITLES: Record<RunEventId, string> = {
   procession: 'PROCISSÃO FANTASMA! SAIA DO CAMINHO!',
   cursedBell: 'O SINO AMALDIÇOADO TOCA! DESTRUA-O!',
   treasureRoom: 'UMA SALA DO TESOURO! CUIDADO COM OS MÍMICOS',
+  echoes: 'ECOS DO PASSADO: VELHOS INIMIGOS VOLTARAM!',
+  hellRain: 'CHUVA INFERNAL! O CÉU QUEIMA!',
+  abyssPortal: 'PORTAL ABISSAL! DESTRUA-O ANTES QUE A HORDA CRESÇA!',
 };
+
+/** Ecos do passado: quantos chefes de outras fases voltam e com que fração da vida de um chefe. */
+const ECHOES = { count: 2, hp: 0.3 };
 
 /** Procissão fantasma: aviso (s), meia altura da faixa (px), velocidade das almas e quantas. */
 const PROCESSION = { warn: 2, half: 40, speed: 170, souls: 18 };
@@ -117,10 +123,15 @@ export class RunEvents {
   private war: { x: number; y: number; until: number } | null = null;
   /** procissão fantasma: almas em marcha, quando elas chegam e se o herói foi pego */
   private procession: { souls: Enemy[]; start: number; until: number; y: number; dir: number; hit: boolean } | null = null;
+  /** chefes de outras fases que voltaram como sombras */
+  private echoes: Enemy[] = [];
+  /** portal abissal do evento */
+  private abyss: Enemy | null = null;
+  private abyssUntil = 0;
   /** sino amaldiçoado: o sino (inimigo-objeto), a próxima badalada e o brilho de aviso */
   private bell: { e: Enemy; next: number; glow: Phaser.GameObjects.Image; until: number } | null = null;
   /** tempestade de areia: fim, próximo dano, lado do vento, véu e grãos (posição na tela, 0 a 1) */
-  private storm: { kind: 'sand' | 'blood' | 'snow' | 'ash'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[]; moon?: Phaser.GameObjects.Image; halo?: Phaser.GameObjects.Image; nextMeteor?: number } | null = null;
+  private storm: { kind: 'sand' | 'blood' | 'snow' | 'ash' | 'hell'; time: number; until: number; next: number; wind: number; veil: Phaser.GameObjects.Graphics; grains: { u: number; v: number; len: number; sp: number }[]; moon?: Phaser.GameObjects.Image; halo?: Phaser.GameObjects.Image; nextMeteor?: number } | null = null;
 
   constructor(private scene: GameScene) {}
 
@@ -150,6 +161,7 @@ export class RunEvents {
     this.updateAvalanche(dt);
     this.updateProcession();
     this.updateBell();
+    this.updateAbyss();
     if (this.golden && (!this.golden.active || sc.elapsed > this.goldenUntil)) {
       if (this.golden.active) {
         // escapou: some numa nuvem
@@ -167,7 +179,7 @@ export class RunEvents {
     const goal = st.objectives.find((o) => o.kind === 'event');
     if (goal && goal.kind === 'event' && !this.done.has(goal.event)) return goal.event;
     const pool = st.events.filter((e) => !(e === 'captive' && (this.captive || this.ally)) && !(e === 'goldenGoblin' && this.golden)
-      && !(e === 'tribeWar' && this.war) && !(e === 'cursedBell' && this.bell) && !(e === 'procession' && this.procession) && !((e === 'sandstorm' || e === 'bloodMoon' || e === 'blizzard' || e === 'eruption') && this.storm) && !((e === 'avalanche' || e === 'lavaRiver') && this.avalanche) && !(e === 'cursedShrine' && this.shrine));
+      && !(e === 'tribeWar' && this.war) && !(e === 'cursedBell' && this.bell) && !(e === 'procession' && this.procession) && !((e === 'sandstorm' || e === 'bloodMoon' || e === 'blizzard' || e === 'eruption' || e === 'hellRain') && this.storm) && !(e === 'abyssPortal' && this.abyss?.active) && !(e === 'echoes' && this.echoes.some((x) => x.active)) && !((e === 'avalanche' || e === 'lavaRiver') && this.avalanche) && !(e === 'cursedShrine' && this.shrine));
     return pool[Math.floor(Math.random() * pool.length)] ?? 'ambush';
   }
 
@@ -217,6 +229,12 @@ export class RunEvents {
         return this.startBell();
       case 'treasureRoom':
         return this.startTreasureRoom();
+      case 'echoes':
+        return this.startEchoes();
+      case 'hellRain':
+        return this.startStorm('hell');
+      case 'abyssPortal':
+        return this.startAbyss();
     }
   }
 
@@ -576,7 +594,7 @@ export class RunEvents {
    * Cataclismo de véu. Tempestade de areia: a areia esconde a vista e o vento empurra o herói. Lua de
    * sangue: a tela fica vermelha e todos sangram. Nos dois, a cada instante herói e inimigos se ferem.
    */
-  private startStorm(kind: 'sand' | 'blood' | 'snow' | 'ash' = 'sand') {
+  private startStorm(kind: 'sand' | 'blood' | 'snow' | 'ash' | 'hell' = 'sand') {
     const sc = this.scene;
     const grains = kind !== 'blood' ? Array.from({ length: STORM.streaks }, () => ({ u: Math.random(), v: Math.random(), len: 6 + Math.random() * 18, sp: 0.5 + Math.random() * 0.7 })) : [];
     const time = kind === 'blood' ? BLOOD_MOON.time : STORM.time;
@@ -613,10 +631,11 @@ export class RunEvents {
     const v = sc.cameras.main.worldView;
     const g = s.veil.clear();
     const sand = s.kind === 'sand';
-    if (s.kind === 'ash') {
-      // erupção: céu de cinzas avermelhado, brasas subindo e meteoros caindo pela tela (cataclismo:
-      // os meteoros ferem herói e inimigos, com o aviso de sempre)
-      g.fillStyle(0x5a2010, 0.32 * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
+    if (s.kind === 'ash' || s.kind === 'hell') {
+      // erupção (cinzas) e chuva infernal (céu vermelho, mais meteoros): brasas subindo e meteoros
+      // caindo pela tela (cataclismo: ferem herói e inimigos, com o aviso de sempre)
+      const hell = s.kind === 'hell';
+      g.fillStyle(hell ? 0x7a0a14 : 0x5a2010, (hell ? 0.36 : 0.32) * k).fillRect(v.x - 20, v.y - 20, v.width + 40, v.height + 40);
       for (const p of s.grains) {
         p.u += s.wind * p.sp * 0.15 * dt;
         p.v -= p.sp * 0.3 * dt;
@@ -624,10 +643,10 @@ export class RunEvents {
         if (p.u < -0.05) p.u += 1.1;
         const x = v.x + p.u * v.width;
         const y = v.y + (((p.v % 1) + 1) % 1) * v.height;
-        g.fillStyle(p.len > 16 ? 0xffb050 : 0x8a8a8a, 0.8 * k).fillCircle(x, y, p.len > 16 ? 1.8 : 2.4);
+        g.fillStyle(p.len > 16 ? 0xffb050 : hell ? 0xff4a3a : 0x8a8a8a, 0.8 * k).fillCircle(x, y, p.len > 16 ? 1.8 : 2.4);
       }
       if (t >= (s.nextMeteor ?? 0) && left > 1.5) {
-        s.nextMeteor = t + 0.55;
+        s.nextMeteor = t + (hell ? 0.4 : 0.55);
         const near = Math.random() < 0.45;
         const at = near ? this.away(0, 120) : { x: v.x + 30 + Math.random() * (v.width - 60), y: v.y + 60 + Math.random() * (v.height - 120) };
         this.meteor(at.x, at.y);
@@ -668,7 +687,7 @@ export class RunEvents {
       s.moon?.setPosition(mx, my).setAlpha(k).setScale(0.95 + 0.03 * Math.sin(t * 1.5));
       s.halo?.setPosition(mx, my).setAlpha(0.55 * k * pulse).setScale(7 * pulse);
     }
-    if (t < s.next || s.kind === 'ash') return;
+    if (t < s.next || s.kind === 'ash' || s.kind === 'hell') return;
     s.next = t + STORM.tick;
     // cataclismo: fere o herói e os inimigos na tela (chefes perdem só 1%)
     const hero = s.kind === 'blood' ? BLOOD_MOON.hero : s.kind === 'snow' ? 0.04 : 0.05;
@@ -885,6 +904,59 @@ export class RunEvents {
     sc.floatText(b.e.x, b.e.y - 60, `BLÉM! INIMIGOS +${Math.round(sc.bellBoost * 100)}%`, '#d6a6ff', true);
   }
 
+  // ---------- Ecos do passado ----------
+
+  /** Dois chefes do início ou do meio de fases anteriores voltam como sombras (com 30% da vida). */
+  private startEchoes() {
+    const sc = this.scene;
+    const past = STAGES.slice(0, Math.max(1, sc.stageIndex)).flatMap((st) => st.bosses.slice(0, 2));
+    const picks = [...new Set(past)].sort(() => Math.random() - 0.5).slice(0, ECHOES.count);
+    picks.forEach((id, i) => {
+      const { x, y } = this.away(200 + i * 30, 240 + i * 30);
+      const e = sc.spawnEnemy(ENEMIES[id], x, y);
+      if (!e) return;
+      e.tag = 'echo';
+      e.maxHp = Math.round(e.maxHp * ECHOES.hp);
+      e.hp = e.maxHp;
+      sc.bossAI.start(e);
+      // sombra roxa e meio transparente (depois do início do chefe, que acerta a cor dele)
+      e.baseTint = 0x8a6ac8;
+      e.setTint(e.baseTint).setAlpha(0.85);
+      sc.impact(x, y, 0x8a6ac8, 2.4);
+      this.echoes.push(e);
+    });
+  }
+
+  // ---------- Portal abissal ----------
+
+  /** Um portal grande solta levas de inimigos a cada 1,2 s, em qualquer distância, até ser destruído. */
+  private startAbyss() {
+    const sc = this.scene;
+    const { x, y } = this.away(220, 260);
+    this.abyss = sc.spawnPortal(x, y, 1.2, 3, 9999, 1.7);
+    if (!this.abyss) return;
+    this.abyss.maxHp *= 2.5;
+    this.abyss.hp = this.abyss.maxHp;
+    this.abyssUntil = sc.elapsed + 70;
+  }
+
+  private updateAbyss() {
+    const a = this.abyss;
+    if (!a) return;
+    const sc = this.scene;
+    if (a.active && sc.elapsed < this.abyssUntil) return;
+    if (!a.active) {
+      sc.completed.add('abyssPortal');
+      sc.events.emit('announce', 'O PORTAL ABISSAL SE FECHOU!');
+      this.placeChest(a.x, a.y);
+    } else {
+      // ninguém fechou: o portal some sozinho depois de um tempo, sem prêmio
+      sc.impact(a.x, a.y - 30, 0xff2a4a, 2);
+      a.kill();
+    }
+    this.abyss = null;
+  }
+
   // ---------- Sala do tesouro ----------
 
   /** Vários baús num círculo, guardados; alguns são mímicos disfarçados. */
@@ -959,6 +1031,13 @@ export class RunEvents {
       sc.events.emit('announce', `${this.goldenName()} ${this.goldenFem() ? 'PEGA' : 'PEGO'}!`);
       for (let i = 0; i < 30; i++) sc.dropPickup('coin', e.x + Phaser.Math.Between(-30, 30), e.y + Phaser.Math.Between(-24, 24), 4);
       this.golden = null;
+    } else if (e.tag === 'echo') {
+      this.echoes = this.echoes.filter((x) => x !== e && x.active);
+      if (!this.echoes.length) {
+        sc.completed.add('echoes');
+        sc.events.emit('announce', 'OS ECOS SE CALARAM!');
+        this.placeChest(e.x, e.y);
+      }
     } else if (e.tag === 'surprise') {
       sc.completed.add('surpriseBoss');
       if (sc.miniBoss === e) sc.miniBoss = null;
@@ -984,6 +1063,8 @@ export class RunEvents {
     for (const e of this.surprises) list.push({ x: e.x, y: e.y, color: 0xff6a5a });
     if (this.war) list.push({ x: this.war.x, y: this.war.y, color: 0xffa040 });
     if (this.shrine) list.push({ x: this.shrine.img.x, y: this.shrine.img.y, color: 0xb060ff });
+    for (const e of this.echoes) if (e.active) list.push({ x: e.x, y: e.y, color: 0x8a6ac8 });
+    if (this.abyss?.active) list.push({ x: this.abyss.x, y: this.abyss.y, color: 0xff2a4a });
     if (this.bell?.e.active) list.push({ x: this.bell.e.x, y: this.bell.e.y, color: 0xb060ff });
     return list;
   }

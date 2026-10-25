@@ -77,7 +77,7 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
     enrageAt: 0.35, phase2Name: 'Demônio Desperto', phase2Tint: 0xff7a6a,
     phases: [
       { speed: 1, pause: 1.4, moves: [{ kind: 'volley', weight: 3, cooldown: 4, shot: 'fireball', count: 3, damage: 1.2 }, { kind: 'rain', weight: 2, cooldown: 8, look: 'meteor', count: 6, damage: 1.4 }, leap(2), slam(1)] },
-      { speed: 1.25, pause: 0.9, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'fireball', count: 10, damage: 1.2 }, { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 10, damage: 1.4 }, leap(2, 2), summon(['bat', 'bat_air'], 8)] },
+      { speed: 1.25, pause: 0.9, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'fireball', count: 10, damage: 1.2 }, { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 10, damage: 1.4 }, leap(2, 2), summon(['winged_imp', 'hellhound'], 8)] },
     ],
   },
   goblin_king: {
@@ -168,6 +168,22 @@ export const BOSSES: Partial<Record<EnemyId, BossDef>> = {
   ash_lord: {
     enrageAt: 0.5,
     phases: [{ speed: 1, pause: 1.3, moves: [{ kind: 'nova', weight: 3, cooldown: 5, shot: 'fireball', count: 10, damage: 1.1 }, { kind: 'rain', weight: 3, cooldown: 6, look: 'meteor', count: 7, damage: 1.3 }, { kind: 'blink', weight: 2, cooldown: 6 }, summon(['ember_bat'], 8)] }],
+  },
+  // ---------- Cidadela Demoníaca ----------
+  demon_general: {
+    enrageAt: 0.45,
+    phases: [{ speed: 1, pause: 1.2, moves: [charge(3, 3), slam(2), summon(['hellhound', 'demon_brute'], 6, 2), leap(1)] }],
+  },
+  // os quatro elementos: bolas de fogo, ondas, tornados e gelo
+  infernal_archmage: {
+    enrageAt: 0.5,
+    phases: [{ speed: 1, pause: 1.2, moves: [
+      { kind: 'volley', weight: 2, cooldown: 4, shot: 'fireball', count: 5, damage: 1.2 },
+      { kind: 'volley', weight: 2, cooldown: 4, shot: 'wave', count: 3, damage: 1.2 },
+      { kind: 'volley', weight: 2, cooldown: 5, shot: 'tornado', count: 3, damage: 1.1 },
+      { kind: 'nova', weight: 2, cooldown: 5, shot: 'spit', count: 14, color: 0xbff0ff, damage: 1.1 },
+      { kind: 'blink', weight: 2, cooldown: 6 },
+    ] }],
   },
   // ---------- Ruínas Malditas ----------
   gargoyle_ancient: {

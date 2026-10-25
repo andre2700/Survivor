@@ -29,6 +29,8 @@ interface Shot {
   hit?: boolean;
   /** tiro de gelo: deixa o herói lento ao acertar */
   chill?: boolean;
+  /** a lentidão é maldição (feiticeira), não gelo */
+  curse?: boolean;
   /** tornado: tempo de vida total e próximo acerto permitido */
   total?: number;
   nextHit?: number;
@@ -61,7 +63,9 @@ const BOSS_SHOTS: Record<BossShot, EnemySkill> = {
 };
 
 /** Criaturas de gelo: os tiros delas deixam o herói lento. */
-const CHILL_KINDS = ['frost_wraith', 'snow_golem', 'ice_dragon'];
+const CHILL_KINDS = ['frost_wraith', 'snow_golem', 'ice_dragon', 'demon_witch', 'infernal_archmage'];
+/** criaturas cujos tiros amaldiçoam (deixam lento como o gelo, com outro aviso) */
+const CURSE_KINDS = ['demon_witch', 'infernal_archmage'];
 
 /** Quanto tempo a teia prende o herói (s) e a velocidade dele preso. */
 export const WEB = { time: 1.6, speed: 0.45 };
@@ -151,6 +155,11 @@ export class EnemySkills {
     }
     if (skill.kind === 'explode') {
       if (d < skill.range + e.radius) this.windup(e, skill, p.x, p.y);
+      return { forward: 1, side: 0 };
+    }
+    if (skill.kind === 'slam') {
+      // o brutamontes chega perto e bate no chão em volta de si
+      if (d < skill.range + e.radius && t >= e.attackTimer) this.windup(e, skill, p.x, p.y);
       return { forward: 1, side: 0 };
     }
     if (skill.kind === 'burrow') {
@@ -251,6 +260,13 @@ export class EnemySkills {
     } else if (skill.kind === 'tornado') {
       // aviso: o vento rodando em volta do xamã
       this.ring(e.x, e.y, 22, 0x9ad050, skill.windup);
+    } else if (skill.kind === 'slam') {
+      this.ring(e.x, e.y, skill.radius, 0xff3020, skill.windup);
+    } else if (skill.kind === 'beam') {
+      // aviso: a faixa inteira do raio, do olho até além do herói
+      const a = Math.atan2(ty - e.y, tx - e.x);
+      const len = skill.range + 60;
+      warnLane(this.scene, e.x, e.y, e.x + Math.cos(a) * len, e.y + Math.sin(a) * len, skill.radius, 0xff2a4a, skill.windup);
     } else if (skill.kind === 'arrow') {
       // aviso: linha fina de mira até o herói
       const a = Math.atan2(ty - e.y, tx - e.x);
@@ -280,6 +296,36 @@ export class EnemySkills {
     if (skill.kind === 'explode') {
       this.explode(e.x, e.y, skill.radius, dmg);
       this.scene.elementalDamage(e, e.hp + 1, '#ffffff');
+      return;
+    }
+    if (skill.kind === 'slam') {
+      const sc = this.scene;
+      const r = skill.radius;
+      sc.impact(e.x, e.y + 4, 0xff6a3a, 2.2);
+      sc.cameras.main.shake(90, 0.003);
+      sfx('boom');
+      const p = sc.player;
+      if ((p.x - e.x) ** 2 + ((p.y - e.y) / 0.8) ** 2 < (r + 6) ** 2) sc.hurtPlayer(dmg);
+      return;
+    }
+    if (skill.kind === 'beam') {
+      // o raio sai inteiro de uma vez na direção marcada
+      const sc = this.scene;
+      const a = Math.atan2(e.attackY - e.y, e.attackX - e.x);
+      const len = skill.range + 60;
+      const x2 = e.x + Math.cos(a) * len;
+      const y2 = e.y + Math.sin(a) * len;
+      const g = sc.add.graphics().setDepth(LAYER.fx).setBlendMode(Phaser.BlendModes.ADD);
+      g.lineStyle(skill.radius * 2, 0xff2a4a, 0.85).lineBetween(e.x, e.y - 6, x2, y2 - 6);
+      g.lineStyle(skill.radius * 0.8, 0xffd0d0, 1).lineBetween(e.x, e.y - 6, x2, y2 - 6);
+      sc.tweens.add({ targets: g, alpha: 0, duration: 280, onComplete: () => g.destroy() });
+      sfx('zap');
+      const p = sc.player;
+      // distância do herói até o segmento do raio
+      const vx = x2 - e.x;
+      const vy = y2 - e.y;
+      const k = Phaser.Math.Clamp(((p.x - e.x) * vx + (p.y - e.y) * vy) / (vx * vx + vy * vy), 0, 1);
+      if (Math.hypot(e.x + vx * k - p.x, e.y + vy * k - p.y) < skill.radius + 8) sc.hurtPlayer(dmg);
       return;
     }
     if (skill.kind === 'raise') {
@@ -340,7 +386,7 @@ export class EnemySkills {
     const life = fireball ? dist / skill.speed : wave ? (skill.range + 60) / skill.speed : tornado ? 4.5 : 2.4;
     this.shots.push({
       img, vx: Math.cos(angle) * skill.speed, vy: Math.sin(angle) * skill.speed, total: life, nextHit: 0,
-      life, damage: dmg, r: fireball ? 8 : wave || tornado ? area : skill.radius, kind: skill.kind === 'arrow' ? 'spit' : skill.kind, chill: CHILL_KINDS.includes(e.def.kind),
+      life, damage: dmg, r: fireball ? 8 : wave || tornado ? area : skill.radius, kind: skill.kind === 'arrow' ? 'spit' : skill.kind, chill: CHILL_KINDS.includes(e.def.kind), curse: CURSE_KINDS.includes(e.def.kind),
       tx: e.x + Math.cos(angle) * dist, ty: e.y + Math.sin(angle) * dist, area, color,
     });
   }
@@ -399,7 +445,7 @@ export class EnemySkills {
         s.img.setFrame(loopFrame('fx_wave', s.life, 8)).setDepth(s.img.y).setAlpha(Math.min(0.9, s.life * 3));
         if (hitPlayer && !s.hit) {
           s.hit = this.scene.hurtPlayer(s.damage) || s.hit;
-          if (s.chill) this.chill();
+          if (s.chill) this.chill(s.curse);
           if (s.hit) this.scene.impact(p.x, p.y - 6, 0x41a6f6, 0.8);
         }
         if (s.life <= 0) s.img.destroy();
@@ -427,7 +473,7 @@ export class EnemySkills {
       }
       if (hitPlayer) {
         // teia: prende o herói mesmo quando o dano é esquivado
-        if (s.chill) this.chill();
+        if (s.chill) this.chill(s.curse);
         if (s.kind === 'web') {
           if (this.scene.elapsed >= this.scene.webUntil) this.scene.floatText(p.x, p.y - 20, 'PRESO!', '#f4f4ff', false);
           this.scene.webUntil = this.scene.elapsed + WEB.time;
@@ -448,9 +494,9 @@ export class EnemySkills {
   }
 
   /** Gelo no herói: fica lento por um instante (como a teia). */
-  private chill() {
+  private chill(curse = false) {
     const sc = this.scene;
-    if (sc.elapsed >= sc.webUntil) sc.floatText(sc.player.x, sc.player.y - 20, 'CONGELADO!', '#bff0ff', false);
+    if (sc.elapsed >= sc.webUntil) sc.floatText(sc.player.x, sc.player.y - 20, curse ? 'AMALDIÇOADO!' : 'CONGELADO!', curse ? '#d6a6ff' : '#bff0ff', false);
     sc.webUntil = Math.max(sc.webUntil, sc.elapsed + 1.1);
   }
 

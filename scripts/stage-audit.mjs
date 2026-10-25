@@ -107,6 +107,13 @@ for (let i = 0; i < 3; i++) {
   await shot(`s21_chefe${i}_golpe`);
 }
 
+// tela de vitória (na Cidadela, o final do jogo vem antes)
+await run(() => { const g = window.__game.scene.getScene('Game'); g.devKillAll(); g.openVictory(); });
+await wait(1500);
+await shot('s30_vitoria');
+await wait(5000);
+await shot('s31_vitoria_b');
+
 console.log(errors.length ? `ERROS:\n${errors.join('\n')}` : 'sem erros no console');
 await browser.close();
 await server.close();

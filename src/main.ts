@@ -12,6 +12,7 @@ import { PetScene } from './scenes/PetScene';
 import { MissionsScene } from './scenes/MissionsScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { GameOverScene, LevelUpScene, PauseScene, VictoryScene } from './scenes/OverlayScenes';
+import { EndingScene } from './scenes/EndingScene';
 import { setupNative } from './native';
 import { installHdSprites } from './art/textures';
 import { VIEW, initView } from './ui/view';
@@ -96,7 +97,7 @@ async function start() {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
     input: { activePointers: 3 },
-    scene: [BootScene, MenuScene, StageScene, ShopScene, EquipScene, PetScene, MissionsScene, SettingsScene, GameScene, HudScene, LevelUpScene, PauseScene, VictoryScene, GameOverScene, DevScene],
+    scene: [BootScene, MenuScene, StageScene, ShopScene, EquipScene, PetScene, MissionsScene, SettingsScene, GameScene, HudScene, LevelUpScene, PauseScene, VictoryScene, EndingScene, GameOverScene, DevScene],
   });
 
   (window as unknown as { __game: Phaser.Game }).__game = game;

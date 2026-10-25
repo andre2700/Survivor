@@ -53,6 +53,8 @@ export interface SaveData {
   tips: string[];
   /** eventos já encontrados em cada fase (o mapa mostra "?" nos que faltam) */
   seen: Partial<Record<StageId, RunEventId[]>>;
+  /** já viu o final do jogo (vencer a Cidadela no Normal) */
+  endingSeen?: boolean;
 }
 
 const KEY = 'survivor-save-v1';
