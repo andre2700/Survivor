@@ -27,6 +27,7 @@ import {
 import { Enemy, Pickup, Pool, Projectile, type PickupKind } from '../entities';
 import { loadSave, writeSave, type SaveData } from '../systems/save';
 import { STAGES, finalBoss, getStage, stageScaling, type RunEventId, type StageDef, type StageId } from '../data/stages';
+import { duckMusic, jingle, playMusic, setBattleMusic } from '../systems/music';
 import { sfx } from '../systems/sfx';
 import {
   applyOption, loadoutModifiers, optionKey, rollOptions, type Loadout, type UpgradeOption,
@@ -297,6 +298,9 @@ export class GameScene extends Phaser.Scene {
     this.char = getCharacter(save.selected);
     const stage = getStage(save.stage);
     this.stage = stage.playable ? stage : STAGES[0];
+    playMusic(this.stage.id);
+    setBattleMusic(false);
+    duckMusic(false);
     this.completed = new Set();
     this.bossDown = false;
     this.baseMods = [...this.char.mods, ...metaModifiers(save.meta), ...equipmentModifiers(save)];
@@ -1071,6 +1075,7 @@ export class GameScene extends Phaser.Scene {
     if (e.boss) this.bossAI.end(e);
     if (this.mainBosses.includes(e)) {
       this.mainBosses = this.mainBosses.filter((b) => b !== e);
+      if (!this.mainBosses.length) setBattleMusic(false);
       this.boss = this.mainBosses[0] ?? null;
       this.bossesDown++;
       this.cameras.main.flash(600, 255, 205, 117);
@@ -1179,6 +1184,7 @@ export class GameScene extends Phaser.Scene {
       e.hp = e.maxHp;
       this.bossAI.start(e);
       this.mainBosses.push(e);
+      setBattleMusic(true);
       this.boss = this.mainBosses[0];
     }
     this.cameras.main.shake(500, 0.01);
@@ -1301,7 +1307,7 @@ export class GameScene extends Phaser.Scene {
       sfx('pickup');
     } else if (p.kind === 'coin') {
       this.gold += p.value * goldMult(this.stats);
-      sfx('pickup');
+      sfx('coin');
     } else if (p.kind === 'magnet') {
       // ímã: puxa todas as gemas do mapa
       for (const g of this.pickups.items) if (g.active && g.kind === 'gem') g.magnet = true;
@@ -1414,6 +1420,7 @@ export class GameScene extends Phaser.Scene {
   openPause() {
     if (this.state !== 'playing') return;
     this.state = 'paused';
+    duckMusic(true);
     this.joy.x = this.joy.y = 0;
     this.scene.pause();
     this.scene.pause('Hud');
@@ -1534,6 +1541,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   resumeFromPause() {
+    duckMusic(false);
     this.scene.stop('Pause');
     this.state = 'playing';
     this.scene.resume();
@@ -1549,6 +1557,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.state = 'victory';
     this.payRunBonus();
+    jingle('victory');
     this.joy.x = this.joy.y = 0;
     this.setPlayerSlot('victory');
     this.player.setScale(1).setRotation(0);
@@ -1562,6 +1571,8 @@ export class GameScene extends Phaser.Scene {
   /** Escolha na tela de vitória: seguir no modo infinito. */
   continueEndless() {
     this.scene.stop('Victory');
+    playMusic(this.stage.id);
+    setBattleMusic(false);
     this.endless = true;
     this.endlessStart = this.elapsed;
     this.bossesSpawned = 0;
@@ -1782,6 +1793,8 @@ export class GameScene extends Phaser.Scene {
     this.tutorial.onRunEnd();
     this.payRunBonus();
     const result = this.result(victory);
+    // derrota (ou fim do infinito): vinheta triste; quem encerra depois da vitória já ouviu a fanfarra
+    if (!victory || this.endless) jingle('defeat');
     this.time.delayedCall(victory ? 0 : 600, () => {
       this.scene.pause();
       this.scene.stop('Hud');

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { loadSave, writeSave } from '../systems/save';
 import { settings, setSettings, vibrate, type Settings } from '../systems/settings';
+import { setMusicEnabled } from '../systems/music';
 import { setSoundEnabled, sfx } from '../systems/sfx';
 import { button, goldTitle, panel, text } from '../ui/theme';
 import { VIEW, setupCamera } from '../ui/view';
@@ -35,7 +36,8 @@ export class SettingsScene extends Phaser.Scene {
       after?.();
     };
     const rows: [string, string, () => void, boolean][] = [
-      ['Som', yes(settings.sound), toggle('sound', () => setSoundEnabled(settings.sound)), settings.sound],
+      ['Efeitos sonoros', yes(settings.sound), toggle('sound', () => setSoundEnabled(settings.sound)), settings.sound],
+      ['Música', yes(settings.music), toggle('music', () => setMusicEnabled(settings.music)), settings.music],
       ['Vibração', yes(settings.vibration), toggle('vibration', () => vibrate(60)), settings.vibration],
       ['Tremor de tela', yes(settings.shake), toggle('shake'), settings.shake],
       ['Números de dano', yes(settings.damageNumbers), toggle('damageNumbers'), settings.damageNumbers],

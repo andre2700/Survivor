@@ -14,6 +14,8 @@ import { SettingsScene } from './scenes/SettingsScene';
 import { GameOverScene, LevelUpScene, PauseScene, VictoryScene } from './scenes/OverlayScenes';
 import { EndingScene } from './scenes/EndingScene';
 import { setupNative } from './native';
+import { retryMusic } from './systems/music';
+import { unlockAudio } from './systems/sfx';
 import { installHdSprites } from './art/textures';
 import { VIEW, initView } from './ui/view';
 
@@ -101,6 +103,13 @@ async function start() {
   });
 
   (window as unknown as { __game: Phaser.Game }).__game = game;
+  // o navegador só libera o som depois de um toque: o primeiro toque em qualquer lugar liga o áudio
+  const unlock = () => {
+    unlockAudio();
+    retryMusic();
+  };
+  window.addEventListener('pointerdown', unlock);
+  window.addEventListener('keydown', unlock);
   setupNative(game);
   watchOrientation(game, zoom);
 }

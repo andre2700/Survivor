@@ -1,11 +1,21 @@
-// Efeitos sonoros sintetizados com WebAudio (sem arquivos de áudio).
+// Efeitos sonoros sintetizados com WebAudio (sem arquivos de áudio). Os efeitos e a música
+// (systems/music.ts) passam por um compressor no fim, para os sons somados não estourarem.
 
-type SfxName = 'hit' | 'pickup' | 'levelup' | 'hurt' | 'kill' | 'select' | 'boss' | 'zap' | 'splash' | 'boom' | 'whoosh' | 'freeze' | 'reaction';
+type SfxName = 'hit' | 'pickup' | 'levelup' | 'hurt' | 'kill' | 'select' | 'boss' | 'zap' | 'splash' | 'boom' | 'whoosh' | 'freeze' | 'reaction'
+  | 'coin' | 'chest' | 'bell';
 
 let ctx: AudioContext | null = null;
+/** sequência de gemas pegas em seguida (o tom sobe) */
+let gemStreak = 0;
+let gemAt = -1;
+/** escala maior (semitons) da escada das gemas */
+const SCALE = [0, 2, 4, 5, 7, 9, 11];
+/** saída comum (compressor) e o volume dos efeitos */
+let master: DynamicsCompressorNode | null = null;
+let sfxBus: GainNode | null = null;
 let enabled = true;
 const lastPlayed: Partial<Record<SfxName, number>> = {};
-const MIN_GAP: Partial<Record<SfxName, number>> = { hit: 0.05, pickup: 0.04, kill: 0.04, zap: 0.08, splash: 0.15, boom: 0.15, whoosh: 0.2, freeze: 0.1, reaction: 0.08 };
+const MIN_GAP: Partial<Record<SfxName, number>> = { coin: 0.05, hit: 0.05, pickup: 0.04, kill: 0.04, zap: 0.08, splash: 0.15, boom: 0.15, whoosh: 0.2, freeze: 0.1, reaction: 0.08 };
 
 export function setSoundEnabled(on: boolean) {
   enabled = on;
@@ -14,11 +24,34 @@ export function setSoundEnabled(on: boolean) {
 /** Deve ser chamado após um gesto do usuário (política de autoplay). */
 export function unlockAudio() {
   try {
-    if (!ctx) ctx = new AudioContext();
+    if (!ctx) {
+      ctx = new AudioContext();
+      master = ctx.createDynamicsCompressor();
+      master.threshold.value = -14;
+      master.ratio.value = 4;
+      master.connect(ctx.destination);
+      sfxBus = ctx.createGain();
+      sfxBus.gain.value = 2.2;
+      sfxBus.connect(master);
+    }
     if (ctx.state === 'suspended') void ctx.resume();
   } catch {
     ctx = null;
   }
+}
+
+// app em segundo plano ou aba escondida: silencia tudo (e não gasta bateria)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!ctx) return;
+    if (document.hidden) void ctx.suspend();
+    else void ctx.resume();
+  });
+}
+
+/** Contexto de áudio e a saída comum (para a música), se o áudio já foi liberado. */
+export function audioOut(): { ctx: AudioContext; master: AudioNode } | null {
+  return ctx && master ? { ctx, master } : null;
 }
 
 function tone(freq: number, dur: number, type: OscillatorType, vol: number, slideTo?: number, delay = 0) {
@@ -31,7 +64,7 @@ function tone(freq: number, dur: number, type: OscillatorType, vol: number, slid
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
   gain.gain.setValueAtTime(vol, t0);
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-  osc.connect(gain).connect(ctx.destination);
+  osc.connect(gain).connect(sfxBus ?? ctx.destination);
   osc.start(t0);
   osc.stop(t0 + dur + 0.02);
 }
@@ -52,7 +85,7 @@ function noise(dur: number, vol: number, from: number, to: number, type: BiquadF
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(vol, t0);
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-  src.connect(filter).connect(gain).connect(ctx.destination);
+  src.connect(filter).connect(gain).connect(sfxBus ?? ctx.destination);
   src.start(t0);
 }
 
@@ -69,14 +102,36 @@ export function sfx(name: SfxName) {
     case 'kill':
       tone(160, 0.1, 'square', 0.05, 60);
       break;
-    case 'pickup':
-      tone(880 + Math.random() * 200, 0.06, 'sine', 0.05, 1400);
+    case 'pickup': {
+      // gemas seguidas sobem de tom (até duas oitavas), como uma escada: dá vontade de pegar mais
+      gemStreak = now - gemAt < 0.45 ? Math.min(gemStreak + 1, 24) : 0;
+      gemAt = now;
+      const f = 660 * 2 ** (SCALE[gemStreak % 7] / 12 + Math.floor(gemStreak / 7));
+      tone(f, 0.07, 'sine', 0.05, f * 1.5);
+      tone(f * 2, 0.05, 'triangle', 0.015);
+      break;
+    }
+    case 'coin':
+      tone(1976, 0.05, 'square', 0.025);
+      tone(2637, 0.12, 'square', 0.025, undefined, 0.05);
+      break;
+    case 'chest':
+      // tampa abrindo e um brilho subindo
+      noise(0.12, 0.08, 800, 300);
+      [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.18, 'triangle', 0.05, undefined, 0.08 + i * 0.06));
+      tone(2637, 0.4, 'sine', 0.03, 3520, 0.4);
+      break;
+    case 'bell':
+      // sino: parciais fora da série harmônica e um decaimento longo
+      [[196, 0.16], [392, 0.08], [466, 0.06], [587, 0.05], [784, 0.03]].forEach(([f, v]) => tone(f, 2.2, 'sine', v));
+      noise(0.08, 0.06, 4000, 1500, 'highpass');
       break;
     case 'levelup':
       [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.12, 'square', 0.06, undefined, i * 0.08));
       break;
     case 'hurt':
       tone(140, 0.15, 'sawtooth', 0.08, 70);
+      noise(0.12, 0.06, 1800, 400);
       break;
     case 'select':
       tone(660, 0.08, 'square', 0.05, 990);

@@ -4,6 +4,8 @@ export type Language = 'pt' | 'en';
 
 export interface Settings {
   sound: boolean;
+  /** música (separada dos efeitos) */
+  music: boolean;
   vibration: boolean;
   /** tremor da câmera em golpes, explosões e chefes */
   shake: boolean;
@@ -13,7 +15,7 @@ export interface Settings {
 }
 
 const KEY = 'survivor-settings';
-const DEFAULTS: Settings = { sound: true, vibration: true, shake: true, damageNumbers: true, language: 'pt' };
+const DEFAULTS: Settings = { sound: true, music: true, vibration: true, shake: true, damageNumbers: true, language: 'pt' };
 
 function load(): Settings {
   try {

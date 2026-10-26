@@ -293,7 +293,7 @@ export class RunEvents {
     const sc = this.scene;
     sc.completed.add('chest');
     sc.impact(x, y, 0xffd86a, 2);
-    sfx('levelup');
+    sfx('chest');
     const r = Math.random();
     const owned = sc.ownedWeapons;
     if (r < 0.5 && owned.length) {
@@ -891,7 +891,7 @@ export class RunEvents {
     if (t < b.next) return;
     b.next = t + BELL.every;
     sc.bellBoost += BELL.boost;
-    sfx('boss');
+    sfx('bell');
     sc.cameras.main.shake(260, 0.006);
     // onda de som roxa saindo do sino
     const ring = sc.add.image(b.e.x, b.e.y - 20, 'atlas', frameName('glow')).setTint(0xb060ff).setDepth(LAYER.fx).setScale(1).setAlpha(0.8).setBlendMode(Phaser.BlendModes.ADD);

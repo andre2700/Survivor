@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { loadSave, writeSave } from '../systems/save';
+import { playMusic } from '../systems/music';
 import { sfx } from '../systems/sfx';
 import { button, goldTitle, text } from '../ui/theme';
 import { VIEW, setupCamera } from '../ui/view';
@@ -48,7 +49,8 @@ export class EndingScene extends Phaser.Scene {
       this.tweens.add({ targets: t, alpha: 1, y: { from: y + 12, to: y }, duration: 700, delay: 700 + i * 450 });
       y += gap + (size > 16 ? 14 : 0);
     });
-    sfx('levelup');
+    // depois da fanfarra da vitória, o tema do final
+    this.time.delayedCall(2200, () => playMusic('ending'));
     const save = loadSave();
     save.endingSeen = true;
     writeSave(save);

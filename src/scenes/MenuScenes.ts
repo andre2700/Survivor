@@ -11,6 +11,7 @@ import { META_CATEGORIES, META_UPGRADES, metaCost, type MetaCategory } from '../
 import { WEAPONS } from '../data/weapons';
 import { loadSave, writeSave } from '../systems/save';
 import { DEV_TOOLS } from '../systems/dev';
+import { playMusic, setMusicEnabled } from '../systems/music';
 import { setSoundEnabled, sfx, unlockAudio } from '../systems/sfx';
 import { FONT, button, goldTitle, panel, text, px } from '../ui/theme';
 import { formatTime } from './HudScene';
@@ -27,6 +28,7 @@ export class BootScene extends Phaser.Scene {
   create() {
     generateTextures(this);
     setSoundEnabled(settings.sound);
+    setMusicEnabled(settings.music);
     this.scene.start('Menu');
   }
 }
@@ -84,6 +86,7 @@ export class MenuScene extends Phaser.Scene {
 
   create() {
     setupCamera(this);
+    playMusic('menu');
     const { width, height } = VIEW;
     const save = loadSave();
     this.index = Math.max(0, CHARACTERS.findIndex((c) => c.id === save.selected));
