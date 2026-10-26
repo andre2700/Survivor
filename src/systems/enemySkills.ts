@@ -70,6 +70,27 @@ const CURSE_KINDS = ['demon_witch', 'infernal_archmage'];
 /** Quanto tempo a teia prende o herói (s) e a velocidade dele preso. */
 export const WEB = { time: 1.6, speed: 0.45 };
 
+/**
+ * Textura do tiro inimigo (uma por cor, desenhada uma vez): bola cheia com contorno escuro, miolo mais
+ * claro e um brilho branco, que aparece em qualquer chão (antes era uma bolha transparente).
+ */
+function shotTexture(scene: Phaser.Scene, color: number) {
+  const key = `shot_${color.toString(16)}`;
+  if (scene.textures.exists(key)) return key;
+  const c = Phaser.Display.Color.IntegerToColor(color);
+  const light = Phaser.Display.Color.GetColor(Math.min(255, c.red + 90), Math.min(255, c.green + 90), Math.min(255, c.blue + 90));
+  const r = 9;
+  const g = scene.make.graphics({}, false);
+  g.fillStyle(color, 0.35).fillCircle(r + 3, r + 3, r + 3);
+  g.fillStyle(0x140a10, 1).fillCircle(r + 3, r + 3, r);
+  g.fillStyle(color, 1).fillCircle(r + 3, r + 3, r - 1.8);
+  g.fillStyle(light, 1).fillCircle(r + 2, r + 2, r - 4.5);
+  g.fillStyle(0xffffff, 0.95).fillCircle(r, r, 2.4);
+  g.generateTexture(key, (r + 3) * 2, (r + 3) * 2);
+  g.destroy();
+  return key;
+}
+
 export class EnemySkills {
   private shots: Shot[] = [];
   private strikes: Strike[] = [];
@@ -381,7 +402,7 @@ export class EnemySkills {
     else if (fireball) img = this.scene.add.image(e.x, e.y - 6, 'atlas', frameName('fx_fireball')).setTint(0xffb08a).setScale(0.9).setRotation(angle);
     else if (wave) img = this.scene.add.image(e.x, e.y, 'atlas', frameName('fx_wave')).setOrigin(0.5, 0.86).setFlipX(Math.cos(angle) < 0).setScale((area * 2) / 64).setAlpha(0.9);
     else if (skill.kind === 'arrow') img = this.scene.add.image(e.x, e.y - 8, 'atlas', frameName('proj_knife')).setTint(0xe8dcc0).setScale(0.8).setRotation(angle);
-    else img = this.scene.add.image(e.x, e.y - 6, 'atlas', frameName('glow')).setTint(color).setScale(0.35);
+    else img = this.scene.add.image(e.x, e.y - 6, shotTexture(this.scene, color)).setScale(0.9);
     img.setDepth(wave || tornado ? e.y : LAYER.fx);
     const life = fireball ? dist / skill.speed : wave ? (skill.range + 60) / skill.speed : tornado ? 4.5 : 2.4;
     this.shots.push({
@@ -410,6 +431,14 @@ export class EnemySkills {
       s.life -= dt;
       s.img.x += s.vx * dt;
       s.img.y += s.vy * dt;
+      // tiro comum: gira e deixa um rastro curto, para ser visto chegando
+      if (s.kind === 'spit' || s.kind === 'web') {
+        s.img.rotation += dt * 8;
+        if (Math.random() < 0.35) {
+          const tr = this.scene.add.image(s.img.x, s.img.y, shotTexture(this.scene, s.color)).setScale(0.5).setAlpha(0.45).setDepth(LAYER.fx - 1);
+          this.scene.tweens.add({ targets: tr, alpha: 0, scale: 0.15, duration: 220, onComplete: () => tr.destroy() });
+        }
+      }
       if (s.kind === 'fireball') {
         s.img.setFrame(loopFrame('fx_fireball', s.life, 12));
         if (Math.random() < 0.5) this.scene.emitFlame(s.img.x, s.img.y);

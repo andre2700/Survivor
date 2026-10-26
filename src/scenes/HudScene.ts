@@ -24,6 +24,10 @@ export class HudScene extends Phaser.Scene {
   private killText!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
   private bossText!: Phaser.GameObjects.Text;
+  /** vida do chefe em números (25K/54K) */
+  private bossHpText!: Phaser.GameObjects.Text;
+  /** vida do herói em números */
+  private hpText!: Phaser.GameObjects.Text;
   private bossPanel!: Phaser.GameObjects.NineSlice;
   private announceText!: Phaser.GameObjects.Text;
   private icons!: Phaser.GameObjects.Container;
@@ -64,12 +68,17 @@ export class HudScene extends Phaser.Scene {
     this.killText = text(this, 30, 44, '0', 13, '#f4f4f4', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5);
     this.add.image(18, 64, 'coin');
     this.goldText = text(this, 30, 64, '0', 13, '#ffd86a', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5);
-    this.icons = this.add.container(8, 78);
+    this.add.image(18, 84, 'heart').setScale(0.8);
+    this.hpText = text(this, 30, 84, '', 13, '#ff8a8a', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5);
+    this.icons = this.add.container(8, 98);
 
     button(this, width - 24, 48, 'II', () => this.game$.openPause(), { width: 34, height: 30, size: 14 });
 
     this.bossPanel = panel(this, width / 2, 128, Math.min(width, 400) - 40, 34, 'ui_panel_dark').setVisible(false).setDepth(-1);
-    this.bossText = text(this, width / 2, 120, '', 11, '#ff9a7a', { bold: true, strokeThickness: 3 }).setVisible(false);
+    // nome do chefe à esquerda e a vida em números à direita, em cima da barra
+    const bossW = Math.min(width, 400) - 60;
+    this.bossText = text(this, (width - bossW) / 2, 120, '', 11, '#ff9a7a', { bold: true, strokeThickness: 3 }).setOrigin(0, 0.5).setVisible(false);
+    this.bossHpText = text(this, (width + bossW) / 2, 120, '', 11, '#ffffff', { bold: true, strokeThickness: 3 }).setOrigin(1, 0.5).setVisible(false);
     this.announceText = text(this, width / 2, 170, '', 16, '#ffd86a', { bold: true, strokeThickness: 5 }).setAlpha(0);
 
     this.joyBase = this.add.image(0, 0, 'aura').setTint(0xc8d4ff).setAlpha(0.45).setScale((JOY_RADIUS * 2.4) / 96).setVisible(false);
@@ -221,6 +230,8 @@ export class HudScene extends Phaser.Scene {
       this.timeText.setText(label).setColor(g.endless ? '#d6a6ff' : sec >= runDuration() ? '#ff9a7a' : '#ffffff');
     }
     if (g.kills !== this.last.kills) this.killText.setText(formatNumber((this.last.kills = g.kills)));
+    const hpTxt = `${formatNumber(Math.max(0, Math.ceil(g.hp)))}/${formatNumber(g.stats.maxHp)}`;
+    if (this.hpText.text !== hpTxt) this.hpText.setText(hpTxt);
     const gold = Math.floor(g.gold);
     if (gold !== this.last.gold) this.goldText.setText(formatNumber((this.last.gold = gold)));
 
@@ -233,8 +244,14 @@ export class HudScene extends Phaser.Scene {
     const showBoss = !!boss;
     this.bossPanel.setVisible(showBoss);
     this.bossText.setVisible(showBoss);
+    this.bossHpText.setVisible(showBoss);
     if (showBoss && boss) {
       this.bossText.setText(g.bossLabel(boss));
+      const hpTxt = `${formatNumber(Math.max(0, Math.ceil(boss.hp)))}/${formatNumber(boss.maxHp)}`;
+      if (this.bossHpText.text !== hpTxt) this.bossHpText.setText(hpTxt);
+      // nome comprido (em inglês, "· FURIOSO"...): encolhe para não encostar nos números
+      const room = Math.min(width, 400) - 60 - this.bossHpText.width - 10;
+      this.bossText.setScale(Math.min(1, room / Math.max(1, this.bossText.width / this.bossText.scaleX)));
       const bw = Math.min(width, 400) - 60;
       drawBar(this.bars, (width - bw) / 2, 130, bw, 8, boss.hp / boss.maxHp, COLORS.hp, COLORS.hpBack);
     }

@@ -734,16 +734,22 @@ export class RunEvents {
       // aviso: faixa vermelha piscando, bordas tracejadas e setas na direção da avalanche;
       // neve começa a cair do lado de onde ela vem
       const k = 1 - (a.start - t) / AVALANCHE.warn;
-      const blink = 0.14 + 0.1 * Math.sin(t * 10) + 0.08 * k;
+      const blink = 0.12 + 0.06 * Math.sin(t * 10) + 0.1 * k;
       g.fillStyle(0xff3020, blink).fillRect(a.left, a.y - a.half, a.right - a.left, a.half * 2);
-      for (let x = a.left; x < a.right; x += 22) {
-        g.fillStyle(0xff3020, 0.95).fillRect(x, a.y - a.half - 2, 12, 4).fillRect(x, a.y + a.half - 2, 12, 4);
-      }
-      const shift = ((t * 90) % 70) * a.dir;
-      for (let x = a.left + 40; x < a.right; x += 70) {
+      // bordas que brilham para dentro e um contorno fino
+      g.fillStyle(0xff3020, 0.18).fillRect(a.left, a.y - a.half, a.right - a.left, 6).fillRect(a.left, a.y + a.half - 6, a.right - a.left, 6);
+      g.lineStyle(3, 0x1a0806, 0.3).lineBetween(a.left, a.y - a.half, a.right, a.y - a.half).lineBetween(a.left, a.y + a.half, a.right, a.y + a.half);
+      g.lineStyle(2, 0xff3020, 0.95).lineBetween(a.left, a.y - a.half, a.right, a.y - a.half).lineBetween(a.left, a.y + a.half, a.right, a.y + a.half);
+      // setas finas deslizando no sentido da avalanche
+      const shift = ((t * 90) % 40) * a.dir;
+      g.lineStyle(2.5, 0xffffff, 0.35 + 0.4 * k);
+      for (let x = a.left + 20; x < a.right; x += 40) {
         const cx = x + shift;
-        g.fillStyle(0xffffff, 0.85).fillTriangle(cx + a.dir * 14, a.y, cx - a.dir * 8, a.y - 12, cx - a.dir * 8, a.y + 12);
-        g.lineStyle(2, 0xb02010, 0.9).strokeTriangle(cx + a.dir * 14, a.y, cx - a.dir * 8, a.y - 12, cx - a.dir * 8, a.y + 12);
+        for (const dy of [-a.half * 0.45, 0, a.half * 0.45]) {
+          g.strokePoints([
+            new Phaser.Math.Vector2(cx - a.dir * 7, a.y + dy - 8), new Phaser.Math.Vector2(cx + a.dir * 3, a.y + dy), new Phaser.Math.Vector2(cx - a.dir * 7, a.y + dy + 8),
+          ]);
+        }
       }
       if (Math.random() < 0.3 + k) sc.impact(a.x + a.dir * 30, a.y + (Math.random() - 0.5) * a.half * 2, a.lava ? 0xff8a3a : 0xffffff, 0.6);
       return;

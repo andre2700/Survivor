@@ -5,7 +5,7 @@ import { areaMult, cooldownMult, damageMult, durationMult, projectileSpeedMult }
 import { applyTagBonuses, countTags } from '../data/tags';
 import { AWAKEN_EVERY, WEAPONS, capAmount, grandeur, weaponStatsAt, weaponTags, type WeaponDef, type WeaponId, type WeaponStats } from '../data/weapons';
 import { controlScale } from '../data/enemies';
-import type { Enemy, ProjectileKind } from '../entities';
+import type { Enemy, Projectile, ProjectileKind } from '../entities';
 import { LAYER, type GameScene } from '../scenes/GameScene';
 import { sfx } from './sfx';
 
@@ -53,7 +53,12 @@ function drawCrescent(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, 
 type Live = (dt: number) => boolean;
 
 /** Executa os ataques automáticos de todas as armas. Cada padrão é implementado uma única vez. */
+/** Varinha: giro dos mísseis (rad/s) e tamanho do projétil. */
+const WAND = { turn: 6.5, scale: 1.25 };
+
 export class WeaponSystem {
+  /** último projétil disparado (a varinha ajusta o míssil logo depois) */
+  private lastShot: Projectile | null = null;
   private list: WeaponRuntime[] = [];
   private live: Live[] = [];
   /** tornado gigante (nv 20+) em volta do herói */
@@ -190,6 +195,7 @@ export class WeaponSystem {
     p.owner = w.id;
     if (w.level >= AWAKEN_EVERY) p.setTint(0xffe9a8);
     else p.clearTint();
+    this.lastShot = p;
   }
 
   private fireNearest(w: WeaponRuntime): boolean {
@@ -197,11 +203,20 @@ export class WeaponSystem {
     const s = w.stats;
     const targets = this.scene.nearestEnemies(p.x, p.y, s.amount, 260);
     if (targets.length === 0) return false;
+    // mísseis mágicos: saem abertos em leque e fazem a curva até o alvo, deixando um rastro de brilho
     for (let i = 0; i < s.amount; i++) {
       const t = targets[i % targets.length];
-      const a = Math.atan2(t.y - p.y, t.x - p.x) + (i >= targets.length ? (i - targets.length + 1) * 0.15 : 0);
-      this.shoot(w, 'bolt', 'proj_bolt', p.x, p.y - 4, Math.cos(a) * s.speed, Math.sin(a) * s.speed);
+      const side = s.amount === 1 ? (Math.random() < 0.5 ? -1 : 1) : i % 2 ? 1 : -1;
+      const a = Math.atan2(t.y - p.y, t.x - p.x) + side * (0.7 + 0.25 * Math.floor(i / 2));
+      this.shoot(w, 'bolt', 'proj_bolt', p.x, p.y - 4, Math.cos(a) * s.speed * 0.85, Math.sin(a) * s.speed * 0.85);
+      const m = this.lastShot;
+      if (m) {
+        m.homing = WAND.turn;
+        m.target = t;
+        m.setScale(m.scale * WAND.scale);
+      }
     }
+    sfx('magic');
     return true;
   }
 
@@ -219,6 +234,7 @@ export class WeaponSystem {
         this.shoot(w, 'knife', 'proj_knife', p.x - fy * off, p.y - 3 + fx * off, fx * s.speed, fy * s.speed);
       });
     }
+    sfx('throw');
     return true;
   }
 
@@ -233,6 +249,7 @@ export class WeaponSystem {
       // 1º golpe para frente, 2º para trás, os seguintes alternam com leve atraso
       this.scene.time.delayedCall(i * 140, () => this.slash(w, i % 2 === 0 ? angle : angle + Math.PI));
     }
+    sfx('slash');
     return true;
   }
 
@@ -373,7 +390,7 @@ export class WeaponSystem {
       if (chains) this.chainBolt(w, chains, tx, ty, 2 + grandeur(w.level));
     }
     if (chains) this.scene.tweens.add({ targets: chains, alpha: 0, duration: 240, onComplete: () => chains.destroy() });
-    sfx('zap');
+    sfx('thunder');
     return true;
   }
 
@@ -446,7 +463,7 @@ export class WeaponSystem {
     }
     // Tsunami: uma onda gigante cruza a tela inteira
     if (g >= 3 && ++this.tsunamiCount % 3 === 1) this.wave(w, base, g, { back: 240, width: 380, speed: 440, range: 520, mult: 2.5, alpha: 0.7 });
-    sfx('splash');
+    sfx('wave');
     return true;
   }
 
@@ -536,7 +553,7 @@ export class WeaponSystem {
         this.spike(e.x, e.y + 4, 0.8);
       }
     }
-    sfx('boom');
+    sfx('crack');
     return true;
   }
 
@@ -611,7 +628,7 @@ export class WeaponSystem {
       this.tornado(w, p.x + Math.cos(a) * 24, p.y + Math.sin(a) * 24, a, g, false);
     }
     if (g >= 3 && !this.giant) this.tornado(w, p.x, p.y, 0, g, true);
-    sfx('whoosh');
+    sfx('wind');
     return true;
   }
 
@@ -761,7 +778,7 @@ export class WeaponSystem {
         // poeira só quando não há muitos efeitos na tela (desempenho)
         if (this.live.length < 40) this.dust(ix, iy, 4 + g);
         scene.cameras.main.shake(70, 0.0015);
-        sfx('boom');
+        sfx('chop');
         if (g >= 1) this.quakeCracks(ix, iy, 3 + g, reach * 0.6);
         if (g >= 2) this.shockwave(w, ix, iy, reach * 1.3);
       }
@@ -771,7 +788,7 @@ export class WeaponSystem {
       this.cleaving--;
       return false;
     });
-    sfx('whoosh');
+    sfx('slash');
   }
 
   /** Poeira subindo do chão (machadada). */
@@ -818,7 +835,7 @@ export class WeaponSystem {
       const a = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(f.y, f.x) + i * ((Math.PI * 2) / s.amount);
       this.scene.time.delayedCall(i * 120, () => this.hammer(w, a));
     }
-    sfx('whoosh');
+    sfx('throw');
     return true;
   }
 
@@ -917,7 +934,7 @@ export class WeaponSystem {
     // despertado: um segundo feixe para trás; nv 20: mais dois em leque
     const offsets = g >= 3 ? [0, Math.PI, 0.6, -0.6] : g >= 2 ? [0, Math.PI] : [0];
     this.laser(w, aim, offsets, g);
-    sfx('zap');
+    sfx('laser');
     return true;
   }
 
@@ -1091,7 +1108,7 @@ export class WeaponSystem {
     }
     // nv 20: Meteoro cai do céu sobre um inimigo na tela, a cada 2 disparos
     if (g >= 3 && ++this.meteorCount % 2 === 1) this.meteor(w);
-    sfx('whoosh');
+    sfx('fwoosh');
     return true;
   }
 
@@ -1217,7 +1234,7 @@ export class WeaponSystem {
       gfx.destroy();
       return false;
     });
-    sfx('boom');
+    sfx('rumble');
   }
 
   /** Registra dano de projéteis na estatística da arma dona. */

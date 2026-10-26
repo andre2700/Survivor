@@ -37,6 +37,7 @@ import { BossAI } from '../systems/bossAI';
 import { EnemySkills, WEB } from '../systems/enemySkills';
 import { RunEvents } from '../systems/runEvents';
 import { MapHazards, TRAP, trapTexture } from '../systems/mapHazards';
+import { DeathFx } from '../systems/deathFx';
 import { ItemEffects } from '../systems/itemEffects';
 import { activeEffects, addItems, bestEquippedRarity, equipmentModifiers, nextUid } from '../systems/inventory';
 import { RARITIES as ITEM_RARITIES, dropLevel, lootCount, makeItem, rollRarity, EFFECT_RARITY, type ItemInstance } from '../data/items';
@@ -75,6 +76,9 @@ export const LAYER = {
   text: 1.5e9,
   overlay: 2e9,
 };
+
+/** Tremor de tela nas fases normais: fração da força, duração máxima (ms) e o mínimo que ainda treme. */
+const SHAKE = { normal: 0.35, maxMs: 220, min: 0.0018 };
 
 /** Ouro de fim de partida: por minuto sobrevivido e por chefe da fase vencido. */
 const RUN_GOLD = { perMinute: 8, perBoss: 40 };
@@ -141,6 +145,8 @@ export class GameScene extends Phaser.Scene {
   private grid = new SpatialGrid<Enemy>(32);
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
   sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** rastro dos mísseis da varinha */
+  private trail!: Phaser.GameObjects.Particles.ParticleEmitter;
   flames!: Phaser.GameObjects.Particles.ParticleEmitter;
   private motes!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dmgTexts: Phaser.GameObjects.Text[] = [];
@@ -209,6 +215,7 @@ export class GameScene extends Phaser.Scene {
   private petReward?: RunResult['pet'];
   /** árvores bravas e armadilhas */
   mapHazards!: MapHazards;
+  private deathFx!: DeathFx;
   /** eventos aleatórios, aliado e itens do mapa */
   runEvents!: RunEvents;
 
@@ -295,6 +302,19 @@ export class GameScene extends Phaser.Scene {
     const save = loadSave();
     // sem tremor de tela (configurações): a câmera ignora os pedidos de tremor
     if (!settings.shake) this.cameras.main.shake = () => this.cameras.main;
+    else {
+      // nas fases normais o jogador precisa entender a tela: tremores bem mais fracos e curtos (e os
+      // pequenos somem); no modo infinito e do Pesadelo para cima, tremor cheio
+      const cam = this.cameras.main;
+      const shake = cam.shake.bind(cam);
+      cam.shake = (duration?: number, intensity?: number | Phaser.Math.Vector2, force?: boolean) => {
+        const wild = this.endless || this.tier >= 3;
+        const k = wild ? 1 : SHAKE.normal;
+        const i = typeof intensity === 'number' ? intensity * k : intensity;
+        if (typeof i === 'number' && i < SHAKE.min) return cam;
+        return shake(wild ? duration : Math.min(duration ?? 100, SHAKE.maxMs), i, force);
+      };
+    }
     this.char = getCharacter(save.selected);
     const stage = getStage(save.stage);
     this.stage = stage.playable ? stage : STAGES[0];
@@ -410,6 +430,18 @@ export class GameScene extends Phaser.Scene {
       emitting: false,
     });
     this.sparks.setDepth(LAYER.fx + 2);
+    // rastro dos mísseis da varinha: brilho lilás e dourado que some rápido
+    this.trail = this.add.particles(0, 0, 'atlas', {
+      frame: frameName('glow'),
+      speed: { min: 0, max: 12 },
+      lifespan: 380,
+      scale: { start: 0.3, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      tint: [0xd6a6ff, 0xffe9a8, 0xb07aff],
+      blendMode: Phaser.BlendModes.ADD,
+      emitting: false,
+    });
+    this.trail.setDepth(LAYER.fx + 1);
     this.flames = this.add.particles(0, 0, 'atlas', {
       frame: frameName('glow'),
       speedY: { min: -40, max: -15 },
@@ -442,6 +474,7 @@ export class GameScene extends Phaser.Scene {
     this.enemySkills = new EnemySkills(this);
     this.bossAI = new BossAI(this);
     this.mapHazards = new MapHazards(this);
+    this.deathFx = new DeathFx(this);
     trapTexture(this);
     this.runEvents = new RunEvents(this);
     this.elements = new ElementSystem(this);
@@ -507,6 +540,7 @@ export class GameScene extends Phaser.Scene {
     this.itemFx.update(dt);
     this.pet?.update(dt);
     this.runEvents.update(dt);
+    this.deathFx.update();
     this.tutorial.update();
     this.updateProjectiles(dt);
     this.checkContact();
@@ -1023,6 +1057,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (big || settings.damageNumbers) this.floatText(e.x, e.y - 16 * e.baseScale, label, color, big);
     if (e.hp <= 0 && dev.enemiesImmortal) e.hp = e.maxHp;
+    if (e.hp > 0) this.deathFx.onHurt(e);
     // Carrasco (item): inimigo comum com pouca vida morre na hora
     if (this.itemFx.executes(e)) {
       e.hp = 0;
@@ -1066,6 +1101,7 @@ export class GameScene extends Phaser.Scene {
     if (e.def.kind === 'magma_golem') this.mapHazards.addLava(x, y + 4, 6, 0.55);
     if (e.elite) this.elitesKilled++;
     if (this.pet && e.status.fire > this.elapsed) this.petBurnKills++;
+    this.deathFx.onDeath(e);
     e.kill();
     this.kills++;
     sfx('kill');
@@ -1227,6 +1263,7 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
       p.vy += p.gravity * dt;
+      if (p.homing) this.steerMissile(p, dt);
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       if (p.spin) p.rotation += p.spin * dt;
@@ -1236,6 +1273,8 @@ export class GameScene extends Phaser.Scene {
         if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 >= r * r) return;
         p.hits.add(e.uid);
         const dealt = this.hitEnemy(e, p.damage, p.kind === 'axe' ? 0.5 : 0.8, p.element, true, p.effect);
+        // míssil da varinha: estoura numa estrelinha de luz
+        if (p.homing) this.impact(p.x, p.y, 0xd6a6ff, 0.7);
         if (p.owner) this.weapons.credit(p.owner, dealt);
         p.pierce--;
         if (p.pierce <= 0) {
@@ -1244,6 +1283,23 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
+  }
+
+  /** Míssil da varinha: vira aos poucos para o alvo (outro, se o dele morreu) e deixa um rastro de brilho. */
+  private steerMissile(p: Projectile, dt: number) {
+    if (!p.target?.active) p.target = this.nearestEnemies(p.x, p.y, 1, 260)[0] ?? null;
+    if (p.target) {
+      const want = Math.atan2(p.target.y - p.y, p.target.x - p.x);
+      const cur = Math.atan2(p.vy, p.vx);
+      const turn = Phaser.Math.Angle.Wrap(want - cur);
+      const step = Phaser.Math.Clamp(turn, -p.homing * dt, p.homing * dt);
+      // acelera um pouco ao longo do voo
+      const sp = Math.min(Math.hypot(p.vx, p.vy) * (1 + dt * 0.8), 520);
+      p.vx = Math.cos(cur + step) * sp;
+      p.vy = Math.sin(cur + step) * sp;
+      p.rotation = cur + step;
+    }
+    this.trail.emitParticleAt(p.x, p.y, 1);
   }
 
   // ---------- Coletáveis ----------

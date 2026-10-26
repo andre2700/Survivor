@@ -26,6 +26,10 @@ export class Enemy extends Phaser.GameObjects.Image {
   tag: '' | 'guard' | 'golden' | 'surprise' | 'tribe' | 'sleeper' | 'procession' | 'bell' | 'portal' | 'echo' = '';
   /** parado no mapa (gárgula de pedra, mímico): acorda quando o herói chega a esta distância; 0 = acordado */
   sleeping = 0;
+  /** furioso (pouca vida), já se levantou/dividiu uma vez, apressado pelo uivo da matilha */
+  enraged = false;
+  revived = false;
+  hasted = false;
   /** portal: solta `portalN` inimigos a cada `portalEvery` s (0 = não solta) com o herói até `portalRange` px */
   portalEvery = 0;
   portalN = 0;
@@ -89,6 +93,7 @@ export class Enemy extends Phaser.GameObjects.Image {
     this.tag = '';
     this.sleeping = this.marchX = this.marchY = 0;
     this.portalEvery = this.portalN = this.portalRange = this.portalAt = 0;
+    this.enraged = this.revived = this.hasted = false;
     const eliteMult = elite ? 10 : 1;
     this.maxHp = Math.round(def.hp * hpMult * eliteMult);
     this.hp = this.maxHp;
@@ -146,6 +151,9 @@ export class Projectile extends Phaser.GameObjects.Image {
   effect = 1;
   owner: WeaponId | null = null;
   hits = new Set<number>();
+  /** míssil teleguiado (varinha): curva até o alvo nesta velocidade de giro (rad/s); 0 = reto */
+  homing = 0;
+  target: Enemy | null = null;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0, 'atlas', frameName('bolt'));
@@ -162,6 +170,8 @@ export class Projectile extends Phaser.GameObjects.Image {
     this.effect = effect;
     this.gravity = kind === 'axe' ? 650 : 0;
     this.spin = kind === 'axe' ? 12 : 0;
+    this.homing = 0;
+    this.target = null;
     this.hits.clear();
     this.setPosition(x, y).setActive(true).setVisible(true).setFrame(frameName(texture)).setScale(scale).setDepth(1e9);
     this.radius = Math.max(4, (Math.min(this.width, this.height) / frameHd(this) / 2) * scale * (kind === 'bolt' ? 0.6 : 1));

@@ -1,7 +1,8 @@
 // Música sintetizada com WebAudio, composta pelo próprio jogo (sem arquivos de áudio): cada fase tem
 // a sua trilha (tom, modo, andamento, timbres e bateria), com uma melodia gerada a partir de uma
-// semente (sempre a mesma para a fase). Com um chefe na tela entra a camada de batalha: bateria
-// mais forte, arpejo mais rápido e a melodia uma oitava acima. Vitória e derrota têm vinhetas.
+// semente (sempre a mesma para a fase), em partes A B A' B' (32 compassos antes de repetir). Com um
+// chefe na tela entra a camada de batalha: percussão bem mais forte (bumbo, tambores graves, viradas)
+// e baixo em colcheias. Vitória e derrota têm vinhetas.
 import { audioOut } from './sfx';
 
 type Drums = 'none' | 'soft' | 'march' | 'drive';
@@ -12,12 +13,12 @@ export interface TrackDef {
   root: number;
   /** escala: intervalos em semitons a partir da tônica */
   mode: number[];
-  /** acordes (graus da escala, 0 = tônica), um por compasso */
-  chords: number[];
+  /** acordes da parte A e da parte B (graus da escala, 0 = tônica), um por compasso */
+  chordsA: number[];
+  chordsB: number[];
   lead: OscillatorType;
   bass: OscillatorType;
-  /** arpejo: timbre e a cada quantos passos (16 avos) uma nota; 0 = sem arpejo */
-  arp: OscillatorType;
+  /** arpejo suave a cada tantos passos (16 avos); 0 = sem arpejo */
   arpEvery: number;
   drums: Drums;
   /** acorde longo de fundo */
@@ -35,18 +36,19 @@ const MIXO = [0, 2, 4, 5, 7, 9, 10];
 const PHRYGIAN = [0, 1, 3, 5, 7, 8, 10];
 const HARMONIC = [0, 2, 3, 5, 7, 8, 11];
 
+// andamentos calmos (a camada de chefe é que acelera a sensação, com a bateria) e timbres suaves
 export const TRACKS: Record<string, TrackDef> = {
-  menu: { bpm: 96, root: 43, mode: MAJOR, chords: [0, 5, 3, 4], lead: 'triangle', bass: 'triangle', arp: 'sine', arpEvery: 2, drums: 'soft', pad: true, seed: 11, vol: 0.9 },
-  clareira: { bpm: 124, root: 43, mode: MAJOR, chords: [0, 3, 4, 0, 5, 3, 4, 4], lead: 'square', bass: 'triangle', arp: 'triangle', arpEvery: 2, drums: 'march', pad: false, seed: 21, vol: 0.8 },
-  outono: { bpm: 116, root: 45, mode: MIXO, chords: [0, 6, 3, 0, 0, 6, 4, 4], lead: 'triangle', bass: 'triangle', arp: 'square', arpEvery: 2, drums: 'march', pad: true, seed: 32, vol: 0.85 },
-  pantano: { bpm: 104, root: 40, mode: DORIAN, chords: [0, 3, 0, 6, 0, 3, 4, 4], lead: 'triangle', bass: 'sine', arp: 'triangle', arpEvery: 3, drums: 'soft', pad: true, seed: 43, vol: 0.9 },
-  dunas: { bpm: 120, root: 38, mode: HARMONIC, chords: [0, 1, 0, 6, 0, 1, 4, 4], lead: 'sawtooth', bass: 'triangle', arp: 'triangle', arpEvery: 2, drums: 'march', pad: false, seed: 54, vol: 0.7 },
-  sombria: { bpm: 100, root: 40, mode: MINOR, chords: [0, 5, 3, 4, 0, 5, 6, 4], lead: 'triangle', bass: 'sawtooth', arp: 'sine', arpEvery: 2, drums: 'soft', pad: true, seed: 65, vol: 0.85 },
-  pico: { bpm: 112, root: 42, mode: DORIAN, chords: [0, 6, 5, 4, 0, 6, 3, 4], lead: 'sine', bass: 'triangle', arp: 'sine', arpEvery: 1, drums: 'soft', pad: true, seed: 76, vol: 1 },
-  vulcao: { bpm: 138, root: 40, mode: PHRYGIAN, chords: [0, 1, 0, 6, 0, 1, 5, 6], lead: 'sawtooth', bass: 'square', arp: 'square', arpEvery: 2, drums: 'drive', pad: false, seed: 87, vol: 0.65 },
-  ruinas: { bpm: 108, root: 38, mode: HARMONIC, chords: [0, 5, 3, 4, 0, 5, 1, 4], lead: 'triangle', bass: 'sawtooth', arp: 'sine', arpEvery: 2, drums: 'march', pad: true, seed: 98, vol: 0.85 },
-  cidadela: { bpm: 144, root: 37, mode: PHRYGIAN, chords: [0, 1, 6, 0, 0, 1, 4, 4], lead: 'sawtooth', bass: 'square', arp: 'sawtooth', arpEvery: 2, drums: 'drive', pad: true, seed: 109, vol: 0.6 },
-  ending: { bpm: 84, root: 41, mode: MAJOR, chords: [0, 4, 5, 3, 0, 4, 3, 4], lead: 'triangle', bass: 'sine', arp: 'sine', arpEvery: 2, drums: 'none', pad: true, seed: 120, vol: 1 },
+  menu: { bpm: 84, root: 43, mode: MAJOR, chordsA: [0, 4, 5, 3], chordsB: [3, 4, 0, 5], lead: 'triangle', bass: 'triangle', arpEvery: 2, drums: 'soft', pad: true, seed: 11, vol: 0.95 },
+  clareira: { bpm: 104, root: 43, mode: MAJOR, chordsA: [0, 3, 4, 0], chordsB: [5, 3, 0, 4], lead: 'square', bass: 'triangle', arpEvery: 2, drums: 'march', pad: false, seed: 21, vol: 0.85 },
+  outono: { bpm: 98, root: 45, mode: MIXO, chordsA: [0, 6, 3, 0], chordsB: [3, 6, 0, 4], lead: 'triangle', bass: 'triangle', arpEvery: 2, drums: 'march', pad: true, seed: 32, vol: 0.9 },
+  pantano: { bpm: 90, root: 40, mode: DORIAN, chordsA: [0, 3, 0, 6], chordsB: [5, 3, 6, 4], lead: 'triangle', bass: 'sine', arpEvery: 3, drums: 'soft', pad: true, seed: 43, vol: 0.95 },
+  dunas: { bpm: 100, root: 38, mode: HARMONIC, chordsA: [0, 1, 0, 6], chordsB: [3, 1, 5, 4], lead: 'triangle', bass: 'triangle', arpEvery: 2, drums: 'march', pad: false, seed: 54, vol: 0.9 },
+  sombria: { bpm: 88, root: 40, mode: MINOR, chordsA: [0, 5, 3, 4], chordsB: [5, 6, 0, 4], lead: 'triangle', bass: 'triangle', arpEvery: 2, drums: 'soft', pad: true, seed: 65, vol: 0.95 },
+  pico: { bpm: 94, root: 42, mode: DORIAN, chordsA: [0, 6, 5, 4], chordsB: [3, 4, 0, 6], lead: 'sine', bass: 'triangle', arpEvery: 2, drums: 'soft', pad: true, seed: 76, vol: 1 },
+  vulcao: { bpm: 112, root: 40, mode: PHRYGIAN, chordsA: [0, 1, 0, 6], chordsB: [5, 6, 1, 0], lead: 'square', bass: 'square', arpEvery: 2, drums: 'drive', pad: false, seed: 87, vol: 0.75 },
+  ruinas: { bpm: 92, root: 38, mode: HARMONIC, chordsA: [0, 5, 3, 4], chordsB: [5, 1, 3, 4], lead: 'triangle', bass: 'triangle', arpEvery: 2, drums: 'march', pad: true, seed: 98, vol: 0.95 },
+  cidadela: { bpm: 116, root: 37, mode: PHRYGIAN, chordsA: [0, 1, 6, 0], chordsB: [5, 1, 4, 4], lead: 'square', bass: 'square', arpEvery: 2, drums: 'drive', pad: true, seed: 109, vol: 0.75 },
+  ending: { bpm: 76, root: 41, mode: MAJOR, chordsA: [0, 4, 5, 3], chordsB: [3, 0, 4, 4], lead: 'triangle', bass: 'sine', arpEvery: 2, drums: 'none', pad: true, seed: 120, vol: 1 },
 };
 
 /** Volume da música (os efeitos ficam por cima). */
@@ -54,6 +56,10 @@ const MUSIC_VOL = 0.9;
 /** Quanto adiantado as notas são agendadas (s) e de quanto em quanto tempo o agendador roda (ms). */
 const LOOKAHEAD = 0.15;
 const TICK = 30;
+/** Música inteira: A (8 compassos), B (8), A' (8), B' (8), e volta ao começo (~1 min 20 s). */
+const SONG_BARS = 32;
+/** Agudos cortados (som mais macio, sem chiado). */
+const SOFT_HZ = 3000;
 
 /** Nota da melodia: passo do compasso (0–15), grau da escala (relativo à tônica, pode passar de 7) e duração em passos. */
 interface Note {
@@ -71,50 +77,112 @@ function rng(seed: number) {
   };
 }
 
-/** Ritmos de um compasso (início de cada nota em 16 avos). */
-const RHYTHMS = [
-  [0, 4, 8, 12],
+/** Ritmos de motivo com cara própria (síncopes, pausas): é o ritmo que faz a melodia "grudar". */
+const HOOK_RHYTHMS = [
   [0, 3, 6, 8, 12],
-  [0, 2, 4, 8, 10, 12],
-  [0, 4, 6, 8, 12, 14],
-  [0, 6, 8, 12],
-  [0, 2, 4, 6, 8, 12],
+  [0, 2, 4, 7, 8],
+  [0, 4, 6, 8, 11],
+  [0, 3, 4, 8, 10, 12],
+  [0, 2, 6, 8, 12, 14],
+];
+/** Ritmos da parte B: notas mais longas (contraste com o refrão). */
+const LONG_RHYTHMS = [
+  [0, 6, 8],
+  [0, 4, 8, 12],
+  [0, 8, 12],
+];
+/** Contornos do motivo (passos na escala a partir da primeira nota): sobe e volta, o que a gente cantarola. */
+const CONTOURS = [
+  [0, 1, 2, 1, 0, -1],
+  [0, 2, 1, 3, 2, 0],
+  [0, -1, 0, 2, 4, 2],
+  [0, 0, 2, 4, 3, 2],
+  [0, 2, 4, 3, 1, 0],
 ];
 
+/** Parte da música em que o compasso está: 0 = A, 1 = B, 2 = A', 3 = B'. */
+const sectionOf = (bar: number) => Math.floor((bar % SONG_BARS) / 8);
+/** Acorde do compasso. */
+const chordAt = (t: TrackDef, bar: number) => (sectionOf(bar) % 2 ? t.chordsB : t.chordsA)[bar % 4];
+
 /**
- * Melodia de 8 compassos em frases A A' B A'': as notas fortes caem nas notas do acorde e as fracas
- * andam por graus vizinhos, o que soa como uma melodia de verdade (e não notas soltas ao acaso).
+ * Melodia de 32 compassos, como uma música de verdade:
+ * - A: um motivo de um compasso (ritmo e desenho próprios) repetido e levado pelos acordes (sequência),
+ *   variado no 3º compasso e fechado numa nota longa; na 2ª metade, a frase termina na tônica;
+ * - B: outra ideia, mais aguda e com notas longas, em pergunta e resposta;
+ * - A' e B': as mesmas frases com enfeites e um final diferente (o ouvido reconhece e não cansa).
  */
 function compose(t: TrackDef): Note[][] {
   const r = rng(t.seed);
-  const bars: Note[][] = [];
-  const motif = (bar: number, from?: Note[]): Note[] => {
-    const chord = t.chords[bar % t.chords.length];
-    const rhythm = from ? from.map((n) => n.step) : RHYTHMS[Math.floor(r() * RHYTHMS.length)];
-    let prev = chord + 7;
-    return rhythm.map((step, i) => {
-      const next = rhythm[i + 1] ?? 16;
-      const strong = step % 4 === 0;
-      let degree: number;
-      if (from && i < from.length && r() < 0.65) {
-        // variação: a mesma forma, ajustada ao acorde novo
-        degree = from[i].degree - t.chords[(bar - 1 + t.chords.length) % t.chords.length] + chord;
-      } else if (strong) {
-        const tones = [chord, chord + 2, chord + 4].map((d) => d + 7);
-        degree = tones.reduce((a, b) => (Math.abs(b - prev) < Math.abs(a - prev) ? b : a));
-        if (r() < 0.3) degree = tones[Math.floor(r() * 3)];
-      } else {
-        degree = prev + (r() < 0.5 ? 1 : -1) * (r() < 0.8 ? 1 : 2);
-      }
-      degree = Math.max(5, Math.min(14, degree));
-      prev = degree;
-      return { step, degree, len: Math.max(1, Math.min(next - step, r() < 0.3 ? 2 : 4)) };
-    });
+  const pick = <T>(arr: T[]) => arr[Math.floor(r() * arr.length)];
+  const hook = { rhythm: pick(HOOK_RHYTHMS), contour: pick(CONTOURS) };
+  const answer = { rhythm: pick(LONG_RHYTHMS), contour: pick(CONTOURS) };
+  const LOW = 5;
+  const HIGH = 15;
+  const clamp = (d: number) => Math.max(LOW, Math.min(HIGH, d));
+  /**
+   * o motivo começando numa nota do acorde: a mais perto da anterior (a melodia anda, não pula) entre
+   * as que deixam o desenho inteiro dentro da extensão (sem achatar no teto)
+   */
+  const motif = (m: { rhythm: number[]; contour: number[] }, chord: number, from: number, lift = 0): Note[] => {
+    const hi = Math.max(...m.contour);
+    const lo = Math.min(...m.contour);
+    const tones: number[] = [];
+    for (let o = -7; o <= 21; o += 7) for (const d of [chord, chord + 2, chord + 4]) tones.push(d + o + lift);
+    const fits = tones.filter((d) => d + hi <= HIGH && d + lo >= LOW);
+    const start = (fits.length ? fits : tones).reduce((a, b) => (Math.abs(b - from) < Math.abs(a - from) ? b : a));
+    return m.rhythm.map((step, i) => ({
+      step, degree: clamp(start + m.contour[i % m.contour.length]), len: Math.max(1, Math.min((m.rhythm[i + 1] ?? 16) - step, 4)),
+    }));
   };
-  const a = motif(0);
-  bars.push(a, motif(1), motif(2, a), motif(3));
-  bars.push(motif(4), motif(5), motif(6, a), motif(7));
-  return bars;
+  /** compasso de fechamento: nota longa no acorde (tônica no fim da frase) e uma nota de ligação */
+  const cadence = (chord: number, home: boolean): Note[] => [
+    { step: 0, degree: clamp(home ? 7 : chord + 7), len: 10 },
+    { step: 12, degree: clamp((home ? 7 : chord + 7) + 1), len: 3 },
+  ];
+  /** enfeite: notas de passagem rápidas entre as notas do motivo */
+  const ornament = (bar: Note[]): Note[] => bar.flatMap((n, i) => {
+    const next = bar[i + 1];
+    if (!next || next.step - n.step < 3 || r() < 0.4) return [n];
+    return [{ ...n, len: 1 }, { step: n.step + 1, degree: clamp(n.degree + Math.sign(next.degree - n.degree || 1)), len: next.step - n.step - 1 }];
+  });
+
+  const sectionA = (variant: boolean): Note[][] => {
+    const bars: Note[][] = [];
+    let last = 9;
+    for (let b = 0; b < 8; b++) {
+      const chord = t.chordsA[b % 4];
+      let notes: Note[];
+      if (b === 3) notes = cadence(chord, false);
+      else if (b === 7) notes = cadence(chord, true);
+      else {
+        notes = motif(hook, chord, last);
+        // 3º compasso de cada frase: mesma forma, desfecho diferente
+        if (b % 4 === 2) notes = notes.map((n, i) => (i >= notes.length - 2 ? { ...n, degree: clamp(n.degree + (b < 4 ? 2 : -1)) } : n));
+        if (variant) notes = ornament(notes);
+      }
+      last = notes[notes.length - 1].degree;
+      bars.push(notes);
+    }
+    return bars;
+  };
+  const sectionB = (variant: boolean): Note[][] => {
+    const bars: Note[][] = [];
+    let last = 11;
+    for (let b = 0; b < 8; b++) {
+      const chord = t.chordsB[b % 4];
+      let notes: Note[];
+      if (b === 7) notes = cadence(t.chordsA[0], false);
+      // pergunta (aguda) e resposta (mais grave, mais curta)
+      else if (b % 2 === 0) notes = motif(answer, chord, last, 2);
+      else notes = motif(hook, chord, last - 2).slice(0, 3);
+      if (variant && b % 2 === 1) notes = ornament(notes);
+      last = notes[notes.length - 1].degree;
+      bars.push(notes);
+    }
+    return bars;
+  };
+  return [...sectionA(false), ...sectionB(false), ...sectionA(true), ...sectionB(true)];
 }
 
 class Player {
@@ -151,7 +219,7 @@ class Player {
     this.melody = compose(def);
     this.filter = ctx.createBiquadFilter();
     this.filter.type = 'lowpass';
-    this.filter.frequency.value = 5200;
+    this.filter.frequency.value = SOFT_HZ;
     this.gain = ctx.createGain();
     this.gain.gain.setValueAtTime(0.0001, ctx.currentTime);
     this.gain.gain.exponentialRampToValueAtTime(MUSIC_VOL * def.vol * this.duck, ctx.currentTime + 1.2);
@@ -195,7 +263,7 @@ class Player {
     const t = out.ctx.currentTime;
     this.gain.gain.cancelScheduledValues(t);
     this.gain.gain.setTargetAtTime(MUSIC_VOL * this.track.vol * k, t, 0.2);
-    this.filter?.frequency.setTargetAtTime(k < 1 ? 1400 : 5200, t, 0.2);
+    this.filter?.frequency.setTargetAtTime(k < 1 ? 1200 : SOFT_HZ, t, 0.2);
   }
 
   private schedule() {
@@ -211,7 +279,7 @@ class Player {
     while (this.nextTime < out.ctx.currentTime + LOOKAHEAD) {
       this.playStep(out.ctx, this.step, this.nextTime, stepDur);
       this.nextTime += stepDur;
-      this.step = (this.step + 1) % (16 * 8);
+      this.step = (this.step + 1) % (16 * SONG_BARS);
     }
   }
 
@@ -236,20 +304,22 @@ class Player {
     osc.stop(at + dur + 0.05);
   }
 
-  private hit(ctx: AudioContext, at: number, kind: 'kick' | 'snare' | 'hat', vol: number) {
-    if (kind === 'kick') {
+  private hit(ctx: AudioContext, at: number, kind: 'kick' | 'snare' | 'hat' | 'tom' | 'taiko' | 'crash', vol: number, pitch = 1) {
+    if (kind === 'kick' || kind === 'tom' || kind === 'taiko') {
+      // tambores: um tom que cai rápido (o taiko é bem grave e longo)
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
-      osc.frequency.setValueAtTime(120, at);
-      osc.frequency.exponentialRampToValueAtTime(40, at + 0.12);
+      const [f0, f1, len] = kind === 'kick' ? [120, 40, 0.16] : kind === 'tom' ? [220 * pitch, 90 * pitch, 0.22] : [80, 34, 0.5];
+      osc.frequency.setValueAtTime(f0, at);
+      osc.frequency.exponentialRampToValueAtTime(f1, at + len * 0.8);
       g.gain.setValueAtTime(vol, at);
-      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
       osc.connect(g).connect(this.filter!);
       osc.start(at);
-      osc.stop(at + 0.2);
+      osc.stop(at + len + 0.05);
       return;
     }
-    const len = kind === 'snare' ? 0.14 : 0.04;
+    const len = kind === 'snare' ? 0.14 : kind === 'crash' ? 0.9 : 0.04;
     const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * len), ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -257,11 +327,12 @@ class Player {
     src.buffer = buf;
     const f = ctx.createBiquadFilter();
     f.type = kind === 'snare' ? 'bandpass' : 'highpass';
-    f.frequency.value = kind === 'snare' ? 1800 : 7000;
+    f.frequency.value = kind === 'snare' ? 1800 : kind === 'crash' ? 4000 : 7000;
     const g = ctx.createGain();
     g.gain.setValueAtTime(vol, at);
     g.gain.exponentialRampToValueAtTime(0.0001, at + len);
-    src.connect(f).connect(g).connect(this.filter!);
+    // pratos e chimbal passam por fora do filtro macio (senão somem)
+    src.connect(f).connect(g).connect(kind === 'snare' ? this.filter! : this.gain!);
     src.start(at);
   }
 
@@ -269,39 +340,60 @@ class Player {
     const t = this.track!;
     const bar = Math.floor(step / 16);
     const s = step % 16;
-    const chord = t.chords[bar % t.chords.length];
+    const chord = chordAt(t, bar);
+    const section = sectionOf(bar);
     const battle = this.battle;
     // fundo: acorde longo no começo do compasso
     if (t.pad && s === 0) {
-      for (const d of [chord, chord + 2, chord + 4]) this.note(ctx, this.freq(d, 1), at, sd * 16, 'triangle', 0.035, 0.4);
+      for (const d of [chord, chord + 2, chord + 4]) this.note(ctx, this.freq(d, 1), at, sd * 16, 'triangle', 0.03, 0.5);
     }
-    // baixo: tônica do acorde (na batalha, em colcheias)
-    if (s % (battle || t.drums === 'drive' ? 4 : 8) === 0) {
-      this.note(ctx, this.freq(chord, 0), at, sd * (battle ? 3 : 6), t.bass, 0.16);
+    // baixo: tônica e quinta (na parte B anda pelas notas do acorde; no chefe, em colcheias)
+    const bassEvery = battle ? 2 : t.drums === 'drive' ? 4 : 8;
+    if (s % bassEvery === 0) {
+      const walk = section % 2 ? [chord, chord + 2, chord + 4, chord + 2] : [chord, chord, chord + 4, chord];
+      const d = walk[Math.floor(s / 4) % 4];
+      this.note(ctx, this.freq(d, 0), at, sd * (battle ? 1.8 : bassEvery * 0.85), t.bass, 0.15);
     }
-    // arpejo pelas notas do acorde
-    const every = battle ? 1 : t.arpEvery;
-    if (every && s % every === 0) {
-      const tones = [chord, chord + 2, chord + 4, chord + 7];
-      const d = tones[(s / every) % tones.length];
-      this.note(ctx, this.freq(d, 2), at, sd * 1.5, t.arp, battle ? 0.045 : 0.04);
+    // arpejo baixo e suave pelas notas do acorde
+    if (t.arpEvery && s % t.arpEvery === 0) {
+      const tones = [chord, chord + 2, chord + 4, chord + 2];
+      this.note(ctx, this.freq(tones[(s / t.arpEvery) % 4], 1), at, sd * 1.6, 'triangle', 0.03);
     }
-    // melodia (na batalha, uma oitava acima e com timbre mais forte)
-    for (const n of this.melody[bar]) {
+    // melodia (no A' ganha uma segunda voz, uma terça abaixo)
+    for (const n of this.melody[bar % SONG_BARS]) {
       if (n.step !== s) continue;
-      this.note(ctx, this.freq(n.degree, battle ? 2 : 1), at, sd * n.len * 0.95, battle ? 'square' : t.lead, t.lead === 'sawtooth' || battle ? 0.06 : 0.09);
+      const vol = t.lead === 'square' ? 0.055 : t.lead === 'sine' ? 0.11 : 0.09;
+      this.note(ctx, this.freq(n.degree, 1), at, sd * n.len * 0.95, t.lead, vol * (battle ? 1.15 : 1));
+      if (section === 2) this.note(ctx, this.freq(n.degree - 2, 1), at, sd * n.len * 0.9, 'triangle', 0.035);
     }
-    // bateria
-    const drums: Drums = battle ? 'drive' : t.drums;
+    // bateria (o chefe tem a dele, bem mais forte)
+    if (battle) return this.battleDrums(ctx, bar, s, at);
+    const drums = t.drums;
     if (drums === 'none') return;
+    // virada no fim de cada parte
+    if (bar % 8 === 7 && s >= 12 && drums !== 'soft') return this.hit(ctx, at, 'tom', 0.16, 1.4 - (s - 12) * 0.15);
     if (drums === 'soft') {
-      if (s === 0) this.hit(ctx, at, 'kick', 0.28);
-      if (s % 4 === 2) this.hit(ctx, at, 'hat', 0.04);
+      if (s === 0) this.hit(ctx, at, 'kick', 0.24);
+      if (s === 8) this.hit(ctx, at, 'kick', 0.14);
+      if (s % 4 === 2) this.hit(ctx, at, 'hat', 0.03);
       return;
     }
-    if (s === 0 || s === 8 || (drums === 'drive' && (s === 6 || s === 10))) this.hit(ctx, at, 'kick', 0.4);
-    if (s === 4 || s === 12) this.hit(ctx, at, 'snare', drums === 'drive' ? 0.22 : 0.16);
-    if (s % 2 === 0) this.hit(ctx, at, 'hat', drums === 'drive' ? 0.06 : 0.045);
+    if (s === 0 || s === 8 || (drums === 'drive' && s === 10)) this.hit(ctx, at, 'kick', 0.34);
+    if (s === 4 || s === 12) this.hit(ctx, at, 'snare', drums === 'drive' ? 0.16 : 0.12);
+    if (s % 2 === 0) this.hit(ctx, at, 'hat', 0.035);
+    if (bar % 8 === 0 && s === 0) this.hit(ctx, at, 'crash', 0.06);
+  }
+
+  /** Percussão da luta contra o chefe: bumbo em todo tempo, caixa forte, tambores graves e viradas. */
+  private battleDrums(ctx: AudioContext, bar: number, s: number, at: number) {
+    if (s % 4 === 0) this.hit(ctx, at, 'kick', 0.42);
+    if (s === 14 || s === 7) this.hit(ctx, at, 'kick', 0.3);
+    if (s === 0 || s === 8) this.hit(ctx, at, 'taiko', 0.35);
+    if (s === 4 || s === 12) this.hit(ctx, at, 'snare', 0.26);
+    if (s % 2 === 0) this.hit(ctx, at, 'hat', s % 4 === 2 ? 0.07 : 0.04);
+    if (bar % 4 === 0 && s === 0) this.hit(ctx, at, 'crash', 0.1);
+    // virada de tambores a cada 4 compassos
+    if (bar % 4 === 3 && s >= 8 && s % 2 === 0) this.hit(ctx, at, 'tom', 0.24, 1.5 - (s - 8) * 0.12);
   }
 }
 
@@ -364,3 +456,6 @@ export function jingle(kind: 'victory' | 'defeat') {
   }
   window.setTimeout(() => g.disconnect(), 2500);
 }
+
+/** Melodia de uma trilha (testes e conferência). */
+export const melodyOf = (id: string) => compose(TRACKS[id]);
