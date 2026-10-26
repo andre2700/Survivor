@@ -15,7 +15,9 @@ export interface Settings {
 }
 
 const KEY = 'survivor-settings';
-const DEFAULTS: Settings = { sound: true, music: true, vibration: true, shake: true, damageNumbers: true, language: 'pt' };
+/** idioma do aparelho: português para quem usa português; inglês para o resto */
+const deviceLanguage = (): Language => (typeof navigator !== 'undefined' && !/^pt/i.test(navigator.language ?? 'pt') ? 'en' : 'pt');
+const DEFAULTS: Settings = { sound: true, music: true, vibration: true, shake: true, damageNumbers: true, language: deviceLanguage() };
 
 function load(): Settings {
   try {

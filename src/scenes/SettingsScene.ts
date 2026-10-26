@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { loadSave, writeSave } from '../systems/save';
 import { settings, setSettings, vibrate, type Settings } from '../systems/settings';
+import { languageChanged } from '../i18n';
 import { setMusicEnabled } from '../systems/music';
 import { setSoundEnabled, sfx } from '../systems/sfx';
 import { button, goldTitle, panel, text } from '../ui/theme';
@@ -41,7 +42,10 @@ export class SettingsScene extends Phaser.Scene {
       ['Vibração', yes(settings.vibration), toggle('vibration', () => vibrate(60)), settings.vibration],
       ['Tremor de tela', yes(settings.shake), toggle('shake'), settings.shake],
       ['Números de dano', yes(settings.damageNumbers), toggle('damageNumbers'), settings.damageNumbers],
-      ['Idioma', settings.language === 'pt' ? 'PORTUGUÊS' : 'ENGLISH', () => setSettings({ language: 'pt' }), true],
+      ['Idioma', settings.language === 'pt' ? 'PORTUGUÊS' : 'ENGLISH', () => {
+        setSettings({ language: settings.language === 'pt' ? 'en' : 'pt' });
+        languageChanged();
+      }, true],
     ];
     const y0 = top + 50;
     const rowH = VIEW.height < 600 ? 38 : 46;
@@ -56,8 +60,7 @@ export class SettingsScene extends Phaser.Scene {
       }, { width: 120, height: 32, size: 12, variant: on ? 'primary' : undefined });
     });
     let y = y0 + rows.length * rowH + 30;
-    text(this, width / 2, y, 'English: em breve', 10, '#8a8ca0');
-    y += VIEW.height < 600 ? 14 : 30;
+    y += VIEW.height < 600 ? 0 : 16;
     // rever o tutorial na próxima partida
     const save = loadSave();
     button(this, width / 2, y + 10, save.tutorial >= 0 && save.tutorial < 99 ? 'TUTORIAL NA PRÓXIMA PARTIDA ✓' : 'VER O TUTORIAL DE NOVO', () => {

@@ -1,4 +1,5 @@
 import { ACHIEVEMENTS, DAILY_COUNT, dailyFor } from '../src/data/missions';
+import { settings } from '../src/systems/settings';
 import { achievementReady, claimAchievement, claimDaily, claimDailyBonus, daily, pendingRewards, recordRun } from '../src/systems/progress';
 import { PETS, STAGE_CAP, eggChance, evoRequirements, getPet, petXpToNext, rollEggPet } from '../src/data/pets';
 import { addEgg, addPetXp, atCap, canEvolve, evolve, feed, hatch, incubate } from '../src/systems/pets';
@@ -251,6 +252,7 @@ describe('ondas e progressão', () => {
 
 describe('formatação', () => {
   it('números grandes', () => {
+    settings.language = 'pt';
     expect(formatNumber(950)).toBe('950');
     expect(formatNumber(1200)).toBe('1,2K');
     expect(formatNumber(3_400_000)).toBe('3,4M');

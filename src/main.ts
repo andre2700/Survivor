@@ -15,6 +15,7 @@ import { GameOverScene, LevelUpScene, PauseScene, VictoryScene } from './scenes/
 import { EndingScene } from './scenes/EndingScene';
 import { setupNative } from './native';
 import { retryMusic } from './systems/music';
+import { installI18n } from './i18n';
 import { unlockAudio } from './systems/sfx';
 import { installHdSprites } from './art/textures';
 import { VIEW, initView } from './ui/view';
@@ -86,6 +87,7 @@ async function start() {
   };
 
   installHdSprites();
+  installI18n();
   const game = new Phaser.Game({
     // a arte em alta resolução depende do renderizador WebGL (ver installHdSprites)
     type: Phaser.WEBGL,

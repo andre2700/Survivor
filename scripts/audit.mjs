@@ -14,11 +14,13 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 const run = (fn, arg) => page.evaluate(fn, arg);
+// GAME_LANG=en: joga em inglês e lista no fim os textos que apareceram sem tradução
+if (process.env.GAME_LANG) await page.addInitScript((l) => { window.__lang = l; }, process.env.GAME_LANG);
 const wait = (ms) => page.waitForTimeout(ms);
 const shot = (n) => page.screenshot({ path: `${OUT}/${n}.png` });
 const go = async (from, to, data) => { await run(([f, t, d]) => window.__game.scene.getScene(f).scene.start(t, d), [from, to, data]); await wait(900); };
 const reload = async (save) => {
-  await run((s) => { localStorage.clear(); if (s) localStorage.setItem('survivor-save-v1', JSON.stringify(s)); }, save);
+  await run((s) => { localStorage.clear(); if (window.__lang) localStorage.setItem('survivor-settings', JSON.stringify({ language: window.__lang })); if (s) localStorage.setItem('survivor-save-v1', JSON.stringify(s)); }, save);
   await page.reload();
   await page.waitForFunction(() => window.__game?.scene?.isActive('Menu'));
   await wait(900);
@@ -74,6 +76,7 @@ await run(() => { const g = window.__game.scene.getScene('Game'); g.scene.pause(
 await wait(700); await shot('b10_pausa');
 await run(() => { window.__game.scene.getScene('Pause').scene.launch('Settings', { from: 'Pause' }); });
 await wait(700); await shot('b11_pausa_ajustes');
+if (process.env.GAME_LANG) console.log('SEM TRADUÇÃO:\n' + (await run(() => [...new Set(JSON.parse(sessionStorage.getItem('i18n-missing') ?? '[]'))].join('\n'))));
 console.log(JSON.stringify({ tutorialAoFim: tut, errors: errors.slice(0, 10) }));
 await browser.close();
 await server.close();

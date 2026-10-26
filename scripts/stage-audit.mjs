@@ -19,6 +19,8 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 const run = (fn, arg) => page.evaluate(fn, arg);
+// GAME_LANG=en: joga em inglês e lista no fim os textos que apareceram sem tradução
+if (process.env.GAME_LANG) await page.addInitScript((l) => { window.__lang = l; }, process.env.GAME_LANG);
 const wait = (ms) => page.waitForTimeout(ms);
 const shot = (n) => page.screenshot({ path: `${OUT}/${n}.png` });
 await page.goto('http://127.0.0.1:5191/');
@@ -27,7 +29,7 @@ await page.waitForFunction(() => !!window.__game);
 const { STAGES } = await server.ssrLoadModule('/src/data/stages.ts');
 const before = STAGES.slice(0, STAGES.findIndex((s) => s.id === STAGE)).map((s) => s.id);
 await run(([st, prev]) => {
-  localStorage.clear();
+  localStorage.clear(); if (window.__lang) localStorage.setItem('survivor-settings', JSON.stringify({ language: window.__lang }));
   const tiers = Object.fromEntries(prev.map((id) => [id, [{ stars: [true, true, true], bosses: 3 }]]));
   localStorage.setItem('survivor-save-v1', JSON.stringify({ version: 2, gold: 0, stage: st, eggSeen: true, tutorial: 99, tiers, tips: ['menu', 'stages', 'pets', 'equip', 'shop', 'missions'] }));
 }, [STAGE, before]);
@@ -114,6 +116,7 @@ await shot('s30_vitoria');
 await wait(5000);
 await shot('s31_vitoria_b');
 
+if (process.env.GAME_LANG) console.log('SEM TRADUÇÃO:\n' + (await run(() => [...new Set(JSON.parse(sessionStorage.getItem('i18n-missing') ?? '[]'))].join('\n'))));
 console.log(errors.length ? `ERROS:\n${errors.join('\n')}` : 'sem erros no console');
 await browser.close();
 await server.close();

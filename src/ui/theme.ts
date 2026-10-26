@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { nineSlice } from '../art/textures';
+import { VIEW } from './view';
 
 /** Texto corrido: Fredoka (arredondada). Títulos e botões: Lilita One (grossa, estilo jogo mobile). */
 export const FONT = '"Fredoka", sans-serif';
@@ -49,6 +50,9 @@ export function text(scene: Phaser.Scene, x: number, y: number, str: string, siz
 /** Título com gradiente dourado (logo e cabeçalhos grandes). */
 export function goldTitle(scene: Phaser.Scene, x: number, y: number, str: string, size: number) {
   const t = text(scene, x, y, str, size, '#ffffff', { stroke: '#2a1206', strokeThickness: Math.max(4, Math.round(size / 6)) }).setFontFamily(TITLE_FONT);
+  // título que não cabe na largura da tela (textos mais longos em inglês): a letra diminui até caber
+  const max = VIEW.width - 24;
+  if (t.width > max) t.setFontSize(Math.floor(Math.round(size * FONT_SCALE) * (max / t.width)));
   const grad = t.context.createLinearGradient(0, 0, 0, t.height);
   grad.addColorStop(0.15, '#fff6c2');
   grad.addColorStop(0.5, '#f7c948');
