@@ -214,6 +214,9 @@ class Player {
   private track: TrackDef | null = null;
   private trackId = '';
   private song: Song = { bars: [], chords: [] };
+  /** acorde do acompanhamento (notas MIDI) e o compasso em que foi escolhido */
+  private arpVoicing: number[] = [];
+  private arpBar = -1;
   private nextTime = 0;
   private step = 0;
   private timer = 0;
@@ -240,6 +243,8 @@ class Player {
     const { ctx, master } = out;
     this.track = def;
     this.song = compose(def);
+    this.arpVoicing = [];
+    this.arpBar = -1;
     this.filter = ctx.createBiquadFilter();
     this.filter.type = 'lowpass';
     this.filter.frequency.value = SOFT_HZ;
@@ -307,10 +312,17 @@ class Player {
   }
 
   private freq(degree: number, octave: number) {
+    return this.hz(this.midi(degree, octave));
+  }
+
+  private midi(degree: number, octave: number) {
     const t = this.track!;
     const o = Math.floor(degree / 7);
     const d = ((degree % 7) + 7) % 7;
-    const midi = t.root + 12 * (octave + o) + t.mode[d];
+    return t.root + 12 * (octave + o) + t.mode[d];
+  }
+
+  private hz(midi: number) {
     return 440 * 2 ** ((midi - 69) / 12);
   }
 
@@ -373,7 +385,7 @@ class Player {
       for (const d of [chord, chord + 2, chord + 4]) this.note(ctx, this.freq(d, 1), at, sd * spb, 'triangle', 0.03, 0.5);
     }
     this.playBass(ctx, t, chord, s, at, sd, battle);
-    this.playArp(ctx, t, chord, s, at, sd);
+    this.playArp(ctx, t, bar, chord, s, at, sd);
     // melodia (no A' ganha uma segunda voz, uma terça abaixo)
     for (const n of this.song.bars[bar % SONG_BARS]) {
       if (n.step !== s) continue;
@@ -440,26 +452,103 @@ class Player {
   }
 
   /** Acompanhamento no estilo da fase. */
-  private playArp(ctx: AudioContext, t: TrackDef, chord: number, s: number, at: number, sd: number) {
-    const tones = [chord, chord + 2, chord + 4, chord + 7];
+  /**
+   * Acompanhamento. As notas são escolhidas como um músico faria:
+   * - o acorde fica numa faixa própria, entre o baixo e a melodia (não sobe por cima dela);
+   * - na troca de acorde, cada nota vai para a nota mais próxima do acorde novo (sem pular a cada compasso);
+   * - o desenho cabe no compasso (6 colcheias na valsa, 8 no quaternário) e começa sempre na nota de baixo;
+   * - nota que daria meio-tom contra a melodia naquele instante é trocada por outra do acorde (ou não toca).
+   */
+  private playArp(ctx: AudioContext, t: TrackDef, bar: number, chord: number, s: number, at: number, sd: number) {
+    if (t.arpStyle === 'none') return;
+    if (bar !== this.arpBar) {
+      this.arpBar = bar;
+      this.arpVoicing = this.voiceLead(chord);
+    }
+    const v = this.arpVoicing;
+    const tones = [v[0], v[1], v[2], v[0] + 12];
+    const waltz = t.meter === 12;
+    let idx: number | undefined;
+    let dur = sd * 1.8;
+    let vol = 0.032;
+    let type: OscillatorType = 'triangle';
+    let attack = 0.01;
     switch (t.arpStyle) {
       case 'up':
-        if (s % 2 === 0) this.note(ctx, this.freq(tones[(s / 2) % 4], 1), at, sd * 1.6, 'triangle', 0.03);
-        return;
+        // embala: baixo-meio-alto-meio (na valsa: baixo e depois meio/alto)
+        if (s % 2 === 0) idx = (waltz ? [0, 1, 2, 1, 2, 1] : [0, 1, 2, 1, 0, 1, 2, 1])[s / 2];
+        break;
       case 'updown':
-        if (s % 2 === 0) this.note(ctx, this.freq([0, 1, 2, 3, 2, 1].map((k) => tones[k])[(s / 2) % 6], 1), at, sd * 1.8, 'sine', 0.035);
-        return;
+        // sobe e desce uma vez por compasso
+        if (s % 2 === 0) idx = (waltz ? [0, 1, 2, 3, 2, 1] : [0, 1, 2, 3, 2, 1, 2, 1])[s / 2];
+        type = 'sine';
+        vol = 0.036;
+        break;
       case 'broken':
-        // acorde quebrado nos contratempos (dá balanço sem embolar)
-        if (s % 4 === 2) this.note(ctx, this.freq(tones[1 + ((s / 4) | 0) % 2], 1), at, sd * 1.5, 'triangle', 0.035);
-        return;
+        // nos contratempos, alternando as duas notas de cima do acorde
+        if (s % 4 === 2) idx = 1 + (((s / 4) | 0) % 2);
+        dur = sd * 1.5;
+        vol = 0.035;
+        break;
       case 'bells':
-        // sinos agudos e esparsos (gelo, caixinha de música)
-        if (s === 6 || s === t.meter - 2) this.note(ctx, this.freq(tones[(s >> 1) % 4] + 7, 2), at, sd * 6, 'sine', 0.03, 0.005);
-        return;
-      case 'none':
-        return;
+        // sinos esparsos acima da melodia
+        if (s === 6) idx = 2;
+        else if (s === t.meter - 2) idx = 1;
+        dur = sd * 6;
+        vol = 0.028;
+        type = 'sine';
+        attack = 0.005;
+        break;
     }
+    if (idx === undefined) return;
+    const lift = t.arpStyle === 'bells' ? 24 : 0;
+    const mel = this.melodyAt(bar, s);
+    // a nota pedida e, se ela bater com a melodia, as outras do acorde (as mais próximas primeiro)
+    const order = [idx, ...[0, 1, 2, 3].filter((k) => k !== idx).sort((a, b) => Math.abs(a - idx!) - Math.abs(b - idx!))];
+    const pick = order.map((k) => tones[k] + lift).find((m) => {
+      if (mel === undefined) return true;
+      const ic = Math.abs(m - mel) % 12;
+      if (ic === 1 || ic === 11) return false;
+      // abaixo da melodia (os sinos ficam acima)
+      return lift ? m > mel : m < mel;
+    });
+    if (pick === undefined) return;
+    // tempo forte um pouco mais marcado
+    const accent = s === 0 ? 1.2 : s % (waltz ? 4 : 8) === 0 ? 1.05 : 0.9;
+    this.note(ctx, this.hz(pick), at, dur, type, vol * accent, attack);
+  }
+
+  /** Posição do acorde (três notas MIDI) mais perto da anterior, dentro da faixa do acompanhamento. */
+  private voiceLead(chord: number): number[] {
+    const t = this.track!;
+    const pcs = [chord, chord + 2, chord + 4].map((d) => this.midi(d, 0) % 12);
+    // faixa: a nota de baixo perto da oitava 1 (o acorde inteiro abaixo da tônica da melodia, acima do baixo)
+    const lo = t.root + 11;
+    const hi = t.root + 17;
+    const center = t.root + 16;
+    const prev = this.arpVoicing;
+    let best: number[] = [];
+    let bestCost = Infinity;
+    for (let bass = lo; bass <= hi; bass++) {
+      if (!pcs.includes(bass % 12)) continue;
+      // as outras duas notas do acorde, logo acima
+      const up = [bass];
+      for (let m = bass + 1; up.length < 3; m++) if (pcs.includes(m % 12) && !up.some((u) => u % 12 === m % 12)) up.push(m);
+      const mean = (up[0] + up[1] + up[2]) / 3;
+      const move = prev.length ? up.reduce((a, m, i) => a + Math.abs(m - prev[i]), 0) : 0;
+      const cost = move + 0.4 * Math.abs(mean - center);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = up;
+      }
+    }
+    return best;
+  }
+
+  /** Nota MIDI da melodia soando neste passo do compasso (se houver). */
+  private melodyAt(bar: number, s: number): number | undefined {
+    const n = this.song.bars[bar % SONG_BARS]?.find((x) => x.step <= s && s < x.step + x.len);
+    return n ? this.midi(n.degree, 1) : undefined;
   }
 
   /** Percussão da luta contra o chefe: bumbo em todo tempo, caixa forte, tambores graves e viradas. */
