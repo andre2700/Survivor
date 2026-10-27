@@ -1,5 +1,5 @@
-// Grava um trecho de cada trilha (e da camada de chefe) num Chromium sem tela, mede o pico do som
-// (acima de 1 estoura) e salva em mp3 para ouvir: node scripts/music-record.mjs <pasta> [segundos] [trilha ...]
+// Grava um trecho de cada trilha num Chromium sem tela, mede o pico do som (acima de 1 estoura) e
+// salva em mp3 para ouvir: node scripts/music-record.mjs <pasta> [segundos] [trilha ...]
 import { chromium } from 'playwright-core';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -10,8 +10,8 @@ const SECONDS = Number(process.argv[3] ?? 14);
 mkdirSync(OUT, { recursive: true });
 const server = await createServer({ server: { port: 5195, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
-const { TRACKS } = await server.ssrLoadModule('/src/systems/music.ts');
-const ids = process.argv.slice(4).length ? process.argv.slice(4) : Object.keys(TRACKS);
+const { MUSIC_LOOPS } = await server.ssrLoadModule('/src/systems/musicLoops.ts');
+const ids = process.argv.slice(4).length ? process.argv.slice(4) : Object.keys(MUSIC_LOOPS);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--autoplay-policy=no-user-gesture-required', '--use-gl=swiftshader'] });
 const page = await browser.newPage();
 const errors = [];
@@ -19,7 +19,7 @@ page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto('http://127.0.0.1:5195/');
 await page.waitForFunction(() => window.__game?.scene?.isActive('Menu'));
 for (const id of ids) {
-  for (const battle of id === 'menu' || id === 'ending' ? [false] : [false, true]) {
+  for (const battle of [false]) {
     const r = await page.evaluate(async ([id, battle, secs]) => {
       const sfx = await import('/src/systems/sfx.ts');
       const music = await import('/src/systems/music.ts');

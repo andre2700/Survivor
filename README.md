@@ -46,7 +46,7 @@ Estilo cartoon 2D (contorno grosso, sombreado suave, cores vivas), gerado com IA
 - Efeitos (brilho, golpe, aura, vinheta) e molduras da interface são desenhados por código (`src/art/fx.ts`, `src/art/ui.ts`).
 - `npm run artsheet` gera `screenshots/artsheet.png` com todos os sprites, para revisar a arte.
 
-O jogo usa resolução lógica de 400 px de largura com zoom de 1–2× no canvas. Funciona em retrato e na horizontal (gira junto com o celular): na horizontal a partida usa a largura inteira, a altura lógica cai para 440–640 (o tamanho das coisas fica igual ao do retrato) e as telas usam duas colunas lado a lado. Na partida, pinça com dois dedos (ou roda do mouse) aproxima e afasta a câmera; o zoom fica salvo. Fontes: Fredoka (texto) e Lilita One (títulos e botões). Os sons são sintetizados com WebAudio (`src/systems/sfx.ts`).
+O jogo usa resolução lógica de 400 px de largura com zoom de 1–2× no canvas. Funciona em retrato e na horizontal (gira junto com o celular): na horizontal a partida usa a largura inteira, a altura lógica cai para 440–640 (o tamanho das coisas fica igual ao do retrato) e as telas usam duas colunas lado a lado. Na partida, pinça com dois dedos (ou roda do mouse) aproxima e afasta a câmera; o zoom fica salvo. Fontes: Fredoka (texto) e Lilita One (títulos e botões). Os efeitos sonoros são sintetizados com WebAudio (`src/systems/sfx.ts`); as músicas são gravadas, geradas com o Lyria (`scripts/gen-music.mjs`, preparadas por `scripts/music-prep.mjs`, tocadas por `src/systems/music.ts`).
 
 ## Desenvolvimento
 

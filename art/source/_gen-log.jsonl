@@ -343,3 +343,16 @@
 {"at":"2026-10-25T22:36:23.077Z","model":"gemini-3-pro-image","out":"art/source/demon_witch_action2.png","tokens":2067}
 {"at":"2026-10-27T20:53:07.082Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/menu.mp3","tokens":1689}
 {"at":"2026-10-27T20:53:49.093Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/dunas.mp3","tokens":1377}
+{"at":"2026-10-27T21:01:13.532Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/vulcao.mp3","tokens":1682}
+{"at":"2026-10-27T21:01:15.031Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/outono.mp3","tokens":1272}
+{"at":"2026-10-27T21:01:15.352Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/cidadela.mp3","tokens":1719}
+{"at":"2026-10-27T21:01:15.552Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/pico.mp3","tokens":1696}
+{"at":"2026-10-27T21:01:15.733Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/ending.mp3","tokens":1761}
+{"at":"2026-10-27T21:01:16.681Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/ruinas.mp3","tokens":1447}
+{"at":"2026-10-27T21:01:18.686Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/pantano.mp3","tokens":1583}
+{"at":"2026-10-27T21:01:35.998Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/clareira.mp3","tokens":1987}
+{"at":"2026-10-27T21:01:55.132Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/chefe_natureza.mp3","tokens":1250}
+{"at":"2026-10-27T21:01:59.363Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/chefe_gelo.mp3","tokens":1886}
+{"at":"2026-10-27T21:02:04.333Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/chefe_fogo.mp3","tokens":1664}
+{"at":"2026-10-27T21:02:26.244Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/chefe_final.mp3","tokens":1880}
+{"at":"2026-10-27T21:02:55.178Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/sombria.mp3","tokens":1240}
