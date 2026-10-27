@@ -17,8 +17,10 @@ fi
 git rm -rq --cached . >/dev/null 2>&1 || true
 find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp "$OLDPWD/dist-single/index.html" index.html
+# as músicas ficam ao lado (o jogo baixa cada uma só quando vai tocar)
+mkdir -p music && cp "$OLDPWD"/src/assets/music/*.mp3 music/
 touch .nojekyll
-git add index.html .nojekyll
+git add index.html .nojekyll music
 git commit -qm "Jogo publicado a partir de $SRC_REV" || echo "nada mudou"
 git push -q -u origin gh-pages
 cd "$OLDPWD"

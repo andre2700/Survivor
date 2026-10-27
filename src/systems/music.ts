@@ -6,11 +6,7 @@
 // Vitória e derrota têm vinhetas curtas sintetizadas.
 import { audioOut } from './sfx';
 import { MUSIC_LOOPS } from './musicLoops';
-
-const URLS = Object.fromEntries(
-  Object.entries(import.meta.glob('../assets/music/*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
-    .map(([path, url]) => [path.split('/').pop()!.replace('.mp3', ''), url]),
-);
+import { MUSIC_URLS as URLS } from './musicUrls';
 
 /** Trilhas que existem (menu, fases, final e chefes). */
 export const MUSIC_IDS = Object.keys(URLS);
