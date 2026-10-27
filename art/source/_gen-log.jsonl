@@ -341,3 +341,5 @@
 {"at":"2026-10-25T22:36:13.036Z","model":"gemini-3-pro-image","out":"art/source/demon_witch_sheet.png","tokens":2265}
 {"at":"2026-10-25T22:36:21.968Z","model":"gemini-3-pro-image","out":"art/source/demon_witch_action.png","tokens":2134}
 {"at":"2026-10-25T22:36:23.077Z","model":"gemini-3-pro-image","out":"art/source/demon_witch_action2.png","tokens":2067}
+{"at":"2026-10-27T20:53:07.082Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/menu.mp3","tokens":1689}
+{"at":"2026-10-27T20:53:49.093Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/dunas.mp3","tokens":1377}

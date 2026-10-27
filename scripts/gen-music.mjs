@@ -1,6 +1,6 @@
 // Gera música com o Lyria (API do Gemini). A chave vem de GEMINI_API_KEY, como em gen-image.mjs.
 //
-//   node scripts/gen-music.mjs --out art-tests/musica/menu.mp3 --prompt "..." [--model lyria-3-pro-preview]
+//   node scripts/gen-music.mjs --out screenshots/musica-ia/menu.mp3 --prompt "..." [--model lyria-3-pro-preview]
 //
 // Cada música gerada é anotada no mesmo registro de gastos das imagens (art/source/_gen-log.jsonl);
 // `node scripts/gen-image.mjs --usage` resume tudo.
