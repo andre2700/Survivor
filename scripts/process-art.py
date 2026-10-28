@@ -1,0 +1,546 @@
+# Prepara a arte cartoon para o jogo: remove o fundo magenta, recorta e reduz cada imagem de
+# art/source/ ao tamanho de art/manifest.mjs, salvando em src/assets/art/ e o índice em src/art/sprites.json.
+# Personagens animados (folhas <nome>_sheet.png e <nome>_action*.png) viram uma tira de quadros do mesmo
+# tamanho, na ordem do modelo de quadros; o índice guarda o nome de cada quadro (slots).
+#
+#   python3 scripts/process-art.py [nome ...]
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageOps
+
+SRC = Path('art/source')
+OUT = Path('src/assets/art')
+INDEX = Path('src/art/sprites.json')
+GROUND = 128  # lado lógico do ladrilho de grama
+GROUND_HD = 2
+
+
+def manifest():
+    js = ("import('./art/manifest.mjs').then((m) => console.log(JSON.stringify(Object.fromEntries("
+          "Object.entries(m.ART).map(([k, a]) => [k, a.role ? { ...a, sheets: m.sheets(a) } : a])))))")
+    return json.loads(subprocess.check_output(['node', '-e', js]))
+
+
+def border_color(im):
+    w, h = im.size
+    px = im.load()
+    samples = [px[x, y] for x in range(0, w, 8) for y in (0, h - 1)] + [px[x, y] for y in range(0, h, 8) for x in (0, w - 1)]
+    return tuple(sorted(c[i] for c in samples)[len(samples) // 2] for i in range(3))
+
+
+def cut_background(im):
+    """Remove o fundo e recorta na caixa da figura."""
+    return crop_opaque(remove_background(im))
+
+
+def crop_opaque(rgba):
+    """Recorta na caixa dos pixels bem opacos (ignora restos fracos do fundo)."""
+    return rgba.crop(rgba.getchannel('A').point(lambda v: 255 if v >= 128 else 0).getbbox())
+
+
+def remove_background(im):
+    """Alfa pela distância à cor do fundo, com borda suave e sem o reflexo magenta."""
+    im = im.convert('RGB')
+    bg = border_color(im)
+    rgba = Image.new('RGBA', im.size)
+    src, dst = im.load(), rgba.load()
+    lo, hi = 40, 120
+    for y in range(im.size[1]):
+        for x in range(im.size[0]):
+            r, g, b = src[x, y]
+            d = ((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2) ** 0.5
+            # às vezes o fundo magenta vem cercado de outra cor (margem branca): remove os dois
+            d = min(d, ((r - 255) ** 2 + g ** 2 + (b - 255) ** 2) ** 0.5)
+            a = 0 if d <= lo else 255 if d >= hi else int(255 * (d - lo) / (hi - lo))
+            if 0 < a < 255:
+                # remove a parte do fundo misturada na borda
+                t = a / 255
+                r, g, b = (max(0, min(255, int((c - bg[i] * (1 - t)) / t))) for i, c in enumerate((r, g, b)))
+                # magenta residual: limita vermelho e azul ao verde + margem
+                m = g + 40
+                r, b = min(r, m), min(b, m)
+            dst[x, y] = (r, g, b, a)
+    # erosão leve para tirar ruído isolado do fundo
+    alpha = rgba.getchannel('A').filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+    rgba.putalpha(alpha)
+    return rgba
+
+
+def premul_resize(im, size):
+    """Redimensiona sem deixar halo escuro nas bordas transparentes."""
+    r, g, b, a = im.split()
+    pre = Image.composite(Image.merge('RGB', (r, g, b)), Image.new('RGB', im.size), a).resize(size, Image.LANCZOS)
+    a2 = a.resize(size, Image.LANCZOS)
+    pr, pa = pre.load(), a2.load()
+    out = Image.new('RGBA', size)
+    o = out.load()
+    for y in range(size[1]):
+        for x in range(size[0]):
+            al = pa[x, y]
+            o[x, y] = (0, 0, 0, 0) if al == 0 else tuple(min(255, pr[x, y][i] * 255 // al) for i in range(3)) + (al,)
+    return out
+
+
+def feet_span(im):
+    """Início e fim (x) dos pés: a faixa opaca nos 15% de baixo da figura."""
+    w, h = im.size
+    feet = im.getchannel('A').crop((0, int(h * 0.85), w, h)).point(lambda v: 255 if v >= 128 else 0).getbbox()
+    return (feet[0], feet[2]) if feet else (0, w)
+
+
+def body_center(im):
+    """Centro (x) da cabeça e do tronco: mediana dos pixels opacos entre 8% e 45% da altura. Estável
+    entre os quadros de uma corrida, ao contrário dos pés, que se abrem e fecham."""
+    w, h = im.size
+    px = im.getchannel('A').load()
+    xs = [x for y in range(int(h * 0.08), int(h * 0.45), 2) for x in range(0, w, 2) if px[x, y] >= 128]
+    return sorted(xs)[len(xs) // 2] if xs else w / 2
+
+
+def upright_funnel(im):
+    """Desvira o quadro se a base (20% de baixo) for mais larga que o topo."""
+    alpha = im.getchannel('A').point(lambda v: 255 if v > 100 else 0)
+    h = im.height
+    def width(y0, y1):
+        b = alpha.crop((0, y0, im.width, y1)).getbbox()
+        return b[2] - b[0] if b else 0
+    return ImageOps.flip(im) if width(int(h * 0.8), h) > width(0, int(h * 0.2)) else im
+
+
+def funnel_ok(im):
+    """Funil bem formado: largo logo no topo (faixa de 10% a 20% da altura com ao menos 80% da largura
+    máxima). A IA às vezes desenha um quadro com ponta em cima e embaixo."""
+    alpha = im.getchannel('A').point(lambda v: 255 if v > 100 else 0)
+    h = im.height
+    def width(k):
+        b = alpha.crop((0, int(h * k / 10), im.width, int(h * (k + 1) / 10))).getbbox()
+        return b[2] - b[0] if b else 0
+    ws = [width(k) for k in range(10)]
+    return ws[1] >= max(ws) * 0.8
+
+
+def facing(im):
+    """Lado para onde a figura aponta: deslocamento (−1 a 1) do centro de massa em relação ao centro
+    da caixa. A parte densa (bola de fogo, crista da onda, cabeça do martelo) puxa para o seu lado."""
+    a = im.getchannel('A')
+    box = a.getbbox()
+    if not box:
+        return 0
+    px = a.load()
+    total = sx = 0
+    for y in range(box[1], box[3], 2):
+        for x in range(box[0], box[2], 2):
+            v = px[x, y]
+            if v > 100:
+                total += v
+                sx += v * x
+    if not total:
+        return 0
+    mid = (box[0] + box[2]) / 2
+    return (sx / total - mid) / ((box[2] - box[0]) / 2)
+
+
+def same_facing(frames, name):
+    """Espelha os quadros que apontam para o lado contrário do primeiro (a IA às vezes desenha um
+    quadro virado, e o efeito "vira" a cada troca de quadro)."""
+    ref = facing(frames[0])
+    out = []
+    for i, f in enumerate(frames):
+        d = facing(f)
+        if i and abs(ref) > 0.06 and abs(d) > 0.06 and (d > 0) != (ref > 0):
+            print(f'  aviso: {name}: quadro {i + 1} estava virado; espelhado')
+            f = ImageOps.mirror(f)
+        out.append(f)
+    return out
+
+
+def fade_bottom(im, frac):
+    """Base que some aos poucos (efeitos que encostam no chão, como a onda)."""
+    ramp = Image.new('L', im.size, 255)
+    start = int(im.height * (1 - frac))
+    draw = ImageDraw.Draw(ramp)
+    for y in range(start, im.height):
+        draw.line((0, y, im.width, y), fill=round(255 * (1 - (y - start) / max(1, im.height - start)) ** 1.5))
+    out = im.copy()
+    out.putalpha(ImageChops.multiply(im.getchannel('A'), ramp))
+    return out
+
+
+def fade_right(im, frac):
+    """Ponta direita que some aos poucos (labareda cortada na borda do quadro)."""
+    box = im.getchannel('A').getbbox()
+    if not box:
+        return im
+    ramp = Image.new('L', im.size, 255)
+    end = box[2]
+    start = int(end - (box[2] - box[0]) * frac)
+    draw = ImageDraw.Draw(ramp)
+    for x in range(start, im.width):
+        draw.line((x, 0, x, im.height), fill=round(255 * max(0, 1 - (x - start) / max(1, end - start)) ** 1.3))
+    out = im.copy()
+    out.putalpha(ImageChops.multiply(im.getchannel('A'), ramp))
+    return out
+
+
+def with_shadow(im, size=None, cx=None):
+    """Sombra oval sob os pés: centrada na largura dos pés, metade para baixo da sola.
+    `size`/`cx` fixam a sombra (igual em todos os quadros de uma animação)."""
+    w, h = im.size
+    fx0, fx1 = feet_span(im)
+    sw = size or max((fx1 - fx0) * 1.3, w * 0.35)
+    sh = sw * 0.28
+    cx = (fx0 + fx1) / 2 if cx is None else cx
+    # a tela cresce até caber a sombra inteira com o desfoque: sombra cortada na borda do quadro vira
+    # uma faixa reta (aparecia como um retângulo escuro em volta dos chefes grandes)
+    blur = sh / 6
+    m = blur * 3
+    pad_l = round(max(0, sw / 2 + m - cx))
+    pad_r = round(max(0, cx + sw / 2 + m - w))
+    out = Image.new('RGBA', (w + pad_l + pad_r, h + round(sh / 2 + m)))
+    cx += pad_l
+    shadow = Image.new('L', out.size)
+    ImageDraw.Draw(shadow).ellipse((cx - sw / 2, h - sh / 2, cx + sw / 2, h + sh / 2), fill=90)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(blur))
+    out.paste((10, 14, 8, 255), (0, 0), shadow)
+    out.alpha_composite(im, (pad_l, 0))
+    return (out, pad_l) if size else out
+
+
+def ground(path, contrast=1.0, soften=0):
+    """Ladrilho de grama repetível: desloca meia textura e cobre a emenda com o centro original.
+    `contrast` < 1 suaviza manchas fortes (a repetição fica menos visível); `soften` apaga contornos
+    finos desenhados pela IA (filtro de mediana desse tamanho, seguido de um leve desfoque)."""
+    im = Image.open(path).convert('RGB')
+    if soften:
+        im = im.resize((512, 512), Image.LANCZOS).filter(ImageFilter.MedianFilter(soften)).filter(ImageFilter.GaussianBlur(4))
+    if contrast != 1:
+        im = ImageEnhance.Contrast(im).enhance(contrast)
+    w, h = im.size
+    s = min(w, h)
+    im = im.crop(((w - s) // 2, (h - s) // 2, (w + s) // 2, (h + s) // 2)).resize((512, 512), Image.LANCZOS)
+    half, r = 256, 160
+    tile = Image.new('RGB', im.size)
+    for sx, sy, dx, dy in ((0, 0, half, half), (half, 0, 0, half), (0, half, half, 0), (half, half, 0, 0)):
+        tile.paste(im.crop((sx, sy, sx + half, sy + half)), (dx, dy))
+    mask = Image.new('L', (2 * r, 2 * r))
+    m = mask.load()
+    for y in range(2 * r):
+        for x in range(2 * r):
+            d = max(abs(x - r), abs(y - r))
+            m[x, y] = 255 if d < 100 else max(0, int(255 * (r - d) / (r - 100)))
+    tile.paste(im.crop((half - r, half - r, half + r, half + r)), (half - r, half - r), mask)
+    return tile.resize((GROUND * GROUND_HD,) * 2, Image.LANCZOS)
+
+
+def components(mask):
+    """Rótulos das regiões ligadas de uma máscara (lista de listas de bool)."""
+    h, w = len(mask), len(mask[0])
+    label = [[0] * w for _ in range(h)]
+    regions = []
+    for y0 in range(h):
+        for x0 in range(w):
+            if not mask[y0][x0] or label[y0][x0]:
+                continue
+            n = len(regions) + 1
+            label[y0][x0] = n
+            stack, pts = [(x0, y0)], []
+            while stack:
+                x, y = stack.pop()
+                pts.append((x, y))
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and mask[ny][nx] and not label[ny][nx]:
+                        label[ny][nx] = n
+                        stack.append((nx, ny))
+            regions.append(pts)
+    return label, regions
+
+
+def slice_sheet(path, n):
+    """Separa a folha em n figuras. As divisões ficam nas colunas mais vazias perto do esperado, e cada
+    parte solta (uma chama, a ponta de uma asa) vai inteira para o quadro onde está o seu centro."""
+    rgba = remove_background(Image.open(path))
+    w, h = rgba.size
+    alpha = rgba.getchannel('A')
+    px = alpha.load()
+    cols = [sum(1 for y in range(0, h, 2) if px[x, y] >= 128) for x in range(w)]
+    cuts = [0]
+    for k in range(1, n):
+        lo, hi = int(w * (k - 0.5) / n), int(w * (k + 0.5) / n)
+        cuts.append(min(range(lo, hi), key=lambda x: (cols[x], abs(x - w * k / n))))
+    cuts.append(w)
+    # regiões ligadas numa versão reduzida (rápido) da máscara
+    q = 4
+    small = alpha.resize((w // q, h // q), Image.BOX).load()
+    mask = [[small[x, y] >= 100 for x in range(w // q)] for y in range(h // q)]
+    label, regions = components(mask)
+    # região grande (figura, ou figuras encostadas): dividida pelas colunas de corte. Pedaço pequeno
+    # solto (chama, ponta de asa): vai inteiro para o quadro da figura mais próxima dele
+    owner = {}
+    column = lambda x: next(k for k in range(n) if x * q < cuts[k + 1] or k == n - 1)
+    largest = max(len(pts) for pts in regions)
+    # figura: região larga ou com bastante área (uma estrela pequena, uma nuvem de fumaça)
+    big = {i for i, pts in enumerate(regions, 1)
+           if max(x for x, _ in pts) - min(x for x, _ in pts) >= w / n * 0.5 / q or len(pts) >= largest * 0.15}
+    framed = {column(sum(x for x, _ in regions[i - 1]) / len(regions[i - 1])) for i in big}
+    edge = [p for i in big for p in regions[i - 1][::3]]
+    for i, pts in enumerate(regions, 1):
+        if i in big:
+            continue
+        cx = sum(x for x, _ in pts) / len(pts)
+        if column(cx) not in framed:
+            # quadro sem nenhuma figura grande (só pedaços soltos): fica com o que está na coluna dele
+            owner[i] = column(cx)
+            continue
+        sample = pts[::max(1, len(pts) // 40)]
+        nx, _ = min(edge, key=lambda e: min((e[0] - x) ** 2 + (e[1] - y) ** 2 for x, y in sample))
+        owner[i] = column(nx)
+    # figura que só passa um pouco da coluna (a ponta de uma espada, uma asa) vai inteira para o
+    # quadro onde está quase toda; só figuras encostadas de verdade são divididas pelas colunas
+    for i in big:
+        per = [0] * n
+        for x, _ in regions[i - 1]:
+            per[column(x)] += 1
+        dom = max(range(n), key=lambda k: per[k])
+        if per[dom] >= len(regions[i - 1]) * 0.85:
+            owner[i] = dom
+        else:
+            print(f'  aviso: {path.name}: figuras encostadas divididas entre os quadros', [k for k in range(n) if per[k]])
+    # duas figuras grandes empilhadas na mesma coluna (a IA às vezes repete uma pose acima da outra):
+    # fica só a de baixo
+    for k in range(n):
+        mine = [i for i in big if owner.get(i, -1) == k]
+        if len(mine) < 2:
+            continue
+        span = {i: (min(y for _, y in regions[i - 1]), max(y for _, y in regions[i - 1])) for i in mine}
+        low = max(mine, key=lambda i: span[i][1])
+        for i in mine:
+            # só se for uma cópia (tamanho parecido): um cajado caído sob o corpo não conta
+            similar = 0.5 < len(regions[i - 1]) / len(regions[low - 1]) < 2
+            if i != low and similar and span[i][1] < span[low][0] + (span[low][1] - span[low][0]) * 0.3:
+                owner[i] = -1
+                print(f'  aviso: {path.name}: figura repetida empilhada no quadro {k + 1}, descartada')
+    frames = []
+    for k in range(n):
+        m = Image.new('L', (w // q, h // q))
+        mp = m.load()
+        for y in range(h // q):
+            row = label[y]
+            for x in range(w // q):
+                r = row[x]
+                if r and owner.get(r, k if cuts[k] <= x * q < cuts[k + 1] else -1) == k:
+                    mp[x, y] = 255
+        m = m.resize((w, h), Image.NEAREST).filter(ImageFilter.MaxFilter(9))
+        part = Image.new('RGBA', (w, h))
+        part.paste(rgba, (0, 0), m)
+        frames.append(drop_slivers(crop_opaque(part)))
+    return frames
+
+
+def drop_slivers(im, q=4):
+    """Apaga lascas do quadro vizinho: pedaços pequenos encostados na borda ou longe do corpo."""
+    w, h = im.size
+    small = im.getchannel('A').resize((max(1, w // q), max(1, h // q)), Image.BOX).load()
+    sw, sh = max(1, w // q), max(1, h // q)
+    _, regions = components([[small[x, y] >= 60 for x in range(sw)] for y in range(sh)])
+    if len(regions) < 2:
+        return im
+    body = max(regions, key=len)
+    near = body[::4]
+    out = im.copy()
+    for pts in regions:
+        if pts is body or len(pts) >= len(body) * 0.4:
+            continue
+        xs = [x for x, _ in pts]
+        # distância (em px reduzidos) do pedaço até o corpo
+        gap = min(min((x - bx) ** 2 + (y - by) ** 2 for bx, by in near) for x, y in pts[::max(1, len(pts) // 20)]) ** 0.5
+        at_edge = min(xs) <= 1 or max(xs) >= sw - 2
+        if (at_edge and len(pts) < len(body) * 0.1) or gap > sh * 0.12:
+            x0, x1 = min(xs) * q, (max(xs) + 1) * q
+            y0, y1 = min(y for _, y in pts) * q, (max(y for _, y in pts) + 1) * q
+            out.paste((0, 0, 0, 0), (max(0, x0 - q), max(0, y0 - q), min(w, x1 + q), min(h, y1 + q)))
+    return crop_opaque(out)
+
+
+def strip(frames, a, res, n_ref):
+    """Tira de quadros do mesmo tamanho, na mesma escala, alinhados pelos pés (ou pelo centro, se voa).
+    A escala vem da altura mediana dos `n_ref` primeiros quadros (os de movimento)."""
+    # escala única: mantém a diferença de tamanho entre poses (achatar, esticar, cair)
+    # escala pela altura (ou pela largura, nos efeitos deitados como a onda)
+    dim = 'h' if 'h' in a else 'w'
+    sizes = sorted((f.height if dim == 'h' else f.width) for f in frames[:n_ref])
+    k = a[dim] * res / sizes[len(sizes) // 2]
+    frames = [premul_resize(f, (max(1, round(f.width * k)), max(1, round(f.height * k)))) for f in frames]
+    fly = not a.get('shadow') and not a.get('ground')
+    # bípedes: alinhados pela cabeça e tronco (os pés abrem e fecham na corrida e o corpo pularia
+    # de lado); os outros, pelo centro dos pés
+    biped = a.get('body') == 'biped'
+    anchors = [f.width / 2 if fly else body_center(f) if biped else sum(feet_span(f)) / 2 for f in frames]
+    if a.get('shadow'):
+        x0, x1 = feet_span(frames[0])
+        size = max((x1 - x0) * 1.3, frames[0].width * 0.35)
+        # sombra sempre sob o ponto de alinhamento: não escorrega entre os quadros
+        done = [with_shadow(f, size, c if biped else None) for f, c in zip(frames, anchors)]
+        frames = [f for f, _ in done]
+        anchors = [c + p for c, (_, p) in zip(anchors, done)]
+    left = max(anchors)
+    right = max(f.width - c for f, c in zip(frames, anchors))
+    cw = int(left + right) + 2
+    ch = max(f.height for f in frames)
+    out = Image.new('RGBA', (cw * len(frames), ch))
+    for i, (f, c) in enumerate(zip(frames, anchors)):
+        y = (ch - f.height) // 2 if fly else ch - f.height
+        out.alpha_composite(f, (i * cw + round(left - c), y))
+    return out
+
+
+def recolor(im, a):
+    """Variante elemental: soma `hue` graus à matiz dos pixels dentro de `range` (e ajusta sat/val)."""
+    lo, hi = a['range']
+    shift = a['hue'] / 360 * 255
+    sat, val = a.get('sat', 1), a.get('val', 1)
+    alpha = im.getchannel('A')
+    h, s_, v = im.convert('RGB').convert('HSV').split()
+    hp, sp, vp = h.load(), s_.load(), v.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            hue = hp[x, y] / 255 * 360
+            if lo <= hue <= hi and sp[x, y] > 40:
+                hp[x, y] = int(hp[x, y] + shift) % 256
+                sp[x, y] = min(255, int(sp[x, y] * sat))
+                vp[x, y] = min(255, int(vp[x, y] * val))
+    out = Image.merge('HSV', (h, s_, v)).convert('RGBA')
+    out.putalpha(alpha)
+    return out
+
+
+def main():
+    art = manifest()
+    only = sys.argv[1:]
+    OUT.mkdir(parents=True, exist_ok=True)
+    index = json.loads(INDEX.read_text()) if INDEX.exists() else {}
+    for name, a in art.items():
+        if only and name not in only:
+            continue
+        if a.get('variant'):
+            base = OUT / f"{a['variant']}.png"
+            recolor(Image.open(base).convert('RGBA'), a).save(OUT / f'{name}.png', optimize=True)
+            index[name] = dict(index[a['variant']])
+            print(name, 'variante de', a['variant'])
+            continue
+        if a.get('role') == 'vfx':
+            sheet = SRC / f'{name}_sheet.png'
+            if sheet.exists():
+                frames = slice_sheet(sheet, len(a['sheets']['move']))
+            elif (SRC / f'{name}.png').exists():
+                # folha ainda não gerada: a imagem base vira o único quadro
+                print('  sem folha: quadro único de', name)
+                frames = [cut_background(Image.open(SRC / f'{name}.png'))]
+            else:
+                print('falta', sheet)
+                continue
+            if a.get('flip'):
+                frames = [ImageOps.mirror(f) for f in frames]
+            if a.get('facing'):
+                frames = same_facing(frames, name)
+            if a.get('wide_top'):
+                # funil (tornado): largo em cima; quadro que veio de ponta-cabeça é desvirado
+                fixed = [upright_funnel(f) for f in frames]
+                if any(f is not g for f, g in zip(frames, fixed)):
+                    print(f'  aviso: {name}: quadros de ponta-cabeça desvirados')
+                frames = fixed
+                # quadro com ponta em cima também: vira o espelho de um quadro bom vizinho
+                good = [i for i, f in enumerate(frames) if funnel_ok(f)]
+                if not good:
+                    print(f'  ERRO: {name}: nenhum quadro com forma de funil; gerar de novo')
+                for i, f in enumerate(frames):
+                    if good and i not in good:
+                        j = min(good, key=lambda g: abs(g - i))
+                        print(f'  aviso: {name}: quadro {i + 1} sem forma de funil; trocado pelo espelho do quadro {j + 1}')
+                        frames[i] = ImageOps.mirror(frames[j])
+            if a.get('fade'):
+                frames = [fade_bottom(f, a['fade']) for f in frames]
+            img = strip(frames, a, a.get('hd', 2), len(frames))
+            img.save(OUT / f'{name}.png', optimize=True)
+            index[name] = {'hd': a.get('hd', 2), 'frames': len(frames)}
+            print(name, img.size, f'efeito {len(frames)} quadros')
+            continue
+        src = SRC / f'{name}.png'
+        if not src.exists():
+            print('falta', src)
+            continue
+        if a.get('tile') and a.get('regrade'):
+            # chão refeito a partir de outro (cor e saturação), sem imagem própria
+            g = a['regrade']
+            im = ImageEnhance.Color(Image.open(OUT / f"{g['from']}.png").convert('RGB')).enhance(g['sat'])
+            im = ImageChops.multiply(im, Image.new('RGB', im.size, tuple(g['tint'])))
+            im.save(OUT / f'{name}.png', optimize=True)
+            index[name] = {'hd': GROUND_HD}
+            continue
+        if a.get('tile'):
+            ground(src, a.get('contrast', 1), a.get('soften', 0)).save(OUT / f'{name}.png', optimize=True)
+            index[name] = {'hd': GROUND_HD}
+            continue
+        hd = a.get('hd', 2)
+        sheet = SRC / f'{name}_sheet.png'
+        if a.get('role') and sheet.exists():
+            plan = a['sheets']
+            frames = slice_sheet(sheet, len(plan['move']))
+            slots = [p['slot'] for p in plan['move']]
+            for i, poses in enumerate(plan['actions']):
+                action = SRC / f"{name}_action{i + 1 if i else ''}.png"
+                if not action.exists():
+                    break
+                act = slice_sheet(action, len(poses))
+                # o 1º quadro de cada folha de ação repete a 1ª pose de movimento: iguala a escala das folhas
+                k = frames[0].height / act[0].height
+                frames += [premul_resize(f, (max(1, round(f.width * k)), max(1, round(f.height * k)))) for f in act[1:]]
+                slots += [p['slot'] for p in poses[1:]]
+            if a.get('flip'):
+                frames = [ImageOps.mirror(f) for f in frames]
+            # labareda cortada na borda do quadro: a ponta some aos poucos (fadeRight: {quadro: fração})
+            for slot, frac in a.get('fadeRight', {}).items():
+                frames[slots.index(slot)] = fade_right(frames[slots.index(slot)], frac)
+            # quadros que a IA desenhou virados para a esquerda (conferidos na prancha)
+            for slot in a.get('mirror', []):
+                frames[slots.index(slot)] = ImageOps.mirror(frames[slots.index(slot)])
+                print(f'  {name}: quadro {slot} espelhado (manifesto)')
+            img = strip(frames, a, hd, len(plan['move']))
+            img.save(OUT / f'{name}.png', optimize=True)
+            index[name] = {'hd': hd, 'frames': len(frames), 'slots': slots}
+            print(name, img.size, f'hd {hd}', ' '.join(slots))
+            variants = [(f'portrait_{name}', a['portrait'])] if 'portrait' in a else []
+        else:
+            variants = [(name, hd)] + ([(f'portrait_{name}', a['portrait'])] if 'portrait' in a else [])
+        if not variants:
+            continue
+        cut = cut_background(Image.open(src))
+        if a.get('flip'):
+            cut = ImageOps.mirror(cut)
+        if a.get('fade'):
+            cut = fade_bottom(cut, a['fade'])
+        if hd == 4 and not name.startswith('hero_'):
+            # ícones: caixa quadrada para alinhar nas molduras
+            side = max(cut.size)
+            sq = Image.new('RGBA', (side, side))
+            sq.paste(cut, ((side - cut.width) // 2, (side - cut.height) // 2))
+            cut = sq
+        for key, res in variants:
+            if 'w' in a:
+                w = a['w'] * res
+                h = max(1, round(cut.height * w / cut.width))
+            else:
+                h = a['h'] * res
+                w = max(1, round(cut.width * h / cut.height))
+            img = premul_resize(cut, (w, h))
+            if a.get('shadow'):
+                img = with_shadow(img)
+            img.save(OUT / f'{key}.png', optimize=True)
+            index[key] = {'hd': res}
+            print(key, img.size, f'hd {res}')
+    INDEX.write_text(json.dumps(dict(sorted(index.items())), indent=1) + '\n')
+
+
+main()

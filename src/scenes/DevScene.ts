@@ -1,0 +1,193 @@
+import Phaser from 'phaser';
+import { MAX_EGGS, PETS, STAGE_CAP, rollEggPet } from '../data/pets';
+import { addEgg } from '../systems/pets';
+import { RARITIES, makeItem } from '../data/items';
+import { addItems, nextUid } from '../systems/inventory';
+import { WEAPONS, WEAPON_IDS } from '../data/weapons';
+import { INFINITE_GOLD, RUN_OPTIONS, SPEED_OPTIONS, cycle, dev, setDev } from '../systems/dev';
+import { defaultSave, loadSave, writeSave } from '../systems/save';
+import { daily } from '../systems/progress';
+import { dailyFor } from '../data/missions';
+import { sfx } from '../systems/sfx';
+import { button, goldTitle, panel, text } from '../ui/theme';
+import { VIEW, WIDE_COL, col, isWide, setupCamera } from '../ui/view';
+import type { GameScene } from './GameScene';
+
+/** Ouro real do jogador, guardado enquanto as moedas infinitas estão ligadas. */
+const REAL_GOLD_KEY = 'survivor-dev-gold';
+
+/**
+ * Painel de desenvolvedor. Aberto do menu (só configurações) ou da pausa (configurações e
+ * ações na partida: níveis, armas, chefe...).
+ */
+export class DevScene extends Phaser.Scene {
+  private from = 'Menu';
+  /** "Reiniciar todo o progresso" pede um segundo toque */
+  private confirmReset = false;
+
+  constructor() {
+    super('Dev');
+  }
+
+  init(data: { from?: string }) {
+    this.from = data.from ?? 'Menu';
+  }
+
+  create() {
+    setupCamera(this);
+    const { width, height } = VIEW;
+    const inRun = this.from === 'Pause';
+    const game = this.scene.get('Game') as GameScene;
+    this.add.rectangle(-VIEW.bleed, 0, VIEW.screenWidth, height, 0x0b0a14, 0.92).setOrigin(0).setInteractive();
+    // deitado: configurações à esquerda, ações da partida à direita
+    const wide = isWide();
+    const lx = wide ? col(-1) : width / 2;
+    const lw = wide ? WIDE_COL : width;
+    goldTitle(this, lx, 34, 'DEV', 30);
+    const refresh = () => this.scene.restart({ from: this.from });
+    const yes = (on: boolean) => (on ? 'SIM' : 'NÃO');
+
+    // ---------- Configurações (valem também para as próximas partidas) ----------
+    const settings: [string, () => void][] = [
+      [`Moedas infinitas: ${yes(dev.infiniteGold)}`, () => {
+        const save = loadSave();
+        if (!dev.infiniteGold) {
+          localStorage.setItem(REAL_GOLD_KEY, String(save.gold));
+          setDev({ infiniteGold: true });
+          save.gold = INFINITE_GOLD;
+        } else {
+          setDev({ infiniteGold: false });
+          save.gold = Number(localStorage.getItem(REAL_GOLD_KEY) ?? 0);
+        }
+        writeSave(save);
+      }],
+      [`Partida: ${dev.runMinutes} min`, () => setDev({ runMinutes: cycle(RUN_OPTIONS, dev.runMinutes) })],
+      [`Herói imortal: ${yes(dev.heroImmortal)}`, () => setDev({ heroImmortal: !dev.heroImmortal })],
+      [`Inimigos imortais: ${yes(dev.enemiesImmortal)}`, () => setDev({ enemiesImmortal: !dev.enemiesImmortal })],
+      [`Todas as fases: ${yes(dev.allStages)}`, () => setDev({ allStages: !dev.allStages })],
+      [`Velocidade: ${dev.speed}×`, () => {
+        setDev({ speed: cycle(SPEED_OPTIONS, dev.speed) });
+        if (inRun) game.applyDevSpeed();
+      }],
+      ['Ganhar 10 itens (todas as raridades)', () => {
+        const save = loadSave();
+        const items = Array.from({ length: 10 }, (_, i) => makeItem(nextUid(save), i % RARITIES.length, 1 + i));
+        addItems(save, items);
+        save.dust += 200;
+        save.newItems = (save.newItems ?? 0) + items.length;
+        writeSave(save);
+      }],
+      ['Ganhar ovo de pet (pronto para chocar)', () => {
+        const save = loadSave();
+        const pet = rollEggPet(save.stage);
+        if (pet && addEgg(save, pet)) save.eggs[save.eggs.length - 1].progress = 1e9;
+        writeSave(save);
+      }],
+      ['Pet ativo: cumprir requisitos da evolução', () => {
+        const save = loadSave();
+        const p = save.activePet && save.pets[save.activePet];
+        if (p) {
+          p.level = Math.max(p.level, STAGE_CAP[p.stage] === Infinity ? p.level : STAGE_CAP[p.stage]);
+          p.xp = 0;
+          p.feeds = Math.max(p.feeds, 3);
+          p.kills = Math.max(p.kills, 300);
+          p.bossWins = Math.max(p.bossWins, 1);
+          p.runs = Math.max(p.runs, 30);
+          p.trial = true;
+          p.mission = { burnKills: 1e4, steamIce: 1e4, pushes: 1e4, stuns: 1e4, heal: 1e5, gems: 1e4 };
+          save.evoCrystals = Math.max(save.evoCrystals, 1);
+          save.ancientShards = Math.max(save.ancientShards, 3);
+        }
+        writeSave(save);
+      }],
+      ['Ganhar todos os ovos de pet (prontos)', () => {
+        const save = loadSave();
+        save.eggSeen = true;
+        save.eggs = PETS.slice(0, MAX_EGGS).map((p) => ({ uid: save.nextItem++, pet: p.id, need: 1, progress: 1 }));
+        writeSave(save);
+      }],
+      ['Completar as missões de hoje', () => {
+        const save = loadSave();
+        const d = daily(save);
+        for (const m of dailyFor(d.day)) d.progress[m.stat] = m.target;
+        writeSave(save);
+      }],
+      [`Evoluções sempre liberadas: ${yes(dev.freeEvolve)}`, () => setDev({ freeEvolve: !dev.freeEvolve })],
+      [this.confirmReset ? 'TOQUE DE NOVO: apaga tudo!' : 'Reiniciar todo o progresso', () => {
+        if (!this.confirmReset) {
+          this.confirmReset = true;
+          return;
+        }
+        this.confirmReset = false;
+        writeSave(defaultSave());
+      }],
+    ];
+    let y = 78;
+    const rowH = settings.length > 10 ? 31 : 36;
+    panel(this, lx, y + (settings.length * rowH) / 2 + 4, lw - 24, settings.length * rowH + 20, 'ui_panel_dark');
+    settings.forEach(([label, fn], i) => {
+      button(this, lx, y + 22 + i * rowH, label, () => {
+        sfx('select');
+        fn();
+        refresh();
+      }, { width: lw - 60, height: rowH - 6, size: 13, variant: label.startsWith('TOQUE') ? 'primary' : undefined });
+    });
+    y = wide ? 40 : y + settings.length * rowH + 28;
+    const rx = wide ? col(1) : width / 2;
+    const rw = wide ? WIDE_COL : width;
+
+    // ---------- Ações na partida ----------
+    if (inRun) {
+      text(this, rx, y, 'NA PARTIDA', 13, '#ffd86a', { bold: true });
+      const actions: [string, () => void][] = [
+        ['+1 nível', () => game.devLevelUp(1)],
+        ['+5 níveis', () => game.devLevelUp(5)],
+        ['Todas as armas +5', () => game.devWeapon(5)],
+        ['Chamar o chefe', () => game.devBoss()],
+        ['Matar todos', () => game.devKillAll()],
+        ['Avançar 1 min', () => game.devSkip(60)],
+        ['Curar', () => game.devHeal()],
+        ['Próximo evento', () => game.devEvent()],
+      ];
+      const bw = (rw - 44) / 2;
+      actions.forEach(([label, fn], i) => {
+        const x = rx + (i % 2 === 0 ? -1 : 1) * (bw / 2 + 4);
+        button(this, x, y + 26 + Math.floor(i / 2) * 40, label, () => {
+          sfx('select');
+          fn();
+          refresh();
+        }, { width: bw, height: 34, size: 12 });
+      });
+      y += 26 + Math.ceil(actions.length / 2) * 40;
+
+      // uma arma por ícone: toque = +1 nível
+      text(this, rx, y, 'ARMAS (toque = +1 nível)', 11, '#b8bdd8');
+      const cols = wide ? 7 : 5;
+      const cell = (rw - 40) / cols;
+      WEAPON_IDS.forEach((id, i) => {
+        const cx = rx - rw / 2 + 20 + cell * (i % cols) + cell / 2;
+        const cy = y + 34 + Math.floor(i / cols) * 54;
+        const level = game.loadout.weapons[id] ?? 0;
+        const slot = Math.min(40, cell - 3);
+        panel(this, cx, cy, slot, slot, level ? 'ui_card_1' : 'ui_slot');
+        const icon = this.add.image(cx, cy, WEAPONS[id].icon).setScale(slot / 27).setAlpha(level ? 1 : 0.5);
+        text(this, cx, cy + 26, level ? `nv ${level}` : '—', 10, level ? '#ffffff' : '#6a6e88', { bold: true });
+        icon.setInteractive({ useHandCursor: true }).on('pointerup', () => {
+          sfx('select');
+          game.devWeapon(1, id);
+          refresh();
+        });
+      });
+    }
+
+    button(this, lx, height - 34, 'VOLTAR', () => {
+      sfx('select');
+      if (this.from === 'Menu') {
+        this.scene.start('Menu');
+        return;
+      }
+      this.scene.stop();
+      this.scene.resume(this.from);
+    }, { width: 200, height: 40, size: 15, variant: 'primary' });
+  }
+}

@@ -1,0 +1,342 @@
+import type { Element } from './weapons';
+
+export type EnemyId = 'slime' | 'bat' | 'goblin' | 'wolf' | 'skeleton' | 'orc' | 'demon'
+  | 'slime_fire' | 'slime_water' | 'goblin_earth' | 'bat_air'
+  | 'slime_spit' | 'slime_magma' | 'slime_bomb' | 'orc_chief'
+  | 'frog' | 'croc' | 'mosquito' | 'sporeshroom' | 'frog_shaman' | 'frog_king'
+  | 'scorpion' | 'vulture' | 'cactus_spitter' | 'sandworm' | 'lizard_shaman' | 'scorpion_emperor'
+  | 'werewolf' | 'wisp' | 'spider' | 'witch' | 'ancient_ent'
+  | 'king_slime' | 'alpha_wolf' | 'magma_lord' | 'goblin_warlord' | 'croc_king' | 'grand_frog_shaman'
+  | 'colossal_worm' | 'lizard_elder' | 'werewolf_alpha' | 'elder_witch'
+  | 'goblin_king' | 'yeti' | 'snow_golem' | 'frost_wraith' | 'penguin' | 'snow_owl' | 'ice_dragon' | 'yeti_elder' | 'frost_queen'
+  | 'salamander' | 'ember_bat' | 'magma_golem' | 'fire_imp' | 'lava_serpent' | 'magma_titan' | 'salamander_queen' | 'ash_lord'
+  | 'zombie' | 'lost_soul' | 'phantom_knight' | 'skeleton_archer' | 'gargoyle' | 'necromancer' | 'mimic' | 'lich_king'
+  | 'gargoyle_ancient' | 'grand_necromancer' | 'cursed_bell'
+  | 'winged_imp' | 'hellhound' | 'demon_brute' | 'floating_eye' | 'demon_witch' | 'demon_portal' | 'demon_general' | 'infernal_archmage';
+
+/**
+ * Como o inimigo luta: corpo a corpo (encosta); à distância (mantém distância e atira, com aviso);
+ * conjurador (usa uma habilidade do herói com nível); explosivo (corre, pisca e explode).
+ */
+export type Behavior = 'melee' | 'ranged' | 'caster' | 'exploder' | 'charger' | 'burrower';
+
+/** Habilidade de ataque de um inimigo (à distância, conjurador ou explosivo). */
+export interface EnemySkill {
+  /**
+   * tiro (gosma, esporos, espinhos), teia (tiro que prende o herói), bola de fogo, onda, tornado e raio
+   * (habilidades do herói), explosão, bote (avança de repente) ou toca (se enterra, anda por baixo da
+   * areia e irrompe sob o herói), flecha (tiro rápido e reto) ou levantar os mortos (chama criaturas
+   * do chão, com aviso), pancada em área (círculo em volta de si) ou raio em linha (faixa de aviso e
+   * o raio inteiro de uma vez)
+   */
+  kind: 'spit' | 'web' | 'fireball' | 'wave' | 'tornado' | 'strike' | 'explode' | 'charge' | 'burrow' | 'arrow' | 'raise' | 'slam' | 'beam';
+  /** tiros por disparo, em leque (padrão 1) */
+  count?: number;
+  /** dano em múltiplos do dano de contato do inimigo */
+  damage: number;
+  cooldown: number;
+  /** distância em que ele usa a habilidade */
+  range: number;
+  /** tempo de aviso antes do disparo (s) */
+  windup: number;
+  speed: number;
+  /** raio da área (bola de fogo, explosão) */
+  radius: number;
+  /** nível base da habilidade: cresce com a fase e o tempo (mais projéteis, área maior) */
+  level: number;
+}
+
+export interface EnemyDef {
+  id: EnemyId;
+  /** criatura base (animação e comportamento): variantes elementais usam a da original */
+  kind: string;
+  name: string;
+  texture: string;
+  /** elemento do inimigo: resiste ao próprio elemento e não sofre o efeito dele (ver data/elements.ts) */
+  element?: Element;
+  hp: number;
+  speed: number;
+  damage: number;
+  xp: number;
+  scale: number;
+  /** raio do corpo (px, antes da escala) */
+  radius: number;
+  /** peso: quanto um empurrão o move (0 = não se move, 1 = normal) */
+  knockback: number;
+  /** Resistência a controle (0 a 1): empurrão, congelamento, lentidão, puxão. Ver controlRoll. */
+  resist: number;
+  behavior?: Behavior;
+  skill?: EnemySkill;
+  /** chefe de fase: barra de vida na tela e pancada com aviso no chão */
+  boss?: boolean;
+  /** objeto de evento (o sino amaldiçoado): não anda, não fere ao encostar e não tem animação */
+  object?: boolean;
+  /** quem o conjurador levanta do chão (habilidade "raise") */
+  raises?: EnemyId;
+}
+
+/** Números da Resistência a controle. */
+export const CONTROL_RULES = {
+  /** chance de ignorar o controle = resistência × ignore */
+  ignore: 0.6,
+  /** quando pega, força e duração caem para 1 − resistência × reduce */
+  reduce: 0.7,
+  /** resistência extra dos elites */
+  elite: 0.25,
+  max: 0.9,
+};
+
+/**
+ * Teste de controle contra a Resistência: 0 = ignorou; senão, o fator de força/duração do controle.
+ * Monstros comuns (resistência 0) sofrem o controle inteiro; chefes ignoram muitas vezes e, quando
+ * pegos, vão menos longe e ficam menos tempo.
+ */
+export function controlRoll(resist: number, rnd: () => number = Math.random): number {
+  if (resist <= 0) return 1;
+  if (rnd() < resist * CONTROL_RULES.ignore) return 0;
+  return 1 - resist * CONTROL_RULES.reduce;
+}
+
+/** Força de um controle contínuo (lentidão, puxão), sem sorteio. */
+export const controlScale = (resist: number) => 1 - resist * CONTROL_RULES.reduce;
+
+const BASE = {
+  slime: { id: 'slime', kind: 'slime', name: 'Slime', texture: 'slime', hp: 12, speed: 34, damage: 6, xp: 1, scale: 1, radius: 9, knockback: 1, resist: 0 },
+  bat: { id: 'bat', kind: 'bat', name: 'Morcego', texture: 'bat', hp: 8, speed: 60, damage: 5, xp: 1, scale: 1, radius: 8, knockback: 1.2, resist: 0 },
+  goblin: { id: 'goblin', kind: 'goblin', name: 'Goblin', texture: 'goblin', hp: 18, speed: 44, damage: 7, xp: 1, scale: 1, radius: 8, knockback: 1, resist: 0.05 },
+  wolf: { id: 'wolf', kind: 'wolf', name: 'Lobo', texture: 'wolf', hp: 22, speed: 66, damage: 8, xp: 2, scale: 1, radius: 11, knockback: 0.9, resist: 0.1 },
+  skeleton: { id: 'skeleton', kind: 'skeleton', name: 'Esqueleto', texture: 'skeleton', hp: 28, speed: 40, damage: 9, xp: 2, scale: 1, radius: 8, knockback: 0.8, resist: 0.15 },
+  orc: { id: 'orc', kind: 'orc', name: 'Orc', texture: 'orc', hp: 75, speed: 31, damage: 14, xp: 4, scale: 1, radius: 13, knockback: 0.4, resist: 0.35 },
+  demon: { id: 'demon', kind: 'demon', name: 'Demônio Ancestral', texture: 'demon', hp: 9000, speed: 42, damage: 25, xp: 150, scale: 1.25, radius: 22, knockback: 0, resist: 0.75, boss: true },
+} satisfies Record<string, EnemyDef>;
+
+/*
+ * Chefes de fase ficam bem maiores que os monstros (cerca de 120 px de altura, quase 3× o herói) para
+ * se destacarem na multidão: a escala de cada um compensa a altura da arte.
+ */
+
+/** Variante elemental: mesma criatura com outra cor, elemento e números um pouco maiores. */
+function variant(of: EnemyDef, id: EnemyId, name: string, element: Element, extra: Partial<EnemyDef> = {}): EnemyDef {
+  return { ...of, id, name, texture: id, element, hp: Math.round(of.hp * 1.4), xp: of.xp + 1, ...extra };
+}
+
+// os chefes gigantes entram logo abaixo (giant), por isso o tipo é afirmado aqui
+export const ENEMIES = {
+  ...BASE,
+  slime_fire: variant(BASE.slime, 'slime_fire', 'Slime de Fogo', 'fire', { damage: 8 }),
+  slime_water: variant(BASE.slime, 'slime_water', "Slime d'Água", 'water', { speed: 38 }),
+  goblin_earth: variant(BASE.goblin, 'goblin_earth', 'Goblin da Terra', 'earth', { hp: 32, speed: 40 }),
+  bat_air: variant(BASE.bat, 'bat_air', 'Morcego do Vento', 'air', { speed: 72 }),
+  // à distância: fica longe e cospe gosma no herói
+  slime_spit: variant(BASE.slime, 'slime_spit', 'Slime Cuspidor', 'water', {
+    hp: 16, speed: 30, behavior: 'ranged',
+    skill: { kind: 'spit', damage: 1.2, cooldown: 2.6, range: 150, windup: 0.45, speed: 150, radius: 6, level: 1 },
+  }),
+  // conjurador: lança a Bola de Fogo do herói, com nível
+  slime_magma: variant(BASE.slime, 'slime_magma', 'Slime de Magma', 'fire', {
+    hp: 26, speed: 28, damage: 9, behavior: 'caster', resist: 0.1,
+    skill: { kind: 'fireball', damage: 1.6, cooldown: 4, range: 170, windup: 0.8, speed: 120, radius: 22, level: 1 },
+  }),
+  // explosivo: corre, pisca e explode (fere o herói e os inimigos em volta)
+  slime_bomb: variant(BASE.slime, 'slime_bomb', 'Slime Bomba', 'fire', {
+    hp: 10, speed: 62, damage: 6, behavior: 'exploder',
+    skill: { kind: 'explode', damage: 2.5, cooldown: 0, range: 26, windup: 0.6, speed: 0, radius: 40, level: 1 },
+  }),
+  // chefe do Bosque Outonal
+  orc_chief: variant(BASE.orc, 'orc_chief', 'Chefe Orc', 'earth', {
+    hp: 9000, speed: 40, damage: 22, xp: 120, scale: 2.2, radius: 15, knockback: 0, resist: 0.7, boss: true,
+  }),
+  // ---------- Pântano Enevoado ----------
+  frog: { id: 'frog', kind: 'frog', name: 'Sapo do Brejo', texture: 'frog', element: 'water', hp: 20, speed: 46, damage: 8, xp: 1, scale: 1, radius: 9, knockback: 1, resist: 0 },
+  // bote: para, se encolhe (aviso) e avança muito rápido em linha reta
+  croc: {
+    id: 'croc', kind: 'croc', name: 'Jacaré', texture: 'croc', element: 'earth', hp: 60, speed: 30, damage: 13, xp: 3, scale: 1, radius: 12, knockback: 0.5, resist: 0.25,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.4, cooldown: 3.2, range: 120, windup: 0.6, speed: 260, radius: 0, level: 1 },
+  },
+  mosquito: { id: 'mosquito', kind: 'mosquito', name: 'Mosquito Gigante', texture: 'mosquito', element: 'air', hp: 6, speed: 74, damage: 4, xp: 1, scale: 1, radius: 7, knockback: 1.3, resist: 0 },
+  // à distância: solta uma nuvem de esporos no herói
+  sporeshroom: {
+    id: 'sporeshroom', kind: 'sporeshroom', name: 'Cogumelo de Esporos', texture: 'sporeshroom', element: 'earth', hp: 26, speed: 26, damage: 8, xp: 2, scale: 1, radius: 10, knockback: 0.8, resist: 0.1,
+    behavior: 'ranged', skill: { kind: 'spit', damage: 1.3, cooldown: 2.8, range: 150, windup: 0.5, speed: 120, radius: 7, level: 1 },
+  },
+  // conjurador: lança a Onda do herói (com nível) contra você
+  frog_shaman: {
+    id: 'frog_shaman', kind: 'frog_shaman', name: 'Xamã Sapo', texture: 'frog_shaman', element: 'water', hp: 40, speed: 30, damage: 10, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.15,
+    behavior: 'caster', skill: { kind: 'wave', damage: 1.5, cooldown: 4.5, range: 170, windup: 0.9, speed: 150, radius: 26, level: 1 },
+  },
+  frog_king: { id: 'frog_king', kind: 'frog_king', name: 'Rei Sapo', texture: 'frog_king', element: 'water', hp: 9000, speed: 40, damage: 26, xp: 160, scale: 1.35, radius: 24, knockback: 0, resist: 0.75, boss: true },
+  // ---------- Dunas Escaldantes ----------
+  scorpion: { id: 'scorpion', kind: 'scorpion', name: 'Escorpião', texture: 'scorpion', element: 'earth', hp: 34, speed: 42, damage: 11, xp: 2, scale: 1, radius: 11, knockback: 0.7, resist: 0.15 },
+  vulture: { id: 'vulture', kind: 'vulture', name: 'Abutre', texture: 'vulture', element: 'air', hp: 14, speed: 70, damage: 7, xp: 1, scale: 1, radius: 9, knockback: 1.1, resist: 0 },
+  // à distância: um leque de espinhos
+  cactus_spitter: {
+    id: 'cactus_spitter', kind: 'cactus_spitter', name: 'Cacto Atirador', texture: 'cactus_spitter', element: 'earth', hp: 38, speed: 24, damage: 9, xp: 2, scale: 1, radius: 10, knockback: 0.6, resist: 0.2,
+    behavior: 'ranged', skill: { kind: 'spit', damage: 1, cooldown: 3, range: 160, windup: 0.5, speed: 170, radius: 5, level: 1, count: 3 },
+  },
+  // toca: se enterra (aviso), anda como um monte de areia e irrompe sob o herói (círculo no chão)
+  sandworm: {
+    id: 'sandworm', kind: 'sandworm', name: 'Verme da Areia', texture: 'sandworm', element: 'earth', hp: 90, speed: 34, damage: 15, xp: 4, scale: 1, radius: 12, knockback: 0.4, resist: 0.35,
+    behavior: 'burrower', skill: { kind: 'burrow', damage: 1.6, cooldown: 4.5, range: 200, windup: 0.5, speed: 150, radius: 30, level: 1 },
+  },
+  // conjurador: lança o Tornado do herói (com nível), que persegue devagar e puxa
+  lizard_shaman: {
+    id: 'lizard_shaman', kind: 'lizard_shaman', name: 'Xamã Lagarto', texture: 'lizard_shaman', element: 'air', hp: 48, speed: 32, damage: 11, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'tornado', damage: 1.2, cooldown: 5, range: 180, windup: 0.9, speed: 70, radius: 18, level: 1 },
+  },
+  scorpion_emperor: { id: 'scorpion_emperor', kind: 'scorpion_emperor', name: 'Imperador Escorpião', texture: 'scorpion_emperor', element: 'earth', hp: 9500, speed: 44, damage: 30, xp: 180, scale: 1.4, radius: 26, knockback: 0, resist: 0.8, boss: true },
+  // ---------- Floresta Sombria ----------
+  // bote: se agacha (aviso) e salta em linha reta
+  werewolf: {
+    id: 'werewolf', kind: 'werewolf', name: 'Lobisomem', texture: 'werewolf', hp: 85, speed: 48, damage: 16, xp: 4, scale: 1, radius: 11, knockback: 0.5, resist: 0.3,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.5, cooldown: 3, range: 130, windup: 0.5, speed: 300, radius: 0, level: 1 },
+  },
+  wisp: { id: 'wisp', kind: 'wisp', name: 'Fogo-Fátuo', texture: 'wisp', element: 'air', hp: 12, speed: 78, damage: 7, xp: 1, scale: 1, radius: 8, knockback: 1.2, resist: 0 },
+  // à distância: cospe teia que prende o herói (fica bem mais lento por um instante)
+  spider: {
+    id: 'spider', kind: 'spider', name: 'Aranha Sombria', texture: 'spider', element: 'earth', hp: 40, speed: 40, damage: 10, xp: 2, scale: 1, radius: 10, knockback: 0.7, resist: 0.15,
+    behavior: 'ranged', skill: { kind: 'web', damage: 0.8, cooldown: 3.4, range: 150, windup: 0.5, speed: 160, radius: 7, level: 1 },
+  },
+  // conjuradora: o Raio do herói (com nível: mais raios em volta), com círculo de aviso onde cai
+  witch: {
+    id: 'witch', kind: 'witch', name: 'Bruxa', texture: 'witch', element: 'air', hp: 55, speed: 30, damage: 12, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'strike', damage: 1.8, cooldown: 4.5, range: 190, windup: 1, speed: 0, radius: 24, level: 1 },
+  },
+  ancient_ent: { id: 'ancient_ent', kind: 'ancient_ent', name: 'Ent Ancião Corrompido', texture: 'ancient_ent', element: 'earth', hp: 9500, speed: 36, damage: 34, xp: 200, scale: 1.25, radius: 28, knockback: 0, resist: 0.85, boss: true },
+  // ---------- Clareira: chefe final ----------
+  goblin_king: { id: 'goblin_king', kind: 'goblin_king', name: 'Rei Goblin', texture: 'goblin_king', hp: 9000, speed: 38, damage: 22, xp: 140, scale: 1.3, radius: 22, knockback: 0, resist: 0.75, boss: true },
+  // ---------- Pico Congelado ----------
+  yeti: { id: 'yeti', kind: 'yeti', name: 'Yeti', texture: 'yeti', element: 'water', hp: 80, speed: 34, damage: 15, xp: 4, scale: 1, radius: 12, knockback: 0.4, resist: 0.35 },
+  // à distância: arremessa bolas de neve
+  snow_golem: {
+    id: 'snow_golem', kind: 'snow_golem', name: 'Golem de Neve', texture: 'snow_golem', element: 'water', hp: 50, speed: 26, damage: 11, xp: 3, scale: 1, radius: 11, knockback: 0.5, resist: 0.25,
+    behavior: 'ranged', skill: { kind: 'spit', damage: 1.3, cooldown: 3, range: 160, windup: 0.5, speed: 140, radius: 8, level: 1 },
+  },
+  // conjurador: a Onda do herói, congelante (deixa o herói lento ao acertar)
+  frost_wraith: {
+    id: 'frost_wraith', kind: 'frost_wraith', name: 'Espectro do Gelo', texture: 'frost_wraith', element: 'water', hp: 55, speed: 32, damage: 12, xp: 3, scale: 1, radius: 10, knockback: 0.7, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'wave', damage: 1.3, cooldown: 4.5, range: 170, windup: 0.9, speed: 140, radius: 24, level: 1 },
+  },
+  penguin: { id: 'penguin', kind: 'penguin', name: 'Pinguim Guerreiro', texture: 'penguin', element: 'water', hp: 24, speed: 50, damage: 9, xp: 1, scale: 1, radius: 8, knockback: 1, resist: 0 },
+  snow_owl: { id: 'snow_owl', kind: 'snow_owl', name: 'Coruja da Nevasca', texture: 'snow_owl', element: 'air', hp: 16, speed: 74, damage: 8, xp: 1, scale: 1, radius: 8, knockback: 1.1, resist: 0 },
+  ice_dragon: { id: 'ice_dragon', kind: 'ice_dragon', name: 'Dragão de Gelo', texture: 'ice_dragon', element: 'water', hp: 10000, speed: 44, damage: 36, xp: 220, scale: 1.3, radius: 26, knockback: 0, resist: 0.85, boss: true },
+  // ---------- Coração do Vulcão (criaturas de fogo não se queimam na lava) ----------
+  salamander: { id: 'salamander', kind: 'salamander', name: 'Salamandra', texture: 'salamander', element: 'fire', hp: 26, speed: 50, damage: 10, xp: 1, scale: 1, radius: 9, knockback: 1, resist: 0 },
+  ember_bat: { id: 'ember_bat', kind: 'ember_bat', name: 'Morcego de Brasa', texture: 'ember_bat', element: 'fire', hp: 16, speed: 76, damage: 8, xp: 1, scale: 1, radius: 8, knockback: 1.1, resist: 0 },
+  // tanque lento: ao cair, deixa uma poça de lava
+  magma_golem: { id: 'magma_golem', kind: 'magma_golem', name: 'Golem de Magma', texture: 'magma_golem', element: 'fire', hp: 110, speed: 24, damage: 17, xp: 5, scale: 1, radius: 13, knockback: 0.3, resist: 0.45 },
+  // conjurador: atira bolas de fogo que explodem
+  fire_imp: {
+    id: 'fire_imp', kind: 'fire_imp', name: 'Diabrete Lança-Chamas', texture: 'fire_imp', element: 'fire', hp: 40, speed: 40, damage: 10, xp: 3, scale: 1, radius: 9, knockback: 0.7, resist: 0.15,
+    behavior: 'caster', skill: { kind: 'fireball', damage: 1.6, cooldown: 3.8, range: 180, windup: 0.8, speed: 130, radius: 24, level: 2 },
+  },
+  // mergulha e irrompe embaixo do herói
+  lava_serpent: {
+    id: 'lava_serpent', kind: 'lava_serpent', name: 'Serpente de Lava', texture: 'lava_serpent', element: 'fire', hp: 95, speed: 36, damage: 16, xp: 4, scale: 1, radius: 12, knockback: 0.4, resist: 0.35,
+    behavior: 'burrower', skill: { kind: 'burrow', damage: 1.7, cooldown: 4.2, range: 210, windup: 0.5, speed: 160, radius: 32, level: 1 },
+  },
+  // ---------- Ruínas Malditas (mortos-vivos, gárgulas e um mímico) ----------
+  zombie: { id: 'zombie', kind: 'zombie', name: 'Morto-Vivo', texture: 'zombie', element: 'earth', hp: 26, speed: 46, damage: 11, xp: 1, scale: 1, radius: 9, knockback: 0.9, resist: 0.05 },
+  lost_soul: { id: 'lost_soul', kind: 'lost_soul', name: 'Alma Penada', texture: 'lost_soul', element: 'air', hp: 16, speed: 72, damage: 8, xp: 1, scale: 1, radius: 8, knockback: 1.2, resist: 0 },
+  // investida em linha reta que atravessa tudo
+  phantom_knight: {
+    id: 'phantom_knight', kind: 'phantom_knight', name: 'Cavaleiro Fantasma', texture: 'phantom_knight', element: 'water', hp: 90, speed: 34, damage: 15, xp: 4, scale: 1, radius: 11, knockback: 0.4, resist: 0.35,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.5, cooldown: 4, range: 200, windup: 0.8, speed: 380, radius: 11, level: 1 },
+  },
+  // à distância: flechas rápidas
+  skeleton_archer: {
+    id: 'skeleton_archer', kind: 'skeleton_archer', name: 'Arqueiro Esqueleto', texture: 'skeleton_archer', element: 'earth', hp: 42, speed: 32, damage: 10, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.15,
+    behavior: 'ranged', skill: { kind: 'arrow', damage: 1.1, cooldown: 3.2, range: 200, windup: 0.8, speed: 260, radius: 6, level: 1 },
+  },
+  // estátua parada no mapa que acorda e mergulha no herói; nas ondas já chega voando
+  gargoyle: {
+    id: 'gargoyle', kind: 'gargoyle', name: 'Gárgula', texture: 'gargoyle', element: 'earth', hp: 70, speed: 46, damage: 13, xp: 3, scale: 1, radius: 10, knockback: 0.5, resist: 0.3,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.4, cooldown: 3.6, range: 180, windup: 0.6, speed: 320, radius: 10, level: 1 },
+  },
+  // conjurador: levanta mortos-vivos do chão
+  necromancer: {
+    id: 'necromancer', kind: 'necromancer', name: 'Necromante', texture: 'necromancer', element: 'earth', hp: 55, speed: 30, damage: 10, xp: 4, scale: 1, radius: 9, knockback: 0.7, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'raise', damage: 0, cooldown: 7, range: 190, windup: 1.1, speed: 0, radius: 26, level: 1 }, raises: 'zombie',
+  },
+  // baú falso: parado parece um baú; morde quem chega perto e deixa muito ouro
+  mimic: { id: 'mimic', kind: 'mimic', name: 'Mímico', texture: 'mimic', element: 'earth', hp: 160, speed: 62, damage: 16, xp: 8, scale: 1, radius: 11, knockback: 0.3, resist: 0.4 },
+  // objeto do evento: as armas acertam o sino até ele se calar
+  cursed_bell: { id: 'cursed_bell', kind: 'cursed_bell', name: 'Sino Amaldiçoado', texture: 'cursed_bell', element: 'earth', hp: 900, speed: 0, damage: 0, xp: 30, scale: 1, radius: 18, knockback: 0, resist: 0.5, object: true },
+  // ---------- Cidadela Demoníaca ----------
+  winged_imp: { id: 'winged_imp', kind: 'winged_imp', name: 'Diabrete Alado', texture: 'winged_imp', element: 'air', hp: 18, speed: 80, damage: 9, xp: 1, scale: 1, radius: 8, knockback: 1.1, resist: 0 },
+  // bote rápido
+  hellhound: {
+    id: 'hellhound', kind: 'hellhound', name: 'Cão Infernal', texture: 'hellhound', element: 'fire', hp: 34, speed: 54, damage: 12, xp: 2, scale: 1, radius: 10, knockback: 0.7, resist: 0.15,
+    behavior: 'charger', skill: { kind: 'charge', damage: 1.3, cooldown: 3.4, range: 170, windup: 0.55, speed: 360, radius: 10, level: 1 },
+  },
+  // tanque: pancada em área em volta de si
+  demon_brute: {
+    id: 'demon_brute', kind: 'demon_brute', name: 'Brutamontes Demoníaco', texture: 'demon_brute', element: 'earth', hp: 130, speed: 26, damage: 18, xp: 5, scale: 1, radius: 14, knockback: 0.25, resist: 0.5,
+    behavior: 'caster', skill: { kind: 'slam', damage: 1.6, cooldown: 4, range: 70, windup: 0.9, speed: 0, radius: 54, level: 1 },
+  },
+  // à distância: raio em linha
+  floating_eye: {
+    id: 'floating_eye', kind: 'floating_eye', name: 'Olho Flutuante', texture: 'floating_eye', element: 'water', hp: 44, speed: 34, damage: 11, xp: 3, scale: 1, radius: 9, knockback: 0.8, resist: 0.2,
+    behavior: 'ranged', skill: { kind: 'beam', damage: 1.5, cooldown: 4.2, range: 240, windup: 1, speed: 0, radius: 9, level: 1 },
+  },
+  // conjuradora: bolas de maldição que deixam o herói lento
+  demon_witch: {
+    id: 'demon_witch', kind: 'demon_witch', name: 'Feiticeira Demoníaca', texture: 'demon_witch', element: 'air', hp: 50, speed: 30, damage: 10, xp: 4, scale: 1, radius: 9, knockback: 0.7, resist: 0.2,
+    behavior: 'caster', skill: { kind: 'spit', count: 3, damage: 1.1, cooldown: 3.6, range: 190, windup: 0.7, speed: 150, radius: 9, level: 1 },
+  },
+  // portal no mapa: solta demônios até as armas o destruírem
+  demon_portal: { id: 'demon_portal', kind: 'demon_portal', name: 'Portal Demoníaco', texture: 'demon_portal', element: 'fire', hp: 1100, speed: 0, damage: 0, xp: 25, scale: 1, radius: 20, knockback: 0, resist: 0.5, object: true },
+  lich_king: { id: 'lich_king', kind: 'lich_king', name: 'Rei Lich', texture: 'lich_king', element: 'water', hp: 11500, speed: 40, damage: 44, xp: 260, scale: 1.35, radius: 26, knockback: 0, resist: 0.88, boss: true },
+  magma_titan: { id: 'magma_titan', kind: 'magma_titan', name: 'Titã de Magma', texture: 'magma_titan', element: 'fire', hp: 10500, speed: 40, damage: 40, xp: 240, scale: 1.35, radius: 28, knockback: 0, resist: 0.85, boss: true },
+} as Record<EnemyId, EnemyDef>;
+
+/**
+ * Chefes do início e do meio de cada fase: criaturas da própria fase em versão gigante, com golpes de
+ * chefe (data/bosses.ts). Usam a arte da criatura original, ampliada (cerca de 100 px de altura).
+ */
+function giant(of: EnemyDef, id: EnemyId, name: string, hp: number, scale: number, extra: Partial<EnemyDef> = {}): EnemyDef {
+  return {
+    // a escala é a da arte ampliada; ×0,78 deixa o chefe grande sem perder nitidez (~80 px)
+    ...of, id, name, hp, scale: scale * 0.78, boss: true, behavior: undefined, skill: undefined,
+    damage: of.damage * 2.4, speed: of.speed * 0.8, xp: 60, radius: of.radius, knockback: 0, resist: 0.7, ...extra,
+  };
+}
+
+Object.assign(ENEMIES, {
+  king_slime: giant(ENEMIES.slime, 'king_slime', 'Rei Slime', 1400, 4.4),
+  alpha_wolf: giant(ENEMIES.wolf, 'alpha_wolf', 'Lobo Alfa', 3500, 3.6, { speed: 60 }),
+  magma_lord: giant(ENEMIES.slime_magma, 'magma_lord', 'Magma Primordial', 1400, 4.2),
+  goblin_warlord: giant(ENEMIES.goblin_earth, 'goblin_warlord', 'Senhor da Guerra Goblin', 3500, 3.2),
+  croc_king: giant(ENEMIES.croc, 'croc_king', 'Jacaré Rei', 1400, 3.6),
+  grand_frog_shaman: giant(ENEMIES.frog_shaman, 'grand_frog_shaman', 'Grão-Xamã Sapo', 3500, 3.1),
+  colossal_worm: giant(ENEMIES.sandworm, 'colossal_worm', 'Verme Colossal', 1500, 3.2),
+  lizard_elder: giant(ENEMIES.lizard_shaman, 'lizard_elder', 'Ancião Lagarto', 3700, 3.1),
+  werewolf_alpha: giant(ENEMIES.werewolf, 'werewolf_alpha', 'Lobisomem Alfa', 1500, 2.9, { speed: 52 }),
+  elder_witch: giant(ENEMIES.witch, 'elder_witch', 'Bruxa Anciã', 3700, 3),
+  yeti_elder: giant(ENEMIES.yeti, 'yeti_elder', 'Yeti Ancião', 1600, 3),
+  frost_queen: giant(ENEMIES.frost_wraith, 'frost_queen', 'Rainha do Gelo', 4000, 3.1),
+  salamander_queen: giant(ENEMIES.salamander, 'salamander_queen', 'Salamandra Rainha', 1700, 4, { speed: 56 }),
+  ash_lord: giant(ENEMIES.fire_imp, 'ash_lord', 'Senhor das Cinzas', 4200, 3.4),
+  gargoyle_ancient: giant(ENEMIES.gargoyle, 'gargoyle_ancient', 'Gárgula Ancestral', 1800, 3.4, { speed: 50 }),
+  grand_necromancer: giant(ENEMIES.necromancer, 'grand_necromancer', 'Grão-Necromante', 4500, 3.1),
+  demon_general: giant(ENEMIES.demon_brute, 'demon_general', 'General Demoníaco', 2000, 2.6, { speed: 34 }),
+  infernal_archmage: giant(ENEMIES.demon_witch, 'infernal_archmage', 'Arquimaga Infernal', 5000, 3.1),
+} satisfies Partial<Record<EnemyId, EnemyDef>>);
+
+/** Cor das partículas quando o inimigo morre. */
+export const DEATH_TINT: Record<EnemyId, number> = {
+  slime: 0x6fdc72, bat: 0x7a4fa8, goblin: 0x5bb04f, wolf: 0x8f96a6, skeleton: 0xd5d1d6, orc: 0x7aab42, demon: 0xd23b35,
+  slime_fire: 0xff7a2e, slime_water: 0x41a6f6, goblin_earth: 0xc69c6d, bat_air: 0xa7f070,
+  slime_spit: 0xc06ad8, slime_magma: 0xff4a1a, slime_bomb: 0x5a4a4a, orc_chief: 0xb5532e,
+  frog: 0x6fdc72, croc: 0x4fa040, mosquito: 0xe8c040, sporeshroom: 0xa070d0, frog_shaman: 0x41a6f6, frog_king: 0x5ab84a,
+  king_slime: 0x6fdc72, alpha_wolf: 0x8f96a6, magma_lord: 0xff4a1a, goblin_warlord: 0xc69c6d, croc_king: 0x4fa040,
+  grand_frog_shaman: 0x41a6f6, colossal_worm: 0xd8b880, lizard_elder: 0x9ad050, werewolf_alpha: 0x8a8f9a, elder_witch: 0x7ac050,
+  scorpion: 0xe08a3a, vulture: 0x8a6a4a, cactus_spitter: 0x6ab84a, sandworm: 0xd8b880, lizard_shaman: 0x9ad050, scorpion_emperor: 0xe8c040,
+  goblin_king: 0x5bb04f, yeti: 0xe8f4ff, snow_golem: 0xffffff, frost_wraith: 0x9fe8ff, penguin: 0x2a3050, snow_owl: 0xf0f0f0, ice_dragon: 0xa0e0ff,
+  yeti_elder: 0xe8f4ff, frost_queen: 0x9fe8ff,
+  salamander: 0xff7a2e, ember_bat: 0xff5a1a, magma_golem: 0x3a2a2a, fire_imp: 0xe8402a, lava_serpent: 0xff6a1a, magma_titan: 0xff4a1a,
+  salamander_queen: 0xff7a2e, ash_lord: 0x8a8a8a,
+  zombie: 0x7a9a6a, lost_soul: 0xc8b0ff, phantom_knight: 0x9fe8ff, skeleton_archer: 0xd5d1d6, gargoyle: 0x8a8a92, necromancer: 0x7ac050, mimic: 0xc69c6d,
+  cursed_bell: 0xc8903a, winged_imp: 0x7a3aa8, hellhound: 0xff5a1a, demon_brute: 0xc0302a, floating_eye: 0xe84a4a, demon_witch: 0xb060ff,
+  demon_portal: 0xb02a4a, demon_general: 0xc0302a, infernal_archmage: 0xb060ff, lich_king: 0x7af0c0, gargoyle_ancient: 0x8a8a92, grand_necromancer: 0x7ac050,
+  werewolf: 0x8a8f9a, wisp: 0x9af0f0, spider: 0x7a4fa8, witch: 0x7ac050, ancient_ent: 0x9a50d0,
+};
