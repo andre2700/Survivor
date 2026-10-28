@@ -3,7 +3,7 @@ import { walkPose } from '../art/motion';
 import { frameHd, frameName, groundSprite, slotsOf } from '../art/textures';
 import { maxTier, tierColor, tierName, tierUnlocked, type TierProgress } from '../data/difficulty';
 import { ENEMIES, type EnemyId } from '../data/enemies';
-import { BOSS_STAGES, STAGES, stageUnlocked, type Mood, type RunEventId, type StageDef } from '../data/stages';
+import { BOSS_STAGES, STAGES, stageUnlocked, type RunEventId, type StageDef } from '../data/stages';
 import { dev } from '../systems/dev';
 import { loadSave, writeSave, type SaveData } from '../systems/save';
 import { sfx } from '../systems/sfx';
@@ -11,7 +11,6 @@ import { FONT, button, goldTitle, panel, px, starIcon, text } from '../ui/theme'
 import { VIEW, WIDE_COL, col, isWide, pointerPos, setupCamera } from '../ui/view';
 
 /** Cor da etiqueta de clima. */
-const MOOD_CHIP: Record<Mood, number> = { leve: 0x9be28a, sério: 0xf0c060, sombrio: 0x9aa8e8, épico: 0xff7a6a };
 
 /** Ícone de cada mistério (evento) no painel. */
 const EVENT_ICON: Record<RunEventId, [string, number?]> = {
@@ -187,9 +186,6 @@ export class StageScene extends Phaser.Scene {
     this.add$(goldTitle(this, tx, 50, st.name.toUpperCase(), st.name.length > 16 ? 22 : 26).setDepth(7000));
     const sub = known ? `${st.subtitle} · ${st.elements}` : open ? `${st.subtitle} · em breve` : st.subtitle;
     this.add$(text(this, tx, 78, sub, 11, '#e8ecff', { strokeThickness: 3 }).setDepth(7000));
-    this.add$(this.add.text(tx, 98, st.mood.toUpperCase(), {
-      fontFamily: FONT, fontSize: px(10), fontStyle: 'bold', color: '#14101e', backgroundColor: `#${MOOD_CHIP[st.mood].toString(16).padStart(6, '0')}`, padding: { x: 6, y: 2 },
-    }).setOrigin(0.5).setDepth(7000));
     if (!open) {
       const prev = STAGES[this.index - 1];
       this.add$(text(this, a.centerX, a.y + a.height * 0.5 + 54, `Vença o chefe final de\n${prev?.name ?? ''} para liberar`, 13, '#ffd86a', { bold: true, strokeThickness: 4 })

@@ -356,3 +356,10 @@
 {"at":"2026-10-27T21:02:04.333Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/chefe_fogo.mp3","tokens":1664}
 {"at":"2026-10-27T21:02:26.244Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/chefe_final.mp3","tokens":1880}
 {"at":"2026-10-27T21:02:55.178Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia/sombria.mp3","tokens":1240}
+{"at":"2026-10-28T16:45:03.353Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia2/ruinas_b.mp3","tokens":1818}
+{"at":"2026-10-28T16:45:03.617Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia2/cidadela_a.mp3","tokens":1987}
+{"at":"2026-10-28T16:45:04.730Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia2/cidadela_b.mp3","tokens":1325}
+{"at":"2026-10-28T16:45:06.676Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia2/pico_b.mp3","tokens":1645}
+{"at":"2026-10-28T16:45:07.823Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia2/ruinas_a.mp3","tokens":1009}
+{"at":"2026-10-28T16:45:24.209Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia2/pico_a.mp3","tokens":1229}
+{"at":"2026-10-28T16:46:12.172Z","model":"lyria-3-pro-preview","out":"screenshots/musica-ia2/chefe_final_b.mp3","tokens":1706}
